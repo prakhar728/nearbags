@@ -13,6 +13,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Link href="/explore" className="hidden hover:text-text sm:inline">EXPLORE</Link>
             <Link href="/create" className="hover:text-text">CREATE</Link>
             <Link href="/portfolio" className="hover:text-text">PORTFOLIO</Link>
+            <Link href="/thesis" className="hidden hover:text-text sm:inline">THESIS</Link>
             <ConnectButton />
           </nav>
         </div>
