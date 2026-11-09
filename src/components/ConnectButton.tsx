@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useConnect } from "wagmi";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
 
 const short = (a: string) => (a.length > 18 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
@@ -20,7 +21,8 @@ export function ConnectButton() {
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  if (loading) return <span className="font-mono text-xs text-faint">…</span>;
+  // Same footprint as the button, so the header doesn't shift when the session check finishes.
+  if (loading) return <Skeleton className="h-[30px] w-[5.5rem]" />;
 
   const evmConnectors = connectors.filter((c, i, all) => all.findIndex((x) => x.name === c.name) === i);
 

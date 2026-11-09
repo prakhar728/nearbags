@@ -1,6 +1,7 @@
 "use client";
 // Sell 25/50/75/100% of a basket position, paid out in any token on any chain (spec §5.5). No fees on sells.
 import { useEffect, useMemo, useState } from "react";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder } from "@/lib/client/order-runner";
 import type { PayToken } from "@/lib/client/pay";
@@ -74,13 +75,20 @@ export function SellPanel({ positionId, basketId, onDone }: { positionId: number
           </button>
         ))}
       </div>
-      <select id={`sell-token-${positionId}`} value={payout} onChange={(e) => (setPayout(e.target.value), setAddress(""))} className="num border border-border bg-bg px-3 py-2 text-sm">
-        {tokens.map((t) => (
-          <option key={t.assetId} value={t.assetId}>
-            Receive {t.symbol} on {CHAIN_NAMES[t.chain] ?? t.chain}
-          </option>
-        ))}
-      </select>
+      {tokens.length ? (
+        <select id={`sell-token-${positionId}`} value={payout} onChange={(e) => (setPayout(e.target.value), setAddress(""))} className="num border border-border bg-bg px-3 py-2 text-sm">
+          {tokens.map((t) => (
+            <option key={t.assetId} value={t.assetId}>
+              Receive {t.symbol} on {CHAIN_NAMES[t.chain] ?? t.chain}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <div role="status" className="flex h-[38px] items-center border border-border px-3">
+          <span className="sr-only">Loading payout tokens</span>
+          <Skeleton className="h-3 w-40" />
+        </div>
+      )}
       {token && !defaultAddr && (
         <input id={`sell-addr-${positionId}`} placeholder={`Your ${CHAIN_NAMES[token.chain] ?? token.chain} address`} value={address} onChange={(e) => setAddress(e.target.value.trim())} className="num border border-border bg-bg px-3 py-2 text-xs" />
       )}

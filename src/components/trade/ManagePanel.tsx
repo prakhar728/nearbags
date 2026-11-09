@@ -1,6 +1,7 @@
 "use client";
 // Reset to target weights and withdraw-as-tokens for one position (spec §5.6, §5.7).
 import { useState } from "react";
+import { Loading, Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder } from "@/lib/client/order-runner";
 import type { OrderView } from "@/lib/trade/orders";
@@ -22,6 +23,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
   const [view, setView] = useState<OrderView | null>(null);
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
 
   async function run(start: () => Promise<OrderView>, label: string) {
     if (!user) return;
@@ -43,6 +45,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
 
   const openWithdraw = async () => {
     setErr(null);
+    setOpening(true);
     try {
       const { chains } = await api<{ chains: Record<string, string[]> }>(`/api/orders/withdraw?positionId=${positionId}`);
       setChains(chains);
@@ -54,6 +57,8 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
       setAddr(pre);
     } catch (e) {
       setErr((e as Error).message);
+    } finally {
+      setOpening(false);
     }
   };
 
@@ -63,10 +68,22 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
         <button type="button" disabled={!!step} onClick={() => run(() => api<OrderView>("/api/orders/reset", { method: "POST", body: JSON.stringify({ positionId }) }), "Rebalancing…")} className="border border-border px-3 py-1.5 font-mono text-xs hover:border-border-strong disabled:opacity-40">
           RESET TO TARGET
         </button>
-        <button type="button" disabled={!!step} onClick={openWithdraw} className="border border-border px-3 py-1.5 font-mono text-xs hover:border-border-strong disabled:opacity-40">
+        <button type="button" disabled={!!step || opening} onClick={openWithdraw} className="border border-border px-3 py-1.5 font-mono text-xs hover:border-border-strong disabled:opacity-40">
           WITHDRAW AS TOKENS
         </button>
       </div>
+      {opening && !chains && (
+        <Loading label="Checking where each token can go" className="grid gap-2 border border-border p-3">
+          <Skeleton className="h-2.5 w-4/5" />
+          {[0, 1].map((i) => (
+            <div key={i} className="grid gap-1">
+              <Skeleton className="h-2.5 w-40" />
+              <Skeleton className="h-[34px] w-full" />
+            </div>
+          ))}
+          <Skeleton className="h-8 w-full" />
+        </Loading>
+      )}
       {chains && (
         <div className="grid gap-2 border border-border p-3">
           <p className="text-[11px] text-faint">Tokens leave Stonkbag tracking and land in your own wallets. Ondo stock tokens go to BNB Chain.</p>

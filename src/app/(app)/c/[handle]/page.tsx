@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { BasketCard } from "@/components/basket/BasketCard";
+import { CardGridSkeleton } from "@/components/basket/Skeletons";
 import { Label } from "@/components/basket/Pairs";
 import { getSession } from "@/lib/auth/session";
 import { getCreatorProfile, listPendingByCreator, type CreatorProfile } from "@/lib/basket-pages";
@@ -46,7 +47,7 @@ export default async function ProfilePage({ params }: PageProps<"/c/[handle]">) 
       <section className="space-y-4">
         <Label>Baskets · {p.baskets.length}</Label>
         {p.baskets.length ? (
-          <Suspense fallback={<div className="h-48 border border-border" />}>
+          <Suspense fallback={<CardGridSkeleton count={p.baskets.length} />}>
             <Cards p={p} />
           </Suspense>
         ) : (

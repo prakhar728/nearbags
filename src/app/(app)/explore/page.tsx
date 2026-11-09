@@ -4,6 +4,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { BasketCard } from "@/components/basket/BasketCard";
+import { CardGridSkeleton } from "@/components/basket/Skeletons";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { listExploreBaskets } from "@/lib/basket-pages";
 import { basketKind, type BasketKind } from "@/lib/basket-kind";
 import { ageDays, cardData } from "@/lib/cards";
@@ -178,12 +180,17 @@ function Chip({ href, on, children }: { href: string; on: boolean; children: Rea
 function ExploreSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="h-8 border-b border-border" />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="h-48 border border-border bg-surface/40" />
-        ))}
+      <div className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex gap-5 overflow-hidden">
+          {TABS.map((t) => (
+            <span key={t.id} className="whitespace-nowrap font-mono text-xs uppercase tracking-wider text-faint">
+              {t.label}
+            </span>
+          ))}
+        </div>
+        <Skeleton className="h-[22px] w-[30rem] max-w-full" />
       </div>
+      <CardGridSkeleton />
     </div>
   );
 }
