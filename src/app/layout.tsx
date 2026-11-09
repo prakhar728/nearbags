@@ -23,8 +23,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/" className="font-mono text-sm font-semibold tracking-[0.2em]">
               STONKBAG
             </Link>
-            <nav className="flex items-center gap-6 font-mono text-xs text-muted">
-              <Link href="/" className="hover:text-text">EXPLORE</Link>
+            <nav className="flex items-center gap-4 font-mono text-xs text-muted sm:gap-6">
+              <Link href="/" className="hidden hover:text-text sm:inline">EXPLORE</Link>
               <Link href="/create" className="hover:text-text">CREATE</Link>
               <Link href="/portfolio" className="hover:text-text">PORTFOLIO</Link>
               <ConnectButton />

@@ -30,6 +30,7 @@
     "buffer": "^6.0.3",
     "drizzle-orm": "^0.45.4",
     "jose": "^6.2.16",
+    "lightweight-charts": "5.0.9",
     "near-api-js": "^6.2.5",
     "near-api-js-v7": "npm:near-api-js@7.4.0",
     "next": "16.4.5",

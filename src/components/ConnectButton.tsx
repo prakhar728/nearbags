@@ -82,6 +82,9 @@ export function ConnectButton() {
                 </button>
               )}
               <Link href="/portfolio" className="border border-border px-3 py-2 hover:border-border-strong">Portfolio</Link>
+              <Link href="/profile" onClick={() => setOpen(false)} className="border border-border px-3 py-2 hover:border-border-strong">
+                Profile{user.handle ? <span className="text-muted"> · @{user.handle}</span> : <span className="text-muted"> · set a handle</span>}
+              </Link>
               <button type="button" onClick={signOut} className="border border-border px-3 py-2 text-left text-muted hover:border-border-strong">
                 Sign out
               </button>
