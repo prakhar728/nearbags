@@ -29,15 +29,15 @@ export default async function SharedPnl({ params }: { params: Promise<{ token: s
 
   return (
     <div className="mx-auto grid max-w-3xl gap-8 py-6">
-      <div className="relative overflow-hidden rounded-3xl border border-border bg-surface p-8 sm:p-12">
+      <div className="card card-ticks rise relative overflow-hidden p-8 sm:p-12">
         <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
         <div className="relative grid gap-3">
           <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
             {s.by ?? "A Stonkbag holder"} · {s.state === "open" ? "holding" : "closed"}
           </span>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{s.name}</h1>
+          <h1 className="display text-[clamp(36px,6vw,64px)]">{s.name}</h1>
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
-            <span className={`num text-6xl font-bold tracking-tight sm:text-7xl ${tone}`}>{pctText(s.pct)}</span>
+            <span className={`big-num text-6xl sm:text-8xl ${tone}`}>{pctText(s.pct)}</span>
             {s.usd != null && <span className={`num text-2xl ${tone}`}>{usdText(s.usd)}</span>}
           </div>
           <p className="num text-sm text-muted">
@@ -46,7 +46,7 @@ export default async function SharedPnl({ params }: { params: Promise<{ token: s
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             {s.assets.map((a) => (
-              <span key={a} className="num rounded-full border border-border bg-bg px-3 py-1 text-xs">
+              <span key={a} className="chip">
                 {a}
               </span>
             ))}
@@ -58,7 +58,7 @@ export default async function SharedPnl({ params }: { params: Promise<{ token: s
         <p className="max-w-md text-sm leading-relaxed text-muted">
           Stonkbag baskets mix tokenized US stocks and crypto. Pay with any token on any chain and get the whole bag in one buy, in an account only your keys control.
         </p>
-        <Link href={`/b/${s.slug}`} className="rounded-full bg-accent px-6 py-3 font-mono text-xs font-semibold text-accent-ink transition hover:brightness-110">
+        <Link href={`/b/${s.slug}`} className="btn btn-primary">
           SEE THE {s.name.toUpperCase()} BAG →
         </Link>
       </div>

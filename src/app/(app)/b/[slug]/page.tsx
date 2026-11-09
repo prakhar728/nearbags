@@ -14,6 +14,7 @@ import { Card, Section as UISection } from "@/components/ui/Primitives";
 import { Markdown } from "@/components/Markdown";
 import { Loading, SkeletonText } from "@/components/ui/Skeleton";
 import { BuyPanel } from "@/components/trade/BuyPanel";
+import { ShareBasket } from "@/components/share/ShareBasket";
 import { getAnalyticsView, getLiveReturn } from "@/lib/analytics/cached";
 import { getAsset } from "@/lib/assets";
 import { getBasketPage, liveMetrics, type BasketEdit } from "@/lib/basket-pages";
@@ -120,13 +121,14 @@ function Header({ b }: { b: BasketView }) {
     b.status === "live" ? <Tag tone="accent">Live</Tag> : b.status === "pending" ? <Tag>Pending</Tag> : b.status === "closed" ? <Tag>Closed</Tag> : <Tag tone="loss">Hidden</Tag>;
   return (
     <div className="min-w-0 space-y-7">
-      <div className="rise flex flex-wrap items-center justify-between gap-3" style={{ "--i": 0 } as React.CSSProperties}>
+      <div className="rise relative z-20 flex flex-wrap items-center justify-between gap-3" style={{ "--i": 0 } as React.CSSProperties}>
         <div className="flex flex-wrap items-center gap-2">
           {statusTag}
           {b.isHouse && <Tag>House basket</Tag>}
         </div>
-        {/* Share actions go here (basket hero). */}
-        <div data-slot="basket-actions" className="flex flex-wrap items-center gap-2" />
+        <div data-slot="basket-actions" className="flex flex-wrap items-center gap-2">
+          {(b.status === "live" || b.status === "closed") && <ShareBasket slug={b.slug} name={b.name} tagline={b.tagline} />}
+        </div>
       </div>
       <div className="rise space-y-3" style={{ "--i": 1 } as React.CSSProperties}>
         <h1 className="display text-[clamp(40px,7vw,76px)]">{b.name}</h1>

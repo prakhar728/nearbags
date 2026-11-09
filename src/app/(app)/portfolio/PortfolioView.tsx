@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ManagePanel } from "@/components/trade/ManagePanel";
+import { SharePnl } from "@/components/share/SharePnl";
 import { SellPanel } from "@/components/trade/SellPanel";
 import { Empty as EmptyState, Section, Stat } from "@/components/ui/Primitives";
 import { Loading, LoadingNote, Skeleton } from "@/components/ui/Skeleton";
@@ -158,8 +159,9 @@ export function PortfolioView() {
                         </span>
                       </div>
                     </button>
-                    {/* Share actions for an open bag go here (portfolio row). */}
-                    <div data-slot="position-actions" className="flex items-center pr-3 empty:hidden" />
+                    <div data-slot="position-actions" className="flex items-center pr-3 empty:hidden">
+                      {r.pnlUsd != null && !r.openOrderId && <SharePnl positionId={r.positionId} basketName={r.basket.name} compact />}
+                    </div>
                   </div>
 
                   {isOpen && (

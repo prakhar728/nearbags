@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { LineChart, type ChartLine } from "@/components/charts/LineChart";
+import { SharePnl } from "@/components/share/SharePnl";
 import { Section } from "@/components/ui/Primitives";
 import type { History } from "@/lib/trade/history";
 
@@ -55,7 +56,31 @@ export function ClosedBags({ closed }: { closed: History["closed"] }) {
   if (!closed.length) return null;
   return (
     <Section title="Closed bags" right={<span className="badge">{closed.length} closed</span>}>
-      <div className="tbl-wrap">
+      {/* Phones: one card per bag, so the share button is on screen instead of in a sideways-scrolling table. */}
+      <ul className="grid gap-2 sm:hidden">
+        {closed.map((c, i) => (
+          <li key={i} className="card card-pad grid gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent">
+                  {c.basket.name}
+                </Link>
+                <div className="num mt-0.5 text-[11px] text-muted">closed {when(c.closedAt)}</div>
+              </div>
+              <span className={`badge shrink-0 normal-case tracking-normal ${c.pnlUsd >= 0 ? "badge-gain" : "badge-loss"}`}>
+                {signed(c.pnlUsd)} · {((c.pnlUsd / c.usdIn) * 100).toFixed(1)}%
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="num text-xs text-muted">
+                {usd(c.usdIn)} in · {usd(c.usdOut)} back
+              </span>
+              <SharePnl positionId={c.positionId} basketName={c.basket.name} compact />
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="tbl-wrap max-sm:hidden">
         <table className="tbl min-w-[620px]">
           <thead>
             <tr>
@@ -85,8 +110,9 @@ export function ClosedBags({ closed }: { closed: History["closed"] }) {
                   </span>
                 </td>
                 <td className="r text-muted">{when(c.closedAt)}</td>
-                {/* Share actions for a closed bag go here (closed bags row). */}
-                <td className="r" data-slot="closed-actions" />
+                <td className="r" data-slot="closed-actions">
+                  <SharePnl positionId={c.positionId} basketName={c.basket.name} compact />
+                </td>
               </tr>
             ))}
           </tbody>

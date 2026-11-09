@@ -59,6 +59,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const keyRef = useRef<BasketKey | null>(null);
+  const pickedToken = useRef(false); // the buyer chose a pay token; stop re-defaulting it
   const runRef = useRef<AbortController | null>(null);
 
   const token = tokens.find((t) => t.assetId === payAsset);
@@ -94,7 +95,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       .then(({ tokens }) => {
         setTokens(tokens);
         const def = tokens.find((t) => t.symbol === "USDC" && t.chain === (user?.chain === "near" ? "near" : "arb")) ?? tokens[0];
-        if (def) setPayAsset((cur) => cur || def.assetId);
+        if (def) setPayAsset((cur) => (pickedToken.current && cur ? cur : def.assetId));
       })
       .catch(() => setErr("Couldn't load payment tokens."));
   }, [user?.chain]);
@@ -289,6 +290,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
             id="buy-token"
             value={payAsset}
             onChange={(e) => {
+              pickedToken.current = true;
               setPayAsset(e.target.value);
               setRefund("");
               setPhase("form");

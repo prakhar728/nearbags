@@ -45,20 +45,20 @@ export function ShareBasket({ slug, name, tagline, className = "" }: { slug: str
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex min-h-[40px] items-center gap-2 rounded-full border border-border bg-surface px-4 font-mono text-xs text-text transition hover:border-border-strong active:scale-[0.98]"
+        className="btn btn-secondary btn-sm"
       >
         <ShareIcon /> SHARE
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-30 mt-2 grid w-56 gap-1 rounded-2xl border border-border bg-surface p-1.5 shadow-2xl shadow-black/60">
-          <a role="menuitem" href={xIntent(text, url)} target="_blank" rel="noopener noreferrer" className="rounded-xl px-3 py-2.5 text-sm hover:bg-bg">
+        <div role="menu" className="pop absolute right-0 z-30 mt-2 grid w-56 gap-1 rounded-[var(--r-lg)] border border-[var(--line-strong)] bg-[#141414] p-1.5 shadow-2xl shadow-black/60">
+          <a role="menuitem" href={xIntent(text, url)} target="_blank" rel="noopener noreferrer" className="rounded-xl px-3 py-2.5 text-sm hover:bg-[var(--layer-2)]">
             Post on X
           </a>
-          <button role="menuitem" type="button" onClick={copy} className="rounded-xl px-3 py-2.5 text-left text-sm hover:bg-bg">
+          <button role="menuitem" type="button" onClick={copy} className="rounded-xl px-3 py-2.5 text-left text-sm hover:bg-[var(--layer-2)]">
             {copied ? "Link copied" : "Copy link"}
           </button>
           {canNative && (
-            <button role="menuitem" type="button" onClick={() => navigator.share({ title: `${name} · Stonkbag`, text: tagline, url }).catch(() => {})} className="rounded-xl px-3 py-2.5 text-left text-sm hover:bg-bg">
+            <button role="menuitem" type="button" onClick={() => navigator.share({ title: `${name} · Stonkbag`, text: tagline, url }).catch(() => {})} className="rounded-xl px-3 py-2.5 text-left text-sm hover:bg-[var(--layer-2)]">
               More…
             </button>
           )}

@@ -41,7 +41,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
       <button
         type="button"
         onClick={openDialog}
-        className={`inline-flex items-center gap-2 rounded-full border border-border bg-surface font-mono text-xs text-text transition hover:border-border-strong active:scale-[0.98] ${compact ? "min-h-[32px] px-3" : "min-h-[40px] px-4"}`}
+        className={`btn btn-secondary ${compact ? "btn-sm" : ""}`}
       >
         <ShareIcon /> {compact ? "SHARE" : "SHARE P&L"}
       </button>
@@ -51,17 +51,17 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
           e.stopPropagation();
           if (e.target === dialog.current) dialog.current?.close();
         }}
-        className="m-auto w-[min(640px,calc(100vw-32px))] rounded-3xl border border-border bg-surface p-0 text-text backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+        className="m-auto w-[min(640px,calc(100vw-32px))] text-left rounded-[var(--r-xl)] border border-[var(--line-strong)] bg-[#121212] p-0 text-text shadow-2xl shadow-black/70 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
       >
         <div className="grid gap-4 p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-base font-semibold">Share your {basketName} bag</h2>
-            <button type="button" onClick={() => dialog.current?.close()} aria-label="Close" className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-bg hover:text-text">
+            <button type="button" onClick={() => dialog.current?.close()} aria-label="Close" className="btn btn-ghost btn-sm !px-0 w-10">
               ✕
             </button>
           </div>
 
-          <div className="relative aspect-[1200/630] overflow-hidden rounded-2xl border border-border bg-bg">
+          <div className="relative aspect-[1200/630] overflow-hidden rounded-[var(--r-lg)] border border-[var(--line)] bg-bg">
             {made && !busy ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img key={made.key} src={made.image} alt={`P&L card for ${basketName}`} className="h-full w-full object-cover" />
@@ -91,7 +91,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
               target="_blank"
               rel="noopener noreferrer"
               aria-disabled={!made}
-              className={`grid min-h-[44px] place-items-center rounded-full bg-accent px-4 font-mono text-xs font-semibold text-accent-ink transition hover:brightness-110 ${made ? "" : "pointer-events-none opacity-40"}`}
+              className={`btn btn-primary ${made ? "" : "pointer-events-none opacity-40"}`}
             >
               POST ON X
             </a>
@@ -103,7 +103,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1600);
               }}
-              className="min-h-[44px] rounded-full border border-border px-4 font-mono text-xs transition hover:border-border-strong disabled:opacity-40"
+              className="btn btn-secondary"
             >
               {copied ? "COPIED" : "COPY LINK"}
             </button>
@@ -112,7 +112,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
                 type="button"
                 disabled={!made}
                 onClick={() => navigator.share({ title: `My ${basketName} bag`, url }).catch(() => {})}
-                className="min-h-[44px] rounded-full border border-border px-4 font-mono text-xs transition hover:border-border-strong disabled:opacity-40"
+                className="btn btn-secondary"
               >
                 SHARE…
               </button>
@@ -120,7 +120,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
               <a
                 href={made ? `${made.image}?download=1` : undefined}
                 aria-disabled={!made}
-                className={`grid min-h-[44px] place-items-center rounded-full border border-border px-4 font-mono text-xs transition hover:border-border-strong ${made ? "" : "pointer-events-none opacity-40"}`}
+                className={`btn btn-secondary ${made ? "" : "pointer-events-none opacity-40"}`}
               >
                 DOWNLOAD IMAGE
               </a>
