@@ -49,25 +49,25 @@ export function CreatorTools({ basket: b }: { basket: CreatorToolsBasket }) {
   };
 
   return (
-    <div className="space-y-3 border border-border-strong bg-surface p-4">
+    <div className="card card-ticks card-pad space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="font-mono text-[10px] uppercase tracking-wider text-faint">Your basket</div>
+        <div className="label flex items-center gap-2"><span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />Your basket</div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => setEditing(!editing)} className="border border-border px-3 py-1.5 font-mono text-xs hover:border-border-strong">
+          <button type="button" onClick={() => setEditing(!editing)} className="btn btn-secondary btn-sm">
             {editing ? "Cancel edit" : "Edit text"}
           </button>
           {(b.status === "live" || b.status === "pending") &&
             (closing ? (
               <>
-                <button type="button" disabled={busy} onClick={close} className="border border-loss/60 px-3 py-1.5 font-mono text-xs text-loss disabled:opacity-50">
+                <button type="button" disabled={busy} onClick={close} className="btn btn-danger btn-sm">
                   {busy ? "Closing…" : "Yes, close it"}
                 </button>
-                <button type="button" onClick={() => setClosing(false)} className="px-2 font-mono text-xs text-muted hover:text-text">
+                <button type="button" onClick={() => setClosing(false)} className="btn btn-ghost btn-sm">
                   Keep open
                 </button>
               </>
             ) : (
-              <button type="button" onClick={() => setClosing(true)} className="border border-border px-3 py-1.5 font-mono text-xs text-muted hover:border-border-strong hover:text-text">
+              <button type="button" onClick={() => setClosing(true)} className="btn btn-ghost btn-sm">
                 Close to new buyers
               </button>
             ))}
@@ -78,8 +78,8 @@ export function CreatorTools({ basket: b }: { basket: CreatorToolsBasket }) {
           Publish by buying at least <span className="num text-accent">${b.minBuyUsd}</span> of your basket. It goes live once that buy completes.
         </p>
       )}
-      {closing && <p className="text-xs text-muted">Closing stops new buys for good. Holders can still sell and withdraw. You can&apos;t reopen it.</p>}
-      {err && <p className="text-xs text-loss">{err}</p>}
+      {closing && <p className="callout callout-warn text-xs">Closing stops new buys for good. Holders can still sell and withdraw. You can&apos;t reopen it.</p>}
+      {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
       {editing && (
         <EditForm
           b={b}
@@ -116,7 +116,7 @@ function EditForm({ b, onDone }: { b: CreatorToolsBasket; onDone: () => void }) 
   };
 
   return (
-    <div className="space-y-4 border-t border-border pt-4">
+    <div className="space-y-4 border-t border-[var(--line)] pt-5">
       <p className="text-xs text-muted">Every change is logged with a timestamp and shown publicly. Name, assets, weights and fee can&apos;t change.</p>
       <Field label="Tagline" max={LIMITS.tagline} value={f.tagline} onChange={(v) => setF({ ...f, tagline: v })} />
       <Field label="Thesis" max={LIMITS.thesis} rows={6} value={f.thesis} onChange={(v) => setF({ ...f, thesis: v })} />
@@ -126,9 +126,9 @@ function EditForm({ b, onDone }: { b: CreatorToolsBasket; onDone: () => void }) 
       <Field label="Risks" max={LIMITS.risks} rows={3} value={f.risks} onChange={(v) => setF({ ...f, risks: v })} />
       <Field label="Exit signal (optional)" max={LIMITS.exitSignal} rows={2} value={f.exitSignal} onChange={(v) => setF({ ...f, exitSignal: v })} />
       <Field label="Deep dive (optional, Markdown, links only)" max={LIMITS.deepDive} rows={8} value={f.deepDive} onChange={(v) => setF({ ...f, deepDive: v })} />
-      {err && <p className="text-xs text-loss">{err}</p>}
+      {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
       {saved && <p className="text-xs text-muted">{saved}</p>}
-      <button type="button" disabled={busy} onClick={save} className="bg-accent px-4 py-2 font-mono text-xs font-semibold text-accent-ink disabled:opacity-50">
+      <button type="button" disabled={busy} onClick={save} className="btn btn-primary">
         {busy ? "Saving…" : "Save changes"}
       </button>
     </div>
@@ -151,19 +151,19 @@ export function Field({
   placeholder?: string;
 }) {
   const over = value.length > max;
-  const cls = `w-full border bg-bg px-3 py-2 text-sm text-text placeholder:text-faint focus:outline-none ${over ? "border-loss" : "border-border focus:border-border-strong"}`;
+  const cls = `input ${over ? "!border-loss" : ""}`;
   return (
     <label className="block">
       <span className="flex items-baseline justify-between gap-3">
-        <span className="font-mono text-[10px] uppercase tracking-wider text-faint">{label}</span>
+        <span className="label">{label}</span>
         <span className={`num text-[10px] ${over ? "text-loss" : "text-faint"}`}>
           {value.length}/{max.toLocaleString("en-US")}
         </span>
       </span>
       {rows ? (
-        <textarea rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={`${cls} mt-1 resize-y leading-relaxed`} />
+        <textarea rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={`${cls} mt-2 resize-y`} />
       ) : (
-        <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={`${cls} mt-1`} />
+        <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} className={`${cls} mt-2`} />
       )}
     </label>
   );

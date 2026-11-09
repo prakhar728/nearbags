@@ -65,48 +65,48 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
-        <button type="button" disabled={!!step} onClick={() => run(() => api<OrderView>("/api/orders/reset", { method: "POST", body: JSON.stringify({ positionId }) }), "Rebalancing…")} className="border border-border px-3 py-1.5 font-mono text-xs hover:border-border-strong disabled:opacity-40">
+        <button type="button" disabled={!!step} onClick={() => run(() => api<OrderView>("/api/orders/reset", { method: "POST", body: JSON.stringify({ positionId }) }), "Rebalancing…")} className="btn btn-secondary btn-sm">
           RESET TO TARGET
         </button>
-        <button type="button" disabled={!!step || opening} onClick={openWithdraw} className="border border-border px-3 py-1.5 font-mono text-xs hover:border-border-strong disabled:opacity-40">
+        <button type="button" disabled={!!step || opening} onClick={openWithdraw} className="btn btn-secondary btn-sm">
           WITHDRAW AS TOKENS
         </button>
       </div>
       {opening && !chains && (
-        <Loading label="Checking where each token can go" className="grid gap-2 border border-border p-3">
+        <Loading label="Checking where each token can go" className="well grid gap-3 p-4">
           <Skeleton className="h-2.5 w-4/5" />
           {[0, 1].map((i) => (
             <div key={i} className="grid gap-1">
               <Skeleton className="h-2.5 w-40" />
-              <Skeleton className="h-[34px] w-full" />
+              <Skeleton className="h-11 w-full rounded-[var(--r-sm)]" />
             </div>
           ))}
-          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-11 w-full rounded-full" />
         </Loading>
       )}
       {chains && (
-        <div className="grid gap-2 border border-border p-3">
-          <p className="text-[11px] text-faint">Tokens leave Stonkbag tracking and land in your own wallets. Ondo stock tokens go to BNB Chain.</p>
+        <div className="well grid gap-3 p-4">
+          <p className="fine">Tokens leave Stonkbag tracking and land in your own wallets. Ondo stock tokens go to BNB Chain.</p>
           {Object.entries(chains).map(([c, ids]) => (
-            <label key={c} className="grid gap-1">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-faint">
+            <label key={c} className="field">
+              <span className="label">
                 {CHAIN_NAMES[c] ?? c} address · {ids.join(", ")}
               </span>
-              <input id={`wd-${positionId}-${c}`} value={addr[c] ?? ""} onChange={(e) => setAddr((a) => ({ ...a, [c]: e.target.value.trim() }))} className="num border border-border bg-bg px-3 py-2 text-xs" />
+              <input id={`wd-${positionId}-${c}`} value={addr[c] ?? ""} onChange={(e) => setAddr((a) => ({ ...a, [c]: e.target.value.trim() }))} className="input num text-xs" />
             </label>
           ))}
           <button
             type="button"
             disabled={!!step || Object.keys(chains).some((c) => !addr[c])}
             onClick={() => run(() => api<OrderView>("/api/orders/withdraw", { method: "POST", body: JSON.stringify({ positionId, addresses: addr }) }), "Withdrawing…")}
-            className="border border-border-strong px-3 py-2 font-mono text-xs font-semibold hover:border-text disabled:opacity-40"
+            className="btn btn-primary btn-block"
           >
             WITHDRAW EVERYTHING
           </button>
         </div>
       )}
       {view && (
-        <div className="grid gap-1">
+        <div className="well grid gap-2 p-3">
           {view.legs.map((l) => (
             <div key={l.seq} className="num flex justify-between text-xs">
               <span className="text-muted">{view.order.kind === "withdraw" ? `To ${l.recipient?.slice(0, 10)}…` : `Swap ${l.seq + 1}`}</span>
@@ -115,8 +115,13 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
           ))}
         </div>
       )}
-      {err && <p className="text-xs text-loss">{err}</p>}
-      {step && <p className="num text-xs text-accent">{step}</p>}
+      {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
+      {step && (
+        <p className="num flex items-center gap-2 text-xs text-accent">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent/30 border-t-accent" aria-hidden />
+          {step}
+        </p>
+      )}
     </div>
   );
 }

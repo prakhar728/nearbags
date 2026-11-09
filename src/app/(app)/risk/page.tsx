@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/Primitives";
 import { ATTESTATION_TEXT } from "@/lib/compliance";
 
 export const metadata = { title: "Risks · Stonkbag" };
@@ -15,19 +16,19 @@ const RISKS: [string, string][] = [
 
 export default function Risk() {
   return (
-    <article className="grid max-w-2xl gap-8">
-      <h1 className="font-mono text-xl font-semibold tracking-tight">Risks</h1>
-      <dl className="grid gap-5">
+    <article className="grid max-w-3xl gap-10">
+      <PageHeader kicker="Read this first" title="Risks" />
+      <dl className="grid gap-3">
         {RISKS.map(([k, v]) => (
-          <div key={k} className="grid gap-1">
-            <dt className="font-mono text-[11px] uppercase tracking-wider text-faint">{k}</dt>
-            <dd className="text-sm leading-relaxed text-muted">{v}</dd>
+          <div key={k} className="card grid gap-2 p-5">
+            <dt className="label text-muted">{k}</dt>
+            <dd className="text-[15px] leading-relaxed text-muted">{v}</dd>
           </div>
         ))}
       </dl>
-      <section className="grid gap-2 border-t border-border pt-6">
-        <h2 className="font-mono text-[11px] uppercase tracking-wider text-faint">What you confirm before your first buy</h2>
-        <p className="text-sm leading-relaxed text-muted">{ATTESTATION_TEXT.risk}</p>
+      <section className="card card-ticks grid gap-3 p-6">
+        <h2 className="label">What you confirm before your first buy</h2>
+        <p className="text-[15px] leading-relaxed text-muted">{ATTESTATION_TEXT.risk}</p>
       </section>
     </article>
   );

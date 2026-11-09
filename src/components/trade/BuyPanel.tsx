@@ -237,10 +237,10 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     return (
       <Box title="Buy">
         <p className="num text-sm text-muted">Minimum ${basket.minBuyUsd}. Pay with any token on any chain.</p>
-        <button type="button" onClick={signInNear} className="mt-3 w-full bg-accent px-4 py-2.5 font-mono text-xs font-semibold text-accent-ink">
+        <button type="button" onClick={signInNear} className="btn btn-primary btn-block mt-4">
           CONNECT TO BUY
         </button>
-        <p className="mt-2 text-[11px] text-faint">EVM wallets: use CONNECT in the top bar.</p>
+        <p className="fine mt-3 text-center">EVM wallets: use CONNECT in the top bar.</p>
       </Box>
     );
   }
@@ -259,9 +259,9 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
 
   return (
     <Box title="Buy">
-      <div className="grid gap-3">
-        <label className="grid gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-faint">Amount (USD)</span>
+      <div className="grid gap-4">
+        <label className="field">
+          <span className="label">Amount (USD)</span>
           <input
             id="buy-amount"
             inputMode="decimal"
@@ -270,17 +270,17 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
               setAmount(e.target.value.replace(/[^0-9.]/g, ""));
               setPhase("form");
             }}
-            className="num border border-border bg-bg px-3 py-2 text-lg outline-none focus:border-border-strong"
+            className="input input-lg"
           />
           <span className={`num text-[11px] ${tooSmall || tooBig ? "text-loss" : "text-faint"}`}>
             Minimum ${basket.minBuyUsd} · maximum $1,000
           </span>
         </label>
 
-        <label className="grid gap-1">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-faint">Pay with</span>
+        <label className="field">
+          <span className="label">Pay with</span>
           {tokens.length === 0 ? (
-            <div role="status" className="flex h-[38px] items-center border border-border px-3">
+            <div role="status" className="input flex items-center">
               <span className="sr-only">Loading payment tokens</span>
               <Skeleton className="h-3 w-40" />
             </div>
@@ -293,7 +293,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
               setRefund("");
               setPhase("form");
             }}
-            className="num border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-border-strong"
+            className="input num"
           >
             {[
               ["Pay from your wallet", tokens.filter((t) => canPayFrom(t))],
@@ -320,23 +320,28 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
         </label>
 
         {token && !defaultRefund && (
-          <label className="grid gap-1">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-faint">Your {CHAIN_NAMES[token.chain] ?? token.chain} address for refunds</span>
-            <input id="buy-refund" value={refund} onChange={(e) => setRefund(e.target.value.trim())} className="num border border-border bg-bg px-3 py-2 text-xs outline-none focus:border-border-strong" />
+          <label className="field">
+            <span className="label">Your {CHAIN_NAMES[token.chain] ?? token.chain} address for refunds</span>
+            <input id="buy-refund" value={refund} onChange={(e) => setRefund(e.target.value.trim())} className="input num text-xs" />
           </label>
         )}
 
         {phase === "review" && pre && <Review pre={pre} usdIn={amountNum} />}
 
-        {err && <p className="text-xs text-loss">{err}</p>}
-        {(step || authBusy) && <p className="num text-xs text-accent">{step ?? authBusy}</p>}
+        {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
+        {(step || authBusy) && (
+          <p className="num flex items-center gap-2 text-xs text-accent">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent/30 border-t-accent" aria-hidden />
+            {step ?? authBusy}
+          </p>
+        )}
 
         {phase !== "review" ? (
           <button
             type="button"
             disabled={!token || tooSmall || tooBig || !refundAddress || !!step}
             onClick={check}
-            className="w-full border border-border-strong px-4 py-2.5 font-mono text-xs font-semibold hover:border-text disabled:opacity-40"
+            className="btn btn-secondary btn-block"
           >
             CHECK PRICES
           </button>
@@ -345,12 +350,12 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
             type="button"
             disabled={!pre?.ok || !!step || phase !== "review"}
             onClick={buy}
-            className="w-full bg-accent px-4 py-2.5 font-mono text-xs font-semibold text-accent-ink disabled:opacity-40"
+            className="btn btn-primary btn-block"
           >
             BAG IT · {usd(amountNum)}
           </button>
         )}
-        <p className="text-[11px] leading-relaxed text-faint">
+        <p className="fine">
           Your basket sits in its own NEAR Intents account. Only your browser key and your wallet can move it.
         </p>
       </div>
@@ -366,8 +371,8 @@ function Attest({ needs, text, onDone }: { needs: string[]; text: Record<string,
     <Box title="Before your first buy">
       <div className="grid gap-3">
         {needs.map((n) => (
-          <label key={n} htmlFor={`attest-${n}`} className="flex cursor-pointer gap-3 text-xs leading-relaxed text-muted">
-            <input id={`attest-${n}`} type="checkbox" checked={!!checked[n]} onChange={(e) => setChecked((c) => ({ ...c, [n]: e.target.checked }))} className="mt-0.5 accent-[var(--accent)]" />
+          <label key={n} htmlFor={`attest-${n}`} className="flex cursor-pointer gap-3 rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--layer-1)] p-3 text-xs leading-relaxed text-muted hover:border-[var(--line-strong)]">
+            <input id={`attest-${n}`} type="checkbox" checked={!!checked[n]} onChange={(e) => setChecked((c) => ({ ...c, [n]: e.target.checked }))} className="check mt-0.5" />
             <span>{text[n]}</span>
           </label>
         ))}
@@ -383,7 +388,7 @@ function Attest({ needs, text, onDone }: { needs: string[]; text: Record<string,
               setErr((e as Error).message);
             }
           }}
-          className="w-full border border-border-strong px-4 py-2.5 font-mono text-xs font-semibold hover:border-text disabled:opacity-40"
+          className="btn btn-secondary btn-block"
         >
           I AGREE
         </button>
@@ -396,12 +401,12 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
   const fee = (Number(pre.fees.creatorFee) + Number(pre.fees.platformFee)) / 1e6;
   const swapCost = Math.max(0, Number(pre.fees.netUsdc) / 1e6 - pre.estValueUsd);
   return (
-    <div className="grid gap-2 border-t border-border pt-3">
+    <div className="well grid gap-2 p-4">
       <Row k="Creator fee" v={usd(Number(pre.fees.creatorFee) / 1e6)} />
       <Row k="Platform fee" v={usd(Number(pre.fees.platformFee) / 1e6)} />
       <Row k="Est. swap cost" v={usd(swapCost)} />
       <Row k="You hold ≈" v={usd(pre.estValueUsd)} strong />
-      <div className="mt-1 grid gap-1">
+      <div className="mt-1 grid gap-1.5 border-t border-[var(--line)] pt-3">
         {pre.legs.map((l) => (
           <div key={l.assetId} className="num flex justify-between text-[11px] text-muted">
             <span>{l.assetId}</span>
@@ -413,12 +418,12 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
         ))}
       </div>
       {pre.blockedBy.map((b) => (
-        <p key={b} className="text-xs text-loss">{b}</p>
+        <p key={b} className="callout callout-warn text-xs text-loss">{b}</p>
       ))}
       {pre.warnings.map((w) => (
         <p key={w} className="text-xs text-accent">{w}</p>
       ))}
-      {fee > 0 && usdIn > 0 && <p className="num text-[11px] text-faint">Fees are {((fee / usdIn) * 100).toFixed(2)}% of the buy, paid on-chain to the creator and the platform.</p>}
+      {fee > 0 && usdIn > 0 && <p className="fine">Fees are {((fee / usdIn) * 100).toFixed(2)}% of the buy, paid on-chain to the creator and the platform.</p>}
     </div>
   );
 }
@@ -433,16 +438,24 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: Or
   ];
   return (
     <Box title={o.status === "complete" ? "Bagged" : o.status === "partial" ? "Partly bought" : o.status === "refunded" ? "Refunded" : "Buying"}>
-      <div className="flex gap-4 font-mono text-[11px]">
+      <ol className="grid grid-cols-3 gap-1.5">
         {steps.map(([label, st]) => (
-          <span key={label} className={st === "done" ? "text-gain" : st === "now" ? "text-accent" : st === "bad" ? "text-loss" : "text-faint"}>
-            {st === "done" ? "✓" : st === "bad" ? "×" : "·"} {label}
-          </span>
+          <li
+            key={label}
+            className={`flex flex-col gap-2 rounded-[var(--r-sm)] border p-2.5 font-mono text-[11px] ${
+              st === "done" ? "border-gain/30 bg-[var(--gain-soft)] text-gain" : st === "now" ? "border-[var(--accent-line)] bg-[var(--accent-soft)] text-accent" : st === "bad" ? "border-loss/40 bg-[var(--loss-soft)] text-loss" : "border-[var(--line)] text-faint"
+            }`}
+          >
+            <span className={`grid h-5 w-5 place-items-center rounded-full text-[10px] ${st === "done" ? "bg-gain text-bg" : st === "now" ? "bg-accent text-accent-ink motion-safe:animate-pulse" : st === "bad" ? "bg-loss text-bg" : "border border-[var(--line-strong)]"}`}>
+              {st === "done" ? "✓" : st === "bad" ? "×" : ""}
+            </span>
+            {label}
+          </li>
         ))}
-      </div>
+      </ol>
 
       {o.status === "awaiting_deposit" && dep && (
-        <div className="mt-3 grid gap-2">
+        <div className="mt-4 grid gap-3">
           <p className="text-sm">
             Send <span className="num font-semibold text-accent">{dep.amountInFormatted} {token?.symbol ?? ""}</span>
             {token ? <> on {CHAIN_NAMES[token.chain] ?? token.chain}</> : null} to:
@@ -454,12 +467,12 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: Or
               <Copyable value={dep.memo} />
             </>
           )}
-          <p className="num text-[11px] text-faint">
+          <p className="fine">
             Arrives in about {Math.max(1, Math.round((dep.timeEstimate ?? 60) / 60))} min after it confirms. Send it before {dep.deadline ? new Date(dep.deadline).toLocaleTimeString() : "the quote expires"}.
             Keep this tab open, or come back here to finish.
           </p>
           {canPay && (
-            <button type="button" onClick={onPay} disabled={!!step} className="w-full bg-accent px-4 py-2.5 font-mono text-xs font-semibold text-accent-ink disabled:opacity-40">
+            <button type="button" onClick={onPay} disabled={!!step} className="btn btn-primary btn-block">
               PAY FROM WALLET
             </button>
           )}
@@ -467,7 +480,7 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: Or
       )}
 
       {view.legs.length > 0 && (
-        <div className="mt-3 grid gap-1">
+        <div className="well mt-4 grid gap-2 p-3">
           {view.legs.map((l) => {
             const sym = l.isPayout ? "Payout" : symbolOf(l.assetTo);
             const tone = l.status === "success" ? "text-gain" : l.status === "refunded" || l.status === "failed" ? "text-loss" : "text-muted";
@@ -479,7 +492,7 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: Or
                     ? `${units(l.amountOutActual, getAsset(sym).decimals).toPrecision(4)} ${sym}`
                     : l.status}
                   {(l.status === "refunded" || l.status === "failed") && (
-                    <button type="button" onClick={() => onRetry(l.seq)} className="ml-2 border border-border px-2 py-0.5 text-text hover:border-border-strong">
+                    <button type="button" onClick={() => onRetry(l.seq)} className="btn btn-secondary btn-sm ml-2 min-h-0 px-2.5 py-1">
                       retry
                     </button>
                   )}
@@ -492,13 +505,18 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: Or
 
       {o.status === "refunded" && <p className="mt-3 text-xs text-muted">The deposit swap was refunded to {o.payAsset ? "your refund address" : "you"}.</p>}
       {o.status === "complete" && (
-        <Link href="/portfolio" className="mt-3 block border border-border px-3 py-2 text-center font-mono text-xs hover:border-border-strong">
+        <Link href="/portfolio" className="btn btn-secondary btn-block mt-4">
           VIEW PORTFOLIO
         </Link>
       )}
-      {err && <p className="mt-2 text-xs text-loss">{err}</p>}
-      {step && <p className="num mt-2 text-xs text-accent">{step}</p>}
-      <p className="num mt-3 break-all text-[10px] text-faint">Account {o.accountId}</p>
+      {err && <p className="callout callout-warn mt-3 text-xs text-loss">{err}</p>}
+      {step && (
+        <p className="num mt-3 flex items-center gap-2 text-xs text-accent">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent/30 border-t-accent" aria-hidden />
+          {step}
+        </p>
+      )}
+      <p className="fine mt-4 break-all">Account {o.accountId}</p>
     </Box>
   );
 }
@@ -509,9 +527,9 @@ function Copyable({ value }: { value: string }) {
     <button
       type="button"
       onClick={() => navigator.clipboard?.writeText(value).then(() => (setCopied(true), setTimeout(() => setCopied(false), 1200))).catch(() => {})}
-      className="num w-full break-all border border-border bg-bg px-3 py-2 text-left text-xs hover:border-border-strong"
+      className="num flex w-full items-center justify-between gap-3 break-all rounded-[var(--r-sm)] border border-[var(--line-strong)] bg-black/35 px-3.5 py-3 text-left text-xs transition-colors hover:border-[var(--accent-line)]"
     >
-      {value} <span className="text-faint">{copied ? "copied" : "copy"}</span>
+      <span className="min-w-0">{value}</span> <span className={`badge shrink-0 ${copied ? "badge-gain" : ""}`}>{copied ? "copied" : "copy"}</span>
     </button>
   );
 }
@@ -520,15 +538,18 @@ function Row({ k, v, strong }: { k: string; v: string; strong?: boolean }) {
   return (
     <div className="num flex justify-between text-xs">
       <span className="text-muted">{k}</span>
-      <span className={strong ? "font-semibold text-accent" : ""}>{v}</span>
+      <span className={strong ? "font-semibold text-accent" : "text-text"}>{v}</span>
     </div>
   );
 }
 
 function Box({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="border border-border bg-surface p-4">
-      <div className="mb-3 font-mono text-[10px] uppercase tracking-wider text-faint">{title}</div>
+    <div className="card card-ticks p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="display text-2xl">{title}</div>
+        <span className="inline-block h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" aria-hidden />
+      </div>
       {children}
     </div>
   );

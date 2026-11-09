@@ -28,13 +28,22 @@ export default async function ProfilePage({ params }: PageProps<"/c/[handle]">) 
 
   return (
     <div className="space-y-10">
-      <div className="space-y-3">
-        <h1 className="num text-2xl font-semibold sm:text-3xl">{p.handle ? `@${p.handle}` : shortAddr(p.address)}</h1>
-        {p.bio && <p className="max-w-xl text-sm leading-relaxed text-muted">{p.bio}</p>}
-        <div className="num flex flex-wrap gap-x-4 gap-y-1 text-xs text-faint">
-          <span className="break-all">{p.address}</span>
+      <div className="card card-pad relative overflow-hidden">
+        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[var(--r-xl)] bg-accent font-[family-name:var(--display)] text-3xl font-black text-accent-ink shadow-[0_14px_40px_-14px_rgba(232,255,89,0.7)]">
+            {(p.handle ?? p.address).slice(0, 1).toUpperCase()}
+          </div>
+          <div className="min-w-0 space-y-2">
+            <div className="label">Creator</div>
+            <h1 className="display truncate text-[clamp(32px,5vw,52px)]">{p.handle ? `@${p.handle}` : shortAddr(p.address)}</h1>
+            {p.bio && <p className="max-w-xl text-[15px] leading-relaxed text-muted">{p.bio}</p>}
+          </div>
+        </div>
+        <div className="relative mt-5 flex flex-wrap gap-1.5">
+          <span className="chip max-w-full truncate">{p.address}</span>
           {p.xUrl && (
-            <a href={p.xUrl} target="_blank" rel="noopener noreferrer nofollow" className="text-muted hover:text-text">
+            <a href={p.xUrl} target="_blank" rel="noopener noreferrer nofollow" className="chip">
               {p.xUrl.replace("https://", "")} <span className="text-faint">(unverified)</span>
             </a>
           )}
@@ -44,14 +53,14 @@ export default async function ProfilePage({ params }: PageProps<"/c/[handle]">) 
         </Suspense>
       </div>
 
-      <section className="space-y-4">
+      <section className="space-y-5">
         <Label>Baskets · {p.baskets.length}</Label>
         {p.baskets.length ? (
           <Suspense fallback={<CardGridSkeleton count={p.baskets.length} />}>
             <Cards p={p} />
           </Suspense>
         ) : (
-          <p className="text-sm text-muted">No live baskets yet.</p>
+          <div className="card p-6 text-sm text-muted">No live baskets yet.</div>
         )}
       </section>
     </div>
@@ -63,8 +72,8 @@ async function Cards({ p }: { p: CreatorProfile }) {
   const cards = await cardData(p.baskets);
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {cards.map((c) => (
-        <BasketCard key={c.basket.id} {...c} />
+      {cards.map((c, i) => (
+        <BasketCard key={c.basket.id} {...c} i={i} />
       ))}
     </div>
   );
@@ -76,12 +85,12 @@ async function OwnerBits({ p }: { p: CreatorProfile }) {
   if (!s || s.userId !== p.id) return null;
   const pending = await listPendingByCreator(p.id);
   return (
-    <div className="space-y-3 pt-2">
-      <Link href="/profile" className="inline-block border border-border px-3 py-1.5 font-mono text-xs hover:border-border-strong">
+    <div className="relative space-y-3 pt-5">
+      <Link href="/profile" className="btn btn-secondary btn-sm">
         Edit profile
       </Link>
       {pending.length > 0 && (
-        <div className="border border-border-strong p-4">
+        <div className="well p-4">
           <Label>Waiting for your self-buy</Label>
           <ul className="mt-2 space-y-1 text-sm">
             {pending.map((b) => (

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { LineChart, type ChartLine } from "@/components/charts/LineChart";
+import { Section } from "@/components/ui/Primitives";
 import type { History } from "@/lib/trade/history";
 
 const ACCENT = "#e8ff59";
@@ -27,25 +28,25 @@ export function PnlChart({ series }: { series: History["series"] }) {
   if (series.length < 2) return null;
   const p = series[hover ?? series.length - 1];
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 font-mono text-[11px]">
-        <span className="num text-faint">{when(p.t)}</span>
-        <span className="flex items-baseline gap-1.5">
-          <span className="text-muted">P&amp;L</span>
-          <span className={`num ${tone(p.pnlUsd)}`}>{signed(p.pnlUsd)}</span>
-        </span>
-        <span className="flex items-baseline gap-1.5">
-          <span className="text-muted">holding</span>
-          <span className="num text-text">{usd(p.valueUsd)}</span>
-        </span>
-        <span className="flex items-baseline gap-1.5">
-          <span className="text-muted">in / out</span>
-          <span className="num text-text">
-            {usd(p.investedUsd)} / {usd(p.returnedUsd)}
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="label">{when(p.t)}</div>
+          <div className={`big-num mt-2 text-[clamp(30px,4vw,44px)] ${tone(p.pnlUsd)}`}>{signed(p.pnlUsd)}</div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          <span className="chip">
+            holding <span className="text-text">{usd(p.valueUsd)}</span>
           </span>
-        </span>
+          <span className="chip">
+            in <span className="text-text">{usd(p.investedUsd)}</span>
+          </span>
+          <span className="chip">
+            back <span className="text-text">{usd(p.returnedUsd)}</span>
+          </span>
+        </div>
       </div>
-      <LineChart times={times} lines={lines} height={220} format={(v) => signed(v)} onHover={setHover} />
+      <LineChart times={times} lines={lines} height={240} format={(v) => signed(v)} onHover={setHover} />
     </div>
   );
 }
@@ -53,39 +54,45 @@ export function PnlChart({ series }: { series: History["series"] }) {
 export function ClosedBags({ closed }: { closed: History["closed"] }) {
   if (!closed.length) return null;
   return (
-    <section className="grid gap-2">
-      <h2 className="font-mono text-[10px] uppercase tracking-wider text-faint">Closed bags</h2>
-      <div className="overflow-x-auto border border-border">
-        <table className="num w-full min-w-[520px] text-xs">
-          <thead className="text-faint">
+    <Section title="Closed bags" right={<span className="badge">{closed.length} closed</span>}>
+      <div className="tbl-wrap">
+        <table className="tbl min-w-[620px]">
+          <thead>
             <tr>
-              <th className="p-3 text-left font-normal">Basket</th>
-              <th className="p-3 text-right font-normal">In</th>
-              <th className="p-3 text-right font-normal">Out</th>
-              <th className="p-3 text-right font-normal">P&amp;L</th>
-              <th className="p-3 text-right font-normal">Closed</th>
+              <th>Basket</th>
+              <th className="r">In</th>
+              <th className="r">Out</th>
+              <th className="r">P&amp;L</th>
+              <th className="r">Closed</th>
+              <th className="r">
+                <span className="sr-only">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {closed.map((c, i) => (
-              <tr key={i} className="border-t border-border">
-                <td className="p-3">
-                  <Link href={`/b/${c.basket.slug}`} className="hover:underline">
+              <tr key={i}>
+                <td>
+                  <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent">
                     {c.basket.name}
                   </Link>
                 </td>
-                <td className="p-3 text-right">{usd(c.usdIn)}</td>
-                <td className="p-3 text-right">{usd(c.usdOut)}</td>
-                <td className={`p-3 text-right ${tone(c.pnlUsd)}`}>
-                  {signed(c.pnlUsd)} ({((c.pnlUsd / c.usdIn) * 100).toFixed(1)}%)
+                <td className="r">{usd(c.usdIn)}</td>
+                <td className="r">{usd(c.usdOut)}</td>
+                <td className="r">
+                  <span className={`badge normal-case tracking-normal ${c.pnlUsd >= 0 ? "badge-gain" : "badge-loss"}`}>
+                    {signed(c.pnlUsd)} · {((c.pnlUsd / c.usdIn) * 100).toFixed(1)}%
+                  </span>
                 </td>
-                <td className="p-3 text-right text-muted">{when(c.closedAt)}</td>
+                <td className="r text-muted">{when(c.closedAt)}</td>
+                {/* Share actions for a closed bag go here (closed bags row). */}
+                <td className="r" data-slot="closed-actions" />
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </section>
+    </Section>
   );
 }
 
@@ -105,39 +112,42 @@ const STATUS: Record<string, string> = {
 export function TradeHistory({ trades }: { trades: History["trades"] }) {
   if (!trades.length) return null;
   return (
-    <section className="grid gap-2">
-      <h2 className="font-mono text-[10px] uppercase tracking-wider text-faint">Trade history</h2>
-      <div className="overflow-x-auto border border-border">
-        <table className="num w-full min-w-[560px] text-xs">
-          <thead className="text-faint">
+    <Section title="Trade history" right={<span className="badge">{trades.length} trades</span>}>
+      <div className="tbl-wrap">
+        <table className="tbl min-w-[620px]">
+          <thead>
             <tr>
-              <th className="p-3 text-left font-normal">When</th>
-              <th className="p-3 text-left font-normal">Basket</th>
-              <th className="p-3 text-left font-normal">Type</th>
-              <th className="p-3 text-right font-normal">Amount</th>
-              <th className="p-3 text-right font-normal">Status</th>
+              <th>When</th>
+              <th>Basket</th>
+              <th>Type</th>
+              <th className="r">Amount</th>
+              <th className="r">Status</th>
             </tr>
           </thead>
           <tbody>
             {trades.map((t) => (
-              <tr key={t.orderId} className="border-t border-border">
-                <td className="p-3 text-muted">{when(t.at)}</td>
-                <td className="p-3">
-                  <Link href={`/b/${t.basket.slug}`} className="hover:underline">
+              <tr key={t.orderId}>
+                <td className="text-muted">{when(t.at)}</td>
+                <td>
+                  <Link href={`/b/${t.basket.slug}`} className="font-sans text-sm text-text hover:text-accent">
                     {t.basket.name}
                   </Link>
                 </td>
-                <td className="p-3">
-                  {KIND[t.kind] ?? t.kind}
-                  {t.kind === "sell" && t.sellPct ? ` ${t.sellPct}%` : ""}
+                <td>
+                  <span className={`badge ${t.kind === "buy" ? "badge-accent" : ""}`}>
+                    {KIND[t.kind] ?? t.kind}
+                    {t.kind === "sell" && t.sellPct ? ` ${t.sellPct}%` : ""}
+                  </span>
                 </td>
-                <td className="p-3 text-right">{t.usdIn != null ? `−${usd(t.usdIn)}` : t.usdOut != null ? `+${usd(t.usdOut)}` : "—"}</td>
-                <td className={`p-3 text-right ${t.status === "complete" ? "text-muted" : ["refunded", "failed"].includes(t.status) ? "text-loss" : "text-accent"}`}>{STATUS[t.status] ?? t.status}</td>
+                <td className={`r ${t.usdOut != null ? "text-gain" : "text-text"}`}>{t.usdIn != null ? `−${usd(t.usdIn)}` : t.usdOut != null ? `+${usd(t.usdOut)}` : "—"}</td>
+                <td className="r">
+                  <span className={`badge ${t.status === "complete" ? "" : ["refunded", "failed"].includes(t.status) ? "badge-loss" : "badge-accent"}`}>{STATUS[t.status] ?? t.status}</span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </section>
+    </Section>
   );
 }

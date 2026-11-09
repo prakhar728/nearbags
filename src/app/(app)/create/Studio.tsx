@@ -6,6 +6,7 @@ import { BacktestView } from "@/components/basket/BacktestView";
 import { BacktestSkeleton } from "@/components/basket/Skeletons";
 import { Field } from "@/components/basket/CreatorTools";
 import { Label, Pairs } from "@/components/basket/Pairs";
+import { PageHeader } from "@/components/ui/Primitives";
 import type { AnalyticsView } from "@/lib/analytics/view";
 import { ASSETS, getAsset, type AssetKind } from "@/lib/assets";
 import { minBuyUsd, RULES, validateWeights } from "@/lib/basket-rules";
@@ -119,33 +120,45 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="font-mono text-2xl font-semibold">Make a basket</h1>
-        <p className="max-w-xl text-sm text-muted">Pick the assets, say why, set your fee. After publish the assets, weights, fee and name are frozen. Text stays editable, with every edit shown.</p>
-      </div>
+    <div className="space-y-10">
+      <PageHeader
+        kicker="Create"
+        title={
+          <>
+            Make a <em>bag.</em>
+          </>
+        }
+        description="Pick the assets, say why, set your fee. After publish the assets, weights, fee and name are frozen. Text stays editable, with every edit shown."
+      />
 
       {!loading && !user && (
-        <p className="border-l-2 border-accent pl-3 text-sm">Connect a wallet (top right) to publish. You can build and preview without one.</p>
+        <p className="callout flex items-center gap-3 text-text">
+          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" aria-hidden />
+          Connect a wallet (top right) to publish. You can build and preview without one.
+        </p>
       )}
 
-      <ol className="flex flex-wrap gap-1">
+      <ol className="flex flex-wrap gap-2">
         {STEPS.map((s, i) => (
           <li key={s}>
             <button
               type="button"
               disabled={!reachable(i)}
               onClick={() => setStep(i)}
-              className={`num border px-3 py-1.5 text-[11px] uppercase tracking-wider disabled:opacity-40 ${i === step ? "border-accent text-accent" : "border-border text-muted hover:text-text"}`}
+              aria-current={i === step ? "step" : undefined}
+              className={`chip h-10 gap-2 pl-1.5 pr-4 uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-40 ${i === step ? "chip-on" : i < step ? "text-text" : ""}`}
             >
-              {i + 1} {s}
+              <span className={`grid h-7 w-7 place-items-center rounded-full text-[11px] ${i === step ? "bg-accent text-accent-ink" : i < step ? "bg-white/10 text-text" : "border border-[var(--line-strong)]"}`}>
+                {i < step ? "✓" : i + 1}
+              </span>
+              {s}
             </button>
           </li>
         ))}
       </ol>
 
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="min-w-0 space-y-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
+        <div className="card card-pad min-w-0 space-y-6 self-start">
           {step === 0 && (
             <>
               <div className="space-y-4">
@@ -163,7 +176,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                             aria-pressed={on}
                             disabled={!on && picks.length >= RULES.maxAssets}
                             onClick={() => toggle(a.id)}
-                            className={`num border px-2 py-1 text-xs disabled:opacity-30 ${on ? "border-accent bg-accent text-accent-ink" : "border-border text-muted hover:border-border-strong hover:text-text"}`}
+                            className={`chip disabled:cursor-not-allowed disabled:opacity-30 ${on ? "!border-accent !bg-accent !text-accent-ink" : ""}`}
                           >
                             {a.id}
                           </button>
@@ -184,20 +197,20 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                         setManual(false);
                         setPicks(evenSplit(picks.map((p) => p.assetId)));
                       }}
-                      className="font-mono text-[11px] text-muted hover:text-text"
+                      className="btn btn-ghost btn-sm"
                     >
                       Split evenly
                     </button>
                   </div>
-                  <div className="border-t border-border">
+                  <div className="well divide-y divide-[var(--line)] px-3">
                     {picks.map((p) => {
                       const bad = !Number.isInteger(p.pct) || p.pct < 5 || p.pct > 50;
                       return (
-                        <div key={p.assetId} className="flex items-center gap-3 border-b border-border py-2">
+                        <div key={p.assetId} className="flex items-center gap-2 py-2.5">
                           <span className="num w-14 text-sm">{p.assetId}</span>
                           <span className="hidden flex-1 truncate text-xs text-muted sm:block">{getAsset(p.assetId).name}</span>
                           <span className="flex-1 sm:hidden" />
-                          <button type="button" aria-label={`Less ${p.assetId}`} onClick={() => setPct(p.assetId, Math.max(5, Math.round(p.pct) - 1))} className="num h-7 w-7 border border-border text-muted hover:text-text">
+                          <button type="button" aria-label={`Less ${p.assetId}`} onClick={() => setPct(p.assetId, Math.max(5, Math.round(p.pct) - 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-accent hover:text-accent active:scale-95">
                             −
                           </button>
                           <input
@@ -205,12 +218,12 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                             aria-label={`${p.assetId} weight`}
                             value={Number.isFinite(p.pct) ? String(p.pct) : ""}
                             onChange={(e) => setPct(p.assetId, e.target.value === "" ? NaN : Number(e.target.value))}
-                            className={`num h-7 w-12 border bg-bg text-center text-sm ${bad ? "border-loss text-loss" : "border-border"}`}
+                            className={`num h-9 w-14 rounded-[var(--r-sm)] border bg-black/35 text-center text-sm outline-none focus:border-[var(--accent-line)] ${bad ? "border-loss text-loss" : "border-[var(--line-strong)]"}`}
                           />
-                          <button type="button" aria-label={`More ${p.assetId}`} onClick={() => setPct(p.assetId, Math.min(50, Math.round(p.pct) + 1))} className="num h-7 w-7 border border-border text-muted hover:text-text">
+                          <button type="button" aria-label={`More ${p.assetId}`} onClick={() => setPct(p.assetId, Math.min(50, Math.round(p.pct) + 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-accent hover:text-accent active:scale-95">
                             +
                           </button>
-                          <button type="button" aria-label={`Remove ${p.assetId}`} onClick={() => toggle(p.assetId)} className="px-1 font-mono text-xs text-faint hover:text-loss">
+                          <button type="button" aria-label={`Remove ${p.assetId}`} onClick={() => toggle(p.assetId)} className="grid h-9 w-9 place-items-center rounded-full font-mono text-sm text-faint transition-colors hover:bg-[var(--loss-soft)] hover:text-loss">
                             ×
                           </button>
                         </div>
@@ -227,7 +240,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               )}
 
               {picks.length > 0 && weightErrors.length > 0 && (
-                <ul className="space-y-1 text-xs text-loss">
+                <ul className="callout callout-warn space-y-1 text-xs text-loss">
                   {weightErrors.map((e) => (
                     <li key={e}>{e}</li>
                   ))}
@@ -256,14 +269,14 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               <Field label="Risks" max={LIMITS.risks} rows={4} value={t.risks} onChange={(v) => setT({ ...t, risks: v })} placeholder="What goes wrong, and how badly." />
               <div>
                 <Label>Time horizon</Label>
-                <div className="mt-2 flex gap-1">
+                <div className="seg mt-2">
                   {HORIZONS.map((h) => (
                     <button
                       key={h}
                       type="button"
                       aria-pressed={horizon === h}
                       onClick={() => setHorizon(h)}
-                      className={`num border px-3 py-1.5 text-xs ${horizon === h ? "border-accent text-accent" : "border-border text-muted hover:text-text"}`}
+                      className="seg-item"
                     >
                       {HORIZON_LABEL[h]}
                     </button>
@@ -293,7 +306,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
             <div className="space-y-6">
               <div>
                 <Label>Your fee, on buys only</Label>
-                <div className="num mt-2 text-4xl text-accent">{feePct(feeBps)}</div>
+                <div className="big-num mt-3 text-6xl text-accent">{feePct(feeBps)}</div>
                 <input
                   type="range"
                   min={0}
@@ -302,7 +315,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                   value={feeBps}
                   onChange={(e) => setFeeBps(Number(e.target.value))}
                   aria-label="Creator fee"
-                  className="mt-4 w-full accent-accent"
+                  className="mt-6 h-2 w-full cursor-pointer accent-accent"
                 />
                 <div className="num mt-1 flex justify-between text-[10px] text-faint">
                   <span>0%</span>
@@ -321,15 +334,15 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
 
           {step === 3 && (
             <div className="space-y-6">
-              <div className="space-y-3 border border-border p-4">
+              <div className="well space-y-4 p-5">
                 <div>
-                  <div className="text-lg font-medium">{t.name}</div>
+                  <div className="display text-3xl">{t.name}</div>
                   <div className="text-sm text-muted">{t.tagline}</div>
                 </div>
-                <div className="num flex flex-wrap gap-1.5 text-xs">
+                <div className="flex flex-wrap gap-1.5">
                   {picks.map((p) => (
-                    <span key={p.assetId} className="border border-border px-2 py-1">
-                      {p.assetId} <span className="text-faint">{p.pct}%</span>
+                    <span key={p.assetId} className="chip">
+                      <span className="text-text">{p.assetId}</span> {p.pct}%
                     </span>
                   ))}
                 </div>
@@ -351,7 +364,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
 
               {user?.isAdmin && (
                 <label className="flex cursor-pointer items-start gap-3 text-sm">
-                  <input type="checkbox" checked={house} onChange={(e) => setHouse(e.target.checked)} className="mt-1 accent-accent" />
+                  <input type="checkbox" checked={house} onChange={(e) => setHouse(e.target.checked)} className="check mt-0.5" />
                   <span>
                     House basket. <span className="text-muted">Goes live now with no self-buy, labelled &ldquo;House basket&rdquo; everywhere.</span>
                   </span>
@@ -359,7 +372,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               )}
 
               <label className="flex cursor-pointer items-start gap-3 text-sm">
-                <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="mt-1 accent-accent" />
+                <input type="checkbox" checked={accept} onChange={(e) => setAccept(e.target.checked)} className="check mt-0.5" />
                 <span className="text-muted">
                   I get it: backtests are history, not a promise. Tokenized stocks are price exposure only. My thesis isn&apos;t financial advice, and assets, weights, fee and
                   name can&apos;t change after this.
@@ -374,7 +387,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               )}
 
               {publishErr && (
-                <ul className="space-y-1 text-xs text-loss">
+                <ul className="callout callout-warn space-y-1 text-xs text-loss">
                   {publishErr.map((e) => (
                     <li key={e}>{e}</li>
                   ))}
@@ -382,14 +395,14 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               )}
 
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setStep(2)} className="border border-border px-4 py-2 font-mono text-xs text-muted hover:text-text">
+                <button type="button" onClick={() => setStep(2)} className="btn btn-secondary">
                   Back
                 </button>
                 <button
                   type="button"
                   disabled={!user || !accept || publishing || !canGo[0] || !canGo[1]}
                   onClick={publish}
-                  className="bg-accent px-5 py-2 font-mono text-xs font-semibold text-accent-ink disabled:opacity-40"
+                  className="btn btn-primary"
                 >
                   {publishing ? "Publishing…" : user?.isAdmin && house ? "Publish House basket" : "Publish"}
                 </button>
@@ -399,19 +412,25 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
           )}
         </div>
 
-        <aside className="min-w-0 space-y-6 lg:border-l lg:border-border lg:pl-10">
-          <div className="flex items-baseline justify-between">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:self-start">
+          <div className="flex items-center justify-between">
             <Label>Live preview</Label>
-            {preview.loading && <span className="font-mono text-[10px] text-faint">updating…</span>}
+            {preview.loading && (
+              <span className="badge badge-accent">updating</span>
+            )}
           </div>
           {weightErrors.length > 0 ? (
-            <p className="text-sm text-muted">Pick 2–10 assets with weights that add to 100% to see the backtest.</p>
+            <div className="card grid min-h-64 place-items-center p-8 text-center">
+              <p className="max-w-xs text-sm text-muted">Pick 2–10 assets with weights that add to 100% to see the backtest.</p>
+            </div>
           ) : preview.error ? (
-            <p className="text-sm text-loss">{preview.error}</p>
+            <p className="callout callout-warn text-loss">{preview.error}</p>
           ) : preview.data ? (
-            <div className={`space-y-10 ${preview.loading ? "opacity-60" : ""}`}>
+            <div className={`space-y-6 transition-opacity ${preview.loading ? "opacity-60" : ""}`}>
               <BacktestView a={preview.data} compact />
-              <Pairs a={preview.data} compact />
+              <div className="card p-4 sm:p-5">
+                <Pairs a={preview.data} compact />
+              </div>
             </div>
           ) : (
             <BacktestSkeleton compact assets={weights.length || 4} label="Running the preview backtest" />
@@ -426,11 +445,11 @@ function Nav({ back, next }: { back?: () => void; next?: () => void }) {
   return (
     <div className="flex gap-3 pt-2">
       {back && (
-        <button type="button" onClick={back} className="border border-border px-4 py-2 font-mono text-xs text-muted hover:text-text">
+        <button type="button" onClick={back} className="btn btn-secondary">
           Back
         </button>
       )}
-      <button type="button" disabled={!next} onClick={next} className="bg-accent px-5 py-2 font-mono text-xs font-semibold text-accent-ink disabled:opacity-40">
+      <button type="button" disabled={!next} onClick={next} className="btn btn-primary">
         Next
       </button>
     </div>
@@ -439,10 +458,10 @@ function Nav({ back, next }: { back?: () => void; next?: () => void }) {
 
 function MinBuy({ minBuy, hint }: { minBuy: number | null; hint: string | null }) {
   return (
-    <div className="border border-border p-3">
+    <div className="well p-4">
       <div className="flex items-baseline justify-between">
         <Label>Minimum buy</Label>
-        <span className="num text-lg text-accent">{minBuy == null ? "—" : `$${minBuy}`}</span>
+        <span className="big-num text-2xl text-accent">{minBuy == null ? "—" : `$${minBuy}`}</span>
       </div>
       <p className="mt-1 text-xs text-muted">
         {hint ?? "Every asset has a smallest trade the market will fill. The basket's minimum is set by the leg that hits it first, after fees. Floor $20."}

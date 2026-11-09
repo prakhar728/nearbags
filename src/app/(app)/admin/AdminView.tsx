@@ -27,8 +27,8 @@ export function AdminView() {
   const q = useQuery({ queryKey: ["admin"], enabled: Boolean(user?.isAdmin), queryFn: () => api<AdminData>("/api/admin") });
 
   if (loading) return <AdminSkeleton />;
-  if (!user?.isAdmin) return <p className="text-sm text-muted">Admins only. Sign in with an admin wallet.</p>;
-  if (q.error) return <p className="text-sm text-loss">{(q.error as Error).message}</p>;
+  if (!user?.isAdmin) return <p className="callout">Admins only. Sign in with an admin wallet.</p>;
+  if (q.error) return <p className="callout callout-warn text-loss">{(q.error as Error).message}</p>;
   if (!q.data) return <AdminSkeleton />;
   const d = q.data;
 
@@ -43,14 +43,14 @@ export function AdminView() {
   };
 
   return (
-    <div className="grid gap-8">
-      {err && <p className="text-xs text-loss">{err}</p>}
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8">
+      {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
 
-      <section className="grid gap-3">
-        <h2 className="font-mono text-[11px] uppercase tracking-wider text-faint">Switches</h2>
-        <div className="flex flex-wrap items-center gap-4 border border-border p-4">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <h2 className="label">Switches</h2>
+        <div className="card flex flex-wrap items-center gap-4 p-5">
           <span className="text-sm">Buying is {d.settings.buysPaused ? <b className="text-loss">paused</b> : <b className="text-gain">on</b>}. Selling always works.</span>
-          <button type="button" onClick={() => act({ action: "pause_buys", paused: !d.settings.buysPaused })} className="border border-border-strong px-3 py-1.5 font-mono text-xs hover:border-text">
+          <button type="button" onClick={() => act({ action: "pause_buys", paused: !d.settings.buysPaused })} className="btn btn-secondary btn-sm">
             {d.settings.buysPaused ? "RESUME BUYS" : "PAUSE ALL BUYS"}
           </button>
           <span className="num text-xs text-muted">
@@ -59,33 +59,33 @@ export function AdminView() {
         </div>
       </section>
 
-      <section className="grid gap-3">
-        <h2 className="font-mono text-[11px] uppercase tracking-wider text-faint">Assets</h2>
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <h2 className="label">Assets</h2>
         <div className="flex flex-wrap gap-2">
           {d.assets.map((a) => {
             const off = d.settings.delisted.includes(a.id);
             return (
-              <button key={a.id} type="button" title={off ? "Delisted: click to relist" : "Click to delist"} onClick={() => act({ action: "delist", assetId: a.id, delisted: !off })} className={`num border px-2 py-1 text-xs ${off ? "border-loss text-loss line-through" : "border-border text-muted hover:border-border-strong"}`}>
+              <button key={a.id} type="button" title={off ? "Delisted: click to relist" : "Click to delist"} onClick={() => act({ action: "delist", assetId: a.id, delisted: !off })} className={`chip ${off ? "!border-loss/50 !bg-[var(--loss-soft)] !text-loss line-through" : ""}`}>
                 {a.id}
               </button>
             );
           })}
         </div>
-        <p className="text-[11px] text-faint">Delisted assets can&apos;t be bought. Holders can still sell and withdraw.</p>
+        <p className="fine">Delisted assets can&apos;t be bought. Holders can still sell and withdraw.</p>
       </section>
 
-      <section className="grid gap-3">
-        <h2 className="font-mono text-[11px] uppercase tracking-wider text-faint">Baskets</h2>
-        <div className="divide-y divide-border border border-border">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <h2 className="label">Baskets</h2>
+        <div className="card divide-y divide-[var(--line)] overflow-hidden">
           {d.baskets.map((b) => (
-            <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
+            <div key={b.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-sm transition-colors hover:bg-[var(--layer-1)]">
               <span>
                 {b.name} <span className="num text-xs text-faint">/{b.slug} · {b.status}{b.isHouse ? " · house" : ""}</span>
               </span>
               <button
                 type="button"
                 onClick={() => act({ action: "hide_basket", basketId: b.id, hidden: b.status !== "hidden", reason: b.status !== "hidden" ? "Hidden by admin" : undefined })}
-                className="border border-border px-2 py-1 font-mono text-xs hover:border-border-strong"
+                className="btn btn-secondary btn-sm"
               >
                 {b.status === "hidden" ? "UNHIDE" : "HIDE"}
               </button>
@@ -94,12 +94,12 @@ export function AdminView() {
         </div>
       </section>
 
-      <section className="grid gap-3">
-        <h2 className="font-mono text-[11px] uppercase tracking-wider text-faint">Audit log</h2>
-        <div className="num divide-y divide-border border border-border text-xs">
-          {d.audit.length === 0 && <p className="p-3 text-muted">Nothing yet.</p>}
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <h2 className="label">Audit log</h2>
+        <div className="card num divide-y divide-[var(--line)] overflow-hidden text-xs">
+          {d.audit.length === 0 && <p className="p-5 text-muted">Nothing yet.</p>}
           {d.audit.map((a) => (
-            <div key={a.id} className="grid grid-cols-[150px_1fr] gap-3 p-2.5">
+            <div key={a.id} className="grid grid-cols-[150px_1fr] gap-3 px-5 py-3">
               <span className="text-faint">{new Date(a.createdAt).toLocaleString()}</span>
               <span>
                 {a.actor} · {a.action} {a.target ? `· ${a.target}` : ""}
@@ -114,26 +114,26 @@ export function AdminView() {
 
 function AdminSkeleton() {
   return (
-    <Loading label="Loading admin" className="grid gap-8">
-      <section className="grid gap-3">
+    <Loading label="Loading admin" className="grid grid-cols-[minmax(0,1fr)] gap-8">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-[62px] w-full" />
+        <Skeleton className="h-[78px] w-full rounded-[var(--r-lg)]" />
       </section>
-      <section className="grid gap-3">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <Skeleton className="h-3 w-16" />
         <div className="flex flex-wrap gap-2">
           {Array.from({ length: 14 }, (_, i) => (
-            <Skeleton key={i} className="h-[26px] w-12" />
+            <Skeleton key={i} className="h-[30px] w-14 rounded-full" />
           ))}
         </div>
       </section>
-      <section className="grid gap-3">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3">
         <Skeleton className="h-3 w-20" />
-        <div className="divide-y divide-border border border-border">
+        <div className="card divide-y divide-[var(--line)] overflow-hidden">
           {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 p-3">
+            <div key={i} className="flex items-center justify-between gap-3 px-5 py-3.5">
               <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-6 w-20" />
+              <Skeleton className="h-[34px] w-20 rounded-full" />
             </div>
           ))}
         </div>

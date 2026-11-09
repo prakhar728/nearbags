@@ -22,7 +22,7 @@ function Inl({ nodes }: { nodes: Inline[] }) {
             );
           case "code":
             return (
-              <code key={i} className="num bg-surface-2 px-1 text-[0.9em]">
+              <code key={i} className="num rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[0.88em]">
                 {n.v}
               </code>
             );
@@ -48,7 +48,7 @@ function B({ b }: { b: Block }) {
       );
     case "quote":
       return (
-        <blockquote className="border-l border-border-strong pl-3 text-muted">
+        <blockquote className="rounded-r-[var(--r-sm)] border-l-2 border-accent/60 bg-white/[0.025] py-2 pl-4 pr-3 text-muted">
           <Inl nodes={b.inl} />
         </blockquote>
       );
@@ -64,7 +64,7 @@ function B({ b }: { b: Block }) {
     case "ol": {
       const L = b.type;
       return (
-        <L className={`space-y-1 pl-5 ${b.type === "ul" ? "list-disc" : "list-decimal"} marker:text-faint`}>
+        <L className={`space-y-1 pl-5 ${b.type === "ul" ? "list-disc" : "list-decimal"} marker:text-accent/70`}>
           {b.items.map((it, i) => (
             <li key={i}>
               <Inl nodes={it} />
@@ -74,14 +74,14 @@ function B({ b }: { b: Block }) {
       );
     }
     case "code":
-      return <pre className="num overflow-x-auto border border-border bg-surface p-3 text-xs">{b.text}</pre>;
+      return <pre className="num overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-black/30 p-4 text-xs">{b.text}</pre>;
   }
 }
 
 export function Markdown({ text, className = "" }: { text: string; className?: string }) {
   const blocks = parseMarkdown(text);
   return (
-    <div className={`space-y-3 text-sm leading-relaxed text-text/90 ${className}`}>
+    <div className={`space-y-3 text-[15px] leading-[1.7] text-text/85 ${className}`}>
       {blocks.map((b, i) => (
         <B key={i} b={b} />
       ))}

@@ -5,6 +5,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { BasketCard } from "@/components/basket/BasketCard";
 import { CardGridSkeleton } from "@/components/basket/Skeletons";
+import { Empty as EmptyState, PageHeader } from "@/components/ui/Primitives";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { listExploreBaskets } from "@/lib/basket-pages";
 import { basketKind, type BasketKind } from "@/lib/basket-kind";
@@ -55,12 +56,15 @@ function href(q: Q, patch: Partial<Q>) {
 export default function Explore({ searchParams }: PageProps<"/">) {
   return (
     <div className="space-y-10">
-      <div className="space-y-3">
-        <h1 className="font-mono text-2xl font-semibold tracking-tight sm:text-3xl">Bag it. Any chain. Your keys.</h1>
-        <p className="max-w-xl text-sm leading-relaxed text-muted">
-          Creator-made baskets of tokenized US stocks and crypto. Buy the whole bag in one go. Every position sits in its own NEAR Intents account that only you control.
-        </p>
-      </div>
+      <PageHeader
+        kicker="Explore · stocks + crypto"
+        title={
+          <>
+            Bag it. Any chain. <em>Your keys.</em>
+          </>
+        }
+        description="Creator-made baskets of tokenized US stocks and crypto. Buy the whole bag in one go. Every position sits in its own NEAR Intents account that only you control."
+      />
       <Suspense fallback={<ExploreSkeleton />}>
         <ExploreBody searchParams={searchParams} />
       </Suspense>
@@ -90,20 +94,15 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-end lg:justify-between">
-        <nav className="-mb-px flex gap-5 overflow-x-auto" aria-label="Explore tabs">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <nav className="seg" aria-label="Explore tabs">
           {TABS.map((t) => (
-            <Link
-              key={t.id}
-              href={href(q, { tab: t.id })}
-              aria-current={q.tab === t.id ? "page" : undefined}
-              className={`whitespace-nowrap font-mono text-xs uppercase tracking-wider ${q.tab === t.id ? "text-accent" : "text-muted hover:text-text"}`}
-            >
+            <Link key={t.id} href={href(q, { tab: t.id })} aria-current={q.tab === t.id ? "page" : undefined} className="seg-item">
               {t.label}
             </Link>
           ))}
         </nav>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
           <FilterGroup label="Type">
             {KINDS.map((k) => (
               <Chip key={k.id} href={href(q, { kind: k.id })} on={q.kind === k.id}>
@@ -121,19 +120,19 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
         </div>
       </div>
 
-      {note && <p className="font-mono text-[11px] text-faint">{note}</p>}
+      {note && <p className="fine flex items-center gap-2"><span className="inline-block h-1.5 w-1.5 rounded-full bg-faint" aria-hidden />{note}</p>}
 
       {cards.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map((c) => (
-            <BasketCard key={c.basket.id} {...c} />
+          {cards.map((c, i) => (
+            <BasketCard key={c.basket.id} {...c} i={i} />
           ))}
         </div>
       ) : (
         <Empty q={q} total={filtered.length} />
       )}
 
-      <p className="font-mono text-[10px] leading-relaxed text-faint">
+      <p className="fine">
         Live = buy-and-hold since the basket went live, on median reference prices. Backtest = historical, not a forecast. Held and holders are read from basket accounts on-chain.
       </p>
     </div>
@@ -146,32 +145,32 @@ function Empty({ q, total }: { q: Q; total: number }) {
       ? `Nothing here is ${MIN_AGE_DAYS} days old yet. Top performers ranks live returns once a basket has a week of history.`
       : "No baskets match these filters.";
   return (
-    <div className="border border-dashed border-border p-8 text-center">
-      <p className="text-sm text-muted">{msg}</p>
-      <div className="mt-4 flex justify-center gap-4 font-mono text-xs">
-        <Link href="/explore?tab=new" className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-accent">
-          See newest
-        </Link>
-        <Link href="/create" className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-accent">
-          Make one
-        </Link>
-      </div>
-    </div>
+    <EmptyState
+      title="Nothing here yet"
+      actions={
+        <>
+          <Link href="/explore?tab=new" className="btn btn-secondary btn-sm">See newest</Link>
+          <Link href="/create" className="btn btn-primary btn-sm">Make one</Link>
+        </>
+      }
+    >
+      {msg}
+    </EmptyState>
   );
 }
 
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="font-mono text-[10px] uppercase tracking-wider text-faint">{label}</span>
-      <div className="flex flex-wrap gap-1">{children}</div>
+    <div className="flex items-center gap-2.5">
+      <span className="label">{label}</span>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );
 }
 
 function Chip({ href, on, children }: { href: string; on: boolean; children: React.ReactNode }) {
   return (
-    <Link href={href} className={`num border px-2 py-0.5 text-[11px] ${on ? "border-accent text-accent" : "border-border text-muted hover:border-border-strong hover:text-text"}`}>
+    <Link href={href} aria-current={on ? "true" : undefined} className={`chip ${on ? "chip-on" : ""}`}>
       {children}
     </Link>
   );
@@ -180,15 +179,15 @@ function Chip({ href, on, children }: { href: string; on: boolean; children: Rea
 function ExploreSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 border-b border-border pb-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex gap-5 overflow-hidden">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="seg">
           {TABS.map((t) => (
-            <span key={t.id} className="whitespace-nowrap font-mono text-xs uppercase tracking-wider text-faint">
+            <span key={t.id} className="seg-item text-faint">
               {t.label}
             </span>
           ))}
         </div>
-        <Skeleton className="h-[22px] w-[30rem] max-w-full" />
+        <Skeleton className="h-[30px] w-[30rem] max-w-full rounded-full" />
       </div>
       <CardGridSkeleton />
     </div>

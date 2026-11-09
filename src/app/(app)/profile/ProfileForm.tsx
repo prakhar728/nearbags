@@ -35,7 +35,7 @@ export function ProfileForm() {
   }, [user]);
 
   if (loading) return <ProfileSkeleton />;
-  if (!user) return <p className="text-sm text-muted">Connect a wallet (top right) to edit your profile.</p>;
+  if (!user) return <p className="callout">Connect a wallet (top right) to edit your profile.</p>;
   if (!form && !err) return <ProfileSkeleton />;
   if (!form) return <p className="text-xs text-loss">{err}</p>;
 
@@ -61,7 +61,7 @@ export function ProfileForm() {
   };
 
   return (
-    <div className="max-w-lg space-y-5">
+    <div className="card card-pad max-w-xl space-y-5">
       <div>
         <Field label="Handle" max={20} value={form.handle} placeholder="3–20 chars: a–z 0–9 _" onChange={(v) => setForm({ ...form, handle: v.toLowerCase() })} />
         {!handleOk && <p className="mt-1 text-xs text-loss">3–20 characters, a–z, 0–9 and _ only.</p>}
@@ -74,13 +74,13 @@ export function ProfileForm() {
           type="button"
           disabled={busy || !handleOk || form.bio.length > BIO_MAX}
           onClick={save}
-          className="bg-accent px-4 py-2 font-mono text-xs font-semibold text-accent-ink disabled:opacity-50"
+          className="btn btn-primary"
         >
           {busy ? "Saving…" : "Save"}
         </button>
-        {saved && <span className="font-mono text-xs text-muted">{saved}</span>}
+        {saved && <span className="badge badge-gain">{saved}</span>}
         {form.handle && HANDLE_RE.test(form.handle) && (
-          <Link href={`/c/${form.handle}`} className="font-mono text-xs text-muted hover:text-text">
+          <Link href={`/c/${form.handle}`} className="btn btn-ghost btn-sm">
             View profile
           </Link>
         )}
@@ -92,14 +92,14 @@ export function ProfileForm() {
 /** Three fields and the save button, like the loaded form. */
 function ProfileSkeleton() {
   return (
-    <Loading label="Loading your profile" className="max-w-lg space-y-5">
+    <Loading label="Loading your profile" className="card card-pad max-w-xl space-y-5">
       {[38, 80, 38].map((h, i) => (
         <div key={i} className="space-y-1.5">
           <Skeleton className="h-2.5 w-24" />
-          <Skeleton className="w-full" style={{ height: h }} />
+          <Skeleton className="w-full rounded-[var(--r-sm)]" style={{ height: h }} />
         </div>
       ))}
-      <Skeleton className="h-8 w-20" />
+      <Skeleton className="h-11 w-28 rounded-full" />
     </Loading>
   );
 }
