@@ -9,7 +9,7 @@ export function formatValue(key: string, v: string | number | null): string {
   if (v == null) return "n/a";
   if (typeof v === "string") return v;
   if (/^ondo_share_/.test(key)) return pctSig(v);
-  if (/share|change/.test(key)) return pct(v, 1, key.endsWith("change_30d"));
+  if (/share|change/.test(key)) return pct(v, 1, /change/.test(key));
   if (/volume|usd|tvl/.test(key)) return usd(v);
   return v.toLocaleString("en-US");
 }

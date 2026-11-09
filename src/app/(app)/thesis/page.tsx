@@ -10,7 +10,7 @@ import type { ThesisData } from "@/lib/thesis/types";
 
 export const metadata = { title: "Thesis · Stonkbag" };
 
-const CLAIM = "Tokenized US stocks are becoming a real use of NEAR Intents.";
+const CLAIM = "People will buy US stocks through NEAR Intents, but only when an app packages it. The demand fades when the push stops.";
 
 async function loadThesis(): Promise<ThesisData | null> {
   "use cache";
@@ -45,6 +45,7 @@ const CHARTS: ChartDef[] = [
   { id: "share", title: "Ondo share of all 1Click volume", pending: "Ondo USD volume divided by all 1Click USD volume, for each complete week.", request: req("all"), rule: `${RULES} Share = Ondo rows in this pull ÷ all rows in this pull, by USD. Only weeks that ended 2+ days ago and were pulled to the last page.` },
   { id: "days", title: "Weekday vs weekend", pending: "Ondo volume by day of week (UTC), to see how much trades while US exchanges are shut.", request: ondoRequest, rule: `${RULES} Day = UTC day of createdAtTimestamp.` },
   { id: "sizes", title: "Swap sizes", pending: "How many Ondo swaps fall in each USD size band.", request: ondoRequest, rule: `${RULES} Bands: < $100, $100–1K, $1K–10K, $10K–100K, ≥ $100K.` },
+  { id: "apps", title: "Which app routed the swaps", pending: "Ondo swaps by the referral tag the routing app passes to 1Click.", request: ondoRequest, rule: `${RULES} App = the row's referral field; empty counts as (none).` },
   { id: "assets", title: "Top assets", pending: "Ondo volume per token. A stock-to-stock swap counts for both tokens.", request: ondoRequest, rule: RULES },
   {
     id: "tvl",
@@ -64,7 +65,8 @@ export default async function ThesisPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{CLAIM}</h1>
         <p className="text-sm leading-relaxed text-muted">
           Each chart below comes from the NEAR Intents Explorer API and Stonkbag&apos;s own on-chain balances, rebuilt with{" "}
-          <code className="font-mono text-text">pnpm thesis</code>. Evidence against the claim is in THESIS.md in the repo.
+          <code className="font-mono text-text">pnpm thesis</code>. We started from &ldquo;tokenized US stocks are becoming a real use of NEAR Intents&rdquo;; the
+          data below rejected that, so the claim changed. The full argument and the evidence against it are in THESIS.md in the repo.
         </p>
         {d ? (
           <p className="font-mono text-[11px] text-faint">
@@ -161,6 +163,17 @@ function Charts({ d }: { d: ThesisData }) {
         sentence={s.median_swap_usd == null ? "No Ondo swaps in the window." : `The median Ondo swap was ${usd(s.median_swap_usd)}; ${pct(s.share_swaps_under_1k, 1, false)} were under $1,000.`}
       >
         <Bars format="count" rows={d.sizes.map((r) => ({ label: r.label, value: r.swaps, note: usd(r.volumeUsd, { compact: true }) }))} />
+      </Card>
+
+      <Card
+        def={def("apps")}
+        sentence={
+          s.top_app == null
+            ? "No app tags in the window."
+            : `${s.top_app} routed ${pct(s.top_app_swap_share, 1, false)} of Ondo swaps and ${pct(s.top_app_volume_share, 1, false)} of the volume, from the week of ${s.top_app_first_week} to ${s.top_app_last_week}. The peak week (${s.peak_week}) was ${usd(s.peak_week_volume)}; the latest full week was ${usd(s.latest_full_week_volume)}.`
+        }
+      >
+        <Bars format="count" rows={d.apps.slice(0, 8).map((a) => ({ label: a.app, value: a.swaps, note: usd(a.volumeUsd, { compact: true }) }))} />
       </Card>
 
       <Card

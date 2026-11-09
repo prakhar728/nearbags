@@ -13,6 +13,7 @@ export interface ExplorerTx {
   amountInUsd: string;
   amountOutUsd: string;
   refundTo?: string;
+  referral?: string | null; // the app that routed the swap through 1Click
   senders?: string[];
 }
 
@@ -50,6 +51,14 @@ export interface AssetRow {
   volumeUsd: number;
   buys: number;
   sells: number;
+}
+
+export interface AppRow {
+  app: string; // 1Click referral tag, "(none)" when empty
+  swaps: number;
+  volumeUsd: number;
+  firstWeek: string;
+  lastWeek: string;
 }
 
 export interface WeekTotals {
@@ -94,6 +103,21 @@ export interface ThesisSummary {
   top_asset: string | null;
   top_asset_volume_share: number | null;
   top10_trader_volume_share: number | null;
+  peak_week: string | null;
+  peak_week_volume: number | null;
+  peak_week_traders: number | null;
+  latest_full_week: string | null;
+  latest_full_week_volume: number | null;
+  volume_change_from_peak: number | null; // latest full week vs the peak week
+  ondo_share_peak: number | null;
+  ondo_share_peak_week: string | null;
+  apps_count: number;
+  top_app: string | null;
+  top_app_swap_share: number | null;
+  top_app_volume_share: number | null;
+  top_app_first_week: string | null;
+  top_app_last_week: string | null;
+  stonkbag_swaps: number;
   stonkbag_tvl: number | null;
   stonkbag_baskets: number | null;
   stonkbag_holders: number | null;
@@ -114,6 +138,7 @@ export interface ThesisData {
   byDay: DayRow[];
   sizes: SizeBucket[];
   assets: AssetRow[];
+  apps: AppRow[];
   summary: ThesisSummary;
   stonkbag: StonkbagTvl | null;
   stonkbagNote: string | null; // why stonkbag is null, if it is

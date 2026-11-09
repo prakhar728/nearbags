@@ -79,7 +79,9 @@ NEP-413: OK (both keys added)
 
 ## Investment thesis track
 
-The claim is "Tokenized US stocks are becoming a real use of NEAR Intents". It is tested with data, including the evidence against, in `THESIS.md` and on `/thesis`. `pnpm thesis` rebuilds every number from raw API data.
+The claim: people will buy US stocks through NEAR Intents, but only when an app packages it, and the demand fades when the push stops. That makes distribution, not rails, the gap Stonkbag fills.
+
+We started from "tokenized US stocks are becoming a real use of NEAR Intents". Explorer API data rejected it: Ondo stock volume through 1Click peaked in one week, almost all routed by a single app, and then fell more than 90%. `THESIS.md` and `/thesis` show the numbers, the evidence against the new claim, and what would change our mind. `pnpm thesis` rebuilds every number from raw API data.
 
 ## Architecture
 

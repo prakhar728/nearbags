@@ -5,7 +5,7 @@
 // - USD size = amountInUsd; amountOutUsd when amountInUsd is missing or zero.
 // - Trader = refundTo, else the first sender, else the recipient (the party that funded the swap).
 // - Weeks start Monday 00:00 UTC. Weekend = Saturday and Sunday, UTC.
-import type { AssetRow, DayRow, ExplorerTx, SizeBucket, StonkbagTvl, ThesisSummary, WeekRow, WeekTotals } from "./types";
+import type { AssetRow, DayRow, ExplorerTx, SizeBucket, StonkbagTvl, ThesisSummary, WeekRow, WeekTotals, AppRow } from "./types";
 
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const DAY = 86_400;
@@ -101,6 +101,7 @@ export interface AggregateOutput {
   byDay: DayRow[];
   sizes: SizeBucket[];
   assets: AssetRow[];
+  apps: AppRow[];
   summary: ThesisSummary;
 }
 
@@ -145,6 +146,7 @@ export function aggregate(input: AggregateInput): AggregateOutput {
   const assets = new Map<string, AssetRow>(
     input.ondoIds.map((id) => [id, { symbol: input.symbols[id] ?? id, assetId: id, swaps: 0, volumeUsd: 0, buys: 0, sells: 0 }]),
   );
+  const apps = new Map<string, AppRow>();
   const traderVol = new Map<string, number>();
   const allTraders = new Set<string>();
   const usds: number[] = [];
@@ -185,6 +187,14 @@ export function aggregate(input: AggregateInput): AggregateOutput {
       if (id === t.originAsset) a.sells++;
     }
 
+    const appName = t.referral || "(none)";
+    const wk = weekOf(t.createdAtTimestamp);
+    const app = apps.get(appName) ?? { app: appName, swaps: 0, volumeUsd: 0, firstWeek: wk, lastWeek: wk };
+    app.swaps++;
+    app.volumeUsd += usd;
+    app.lastWeek = wk; // txs are sorted by time
+    apps.set(appName, app);
+
     traderVol.set(trader, (traderVol.get(trader) ?? 0) + usd);
     allTraders.add(trader);
     usds.push(usd);
@@ -204,6 +214,12 @@ export function aggregate(input: AggregateInput): AggregateOutput {
   const top10 = [...traderVol.values()].sort((a, b) => b - a).slice(0, 10).reduce((s, x) => s + x, 0);
   const active = weeklyRows.filter((w) => w.ondoSwaps > 0);
   const top = assetRows[0] && assetRows[0].swaps > 0 ? assetRows[0] : null;
+  const appRows = [...apps.values()].map((a) => ({ ...a, volumeUsd: r2(a.volumeUsd) })).sort((a, b) => b.swaps - a.swaps || b.volumeUsd - a.volumeUsd);
+  const topApp = appRows.find((a) => a.app !== "(none)") ?? null;
+  const peak = active.length ? active.reduce((m, w) => (w.ondoVolumeUsd > m.ondoVolumeUsd ? w : m)) : null;
+  const full = weeklyRows.filter((w) => weekSec(w.week) + 7 * DAY <= input.asOf);
+  const latestFull = full.at(-1) ?? null;
+  const sharePeak = shareWeeks.length ? shareWeeks.reduce((m, w) => (w.ondoShare! > m.ondoShare! ? w : m)) : null;
 
   const summary: ThesisSummary = {
     data_since: input.weeks[0] ?? null,
@@ -231,6 +247,21 @@ export function aggregate(input: AggregateInput): AggregateOutput {
     top_asset: top?.symbol ?? null,
     top_asset_volume_share: top ? frac(top.volumeUsd, vol) : null,
     top10_trader_volume_share: frac(top10, vol),
+    peak_week: peak?.week ?? null,
+    peak_week_volume: peak ? peak.ondoVolumeUsd : null,
+    peak_week_traders: peak ? peak.ondoTraders : null,
+    latest_full_week: latestFull?.week ?? null,
+    latest_full_week_volume: latestFull ? latestFull.ondoVolumeUsd : null,
+    volume_change_from_peak: peak && latestFull && peak.ondoVolumeUsd > 0 ? r4(latestFull.ondoVolumeUsd / peak.ondoVolumeUsd - 1) : null,
+    ondo_share_peak: sharePeak?.ondoShare ?? null,
+    ondo_share_peak_week: sharePeak?.week ?? null,
+    apps_count: appRows.filter((a) => a.app !== "(none)").length,
+    top_app: topApp?.app ?? null,
+    top_app_swap_share: topApp ? frac(topApp.swaps, txs.length) : null,
+    top_app_volume_share: topApp ? frac(topApp.volumeUsd, vol) : null,
+    top_app_first_week: topApp?.firstWeek ?? null,
+    top_app_last_week: topApp?.lastWeek ?? null,
+    stonkbag_swaps: apps.get("stonkbag")?.swaps ?? 0,
     stonkbag_tvl: input.stonkbag ? r2(input.stonkbag.tvlUsd) : null,
     stonkbag_baskets: input.stonkbag?.baskets ?? null,
     stonkbag_holders: input.stonkbag?.holders ?? null,
@@ -241,6 +272,7 @@ export function aggregate(input: AggregateInput): AggregateOutput {
     byDay: byDay.map((d) => ({ ...d, volumeUsd: r2(d.volumeUsd) })),
     sizes: sizes.map((s) => ({ ...s, volumeUsd: r2(s.volumeUsd) })),
     assets: assetRows,
+    apps: appRows,
     summary,
   };
 }

@@ -1,0 +1,712 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-09T22:01:33.933Z",
+  "asOf": "2026-11-09T21:57:53.000Z",
+  "source": {
+    "api": "https://explorer.near-intents.org/api/v0/transactions",
+    "statuses": "SUCCESS",
+    "ondoAssetIds": [
+      "nep141:bnb-0x390a684ef9cade28a7ad0dfa61ab1eb3842618c4.omdep.near",
+      "nep141:bnb-0x4553cfe1c09f37f38b12dc509f676964e392f8fc.omdep.near",
+      "nep141:bnb-0x992879cd8ce0c312d98648875b5a8d6d042cbf34.omdep.near",
+      "nep141:bnb-0x091fc7778e6932d4009b087b191d1ee3bac5729a.omdep.near",
+      "nep141:bnb-0x19601179a60f55ff6636f5d1a8b6671053bd60a8.omdep.near",
+      "nep141:bnb-0xa528caaa2f96090e379d43f90834c75df54d6e74.omdep.near",
+      "nep141:bnb-0xd7df5863a3e742f0c767768cdfcb63f09e0422f6.omdep.near",
+      "nep141:bnb-0x1501ec83ffef405b4331cc4f73277a40fb0c627d.omdep.near",
+      "nep141:bnb-0x6bfe75d1ad432050ea973c3a3dcd88f02e2444c3.omdep.near",
+      "nep141:bnb-0xa9ee28c80f960b889dfbd1902055218cba016f75.omdep.near",
+      "nep141:bnb-0x2494b603319d4d9f9715c9f4496d9e0364b59d93.omdep.near",
+      "nep141:bnb-0x6a708ead771238919d85930b5a0f10454e1c331a.omdep.near",
+      "nep141:bnb-0x0cde6936d305d5b34667fc46425e852efd73559a.omdep.near",
+      "nep141:bnb-0xfa9a1e901085e269f6d428f79cd5252d8b919344.omdep.near",
+      "nep141:bnb-0xcb2a0f46f67dc4c58a316f1c008edef5c2311795.omdep.near",
+      "nep141:bnb-0x8b872732b07be325a8803cdb480d9d20b6f8d11b.omdep.near",
+      "nep141:bnb-0xc008c5f579ec1450f20099c39f587547e27c7523.omdep.near",
+      "nep141:bnb-0x2ac26ec236df5d1d2ad1a6dd4e448a90e45dc35d.omdep.near",
+      "nep141:bnb-0xf69e40069ac227c11459e3f4e8a446b3401616b6.omdep.near"
+    ],
+    "weeksRequested": {
+      "ondo": [
+        "2026-05-18",
+        "2026-05-25",
+        "2026-06-01",
+        "2026-06-08",
+        "2026-06-15",
+        "2026-06-22",
+        "2026-06-29",
+        "2026-07-06",
+        "2026-07-13",
+        "2026-07-20",
+        "2026-07-27",
+        "2026-08-03",
+        "2026-08-10",
+        "2026-08-17",
+        "2026-08-24",
+        "2026-08-31",
+        "2026-09-07",
+        "2026-09-14",
+        "2026-09-21",
+        "2026-09-28",
+        "2026-10-05",
+        "2026-10-12",
+        "2026-10-19",
+        "2026-10-26",
+        "2026-11-02",
+        "2026-11-09"
+      ],
+      "all": [
+        "2026-09-07",
+        "2026-09-14",
+        "2026-09-21",
+        "2026-09-28",
+        "2026-10-05",
+        "2026-10-12",
+        "2026-10-19",
+        "2026-10-26"
+      ]
+    },
+    "requests": 40
+  },
+  "weekly": [
+    {
+      "week": "2026-05-18",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-05-25",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-06-01",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-06-08",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-06-15",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-06-22",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-06-29",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-07-06",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-07-13",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-07-20",
+      "ondoSwaps": 4,
+      "ondoVolumeUsd": 6.18,
+      "ondoTraders": 2,
+      "buys": 3,
+      "sells": 1,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-07-27",
+      "ondoSwaps": 8,
+      "ondoVolumeUsd": 138.9,
+      "ondoTraders": 5,
+      "buys": 6,
+      "sells": 2,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-08-03",
+      "ondoSwaps": 3,
+      "ondoVolumeUsd": 592.93,
+      "ondoTraders": 2,
+      "buys": 2,
+      "sells": 1,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-08-10",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-08-17",
+      "ondoSwaps": 2,
+      "ondoVolumeUsd": 53.75,
+      "ondoTraders": 2,
+      "buys": 2,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-08-24",
+      "ondoSwaps": 0,
+      "ondoVolumeUsd": 0,
+      "ondoTraders": 0,
+      "buys": 0,
+      "sells": 0,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-08-31",
+      "ondoSwaps": 2,
+      "ondoVolumeUsd": 99.25,
+      "ondoTraders": 1,
+      "buys": 1,
+      "sells": 1,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-09-07",
+      "ondoSwaps": 30,
+      "ondoVolumeUsd": 914.81,
+      "ondoTraders": 5,
+      "buys": 16,
+      "sells": 14,
+      "allSwaps": 140005,
+      "allVolumeUsd": 324028134.75,
+      "ondoShare": 0.00000282
+    },
+    {
+      "week": "2026-09-14",
+      "ondoSwaps": 3,
+      "ondoVolumeUsd": 2560.53,
+      "ondoTraders": 3,
+      "buys": 0,
+      "sells": 3,
+      "allSwaps": 123024,
+      "allVolumeUsd": 375238015.88,
+      "ondoShare": 0.00000682
+    },
+    {
+      "week": "2026-09-21",
+      "ondoSwaps": 441,
+      "ondoVolumeUsd": 48744.94,
+      "ondoTraders": 150,
+      "buys": 337,
+      "sells": 104,
+      "allSwaps": 160647,
+      "allVolumeUsd": 369923807.2,
+      "ondoShare": 0.00013177
+    },
+    {
+      "week": "2026-09-28",
+      "ondoSwaps": 180,
+      "ondoVolumeUsd": 17418.14,
+      "ondoTraders": 78,
+      "buys": 90,
+      "sells": 90,
+      "allSwaps": 142028,
+      "allVolumeUsd": 294610691.37,
+      "ondoShare": 0.00005912
+    },
+    {
+      "week": "2026-10-05",
+      "ondoSwaps": 48,
+      "ondoVolumeUsd": 16297.25,
+      "ondoTraders": 22,
+      "buys": 8,
+      "sells": 40,
+      "allSwaps": 126391,
+      "allVolumeUsd": 304639422.83,
+      "ondoShare": 0.0000535
+    },
+    {
+      "week": "2026-10-12",
+      "ondoSwaps": 24,
+      "ondoVolumeUsd": 2466.83,
+      "ondoTraders": 13,
+      "buys": 14,
+      "sells": 10,
+      "allSwaps": 107256,
+      "allVolumeUsd": 243923575.74,
+      "ondoShare": 0.00001011
+    },
+    {
+      "week": "2026-10-19",
+      "ondoSwaps": 4,
+      "ondoVolumeUsd": 172.55,
+      "ondoTraders": 2,
+      "buys": 3,
+      "sells": 1,
+      "allSwaps": 107044,
+      "allVolumeUsd": 206409060.03,
+      "ondoShare": 8.4e-7
+    },
+    {
+      "week": "2026-10-26",
+      "ondoSwaps": 1,
+      "ondoVolumeUsd": 499.9,
+      "ondoTraders": 1,
+      "buys": 1,
+      "sells": 0,
+      "allSwaps": 120700,
+      "allVolumeUsd": 252456976.73,
+      "ondoShare": 0.00000198
+    },
+    {
+      "week": "2026-11-02",
+      "ondoSwaps": 19,
+      "ondoVolumeUsd": 1506.16,
+      "ondoTraders": 10,
+      "buys": 9,
+      "sells": 10,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    },
+    {
+      "week": "2026-11-09",
+      "ondoSwaps": 8,
+      "ondoVolumeUsd": 1250.18,
+      "ondoTraders": 4,
+      "buys": 6,
+      "sells": 2,
+      "allSwaps": null,
+      "allVolumeUsd": null,
+      "ondoShare": null
+    }
+  ],
+  "byDay": [
+    {
+      "day": "Mon",
+      "swaps": 157,
+      "volumeUsd": 14791.17
+    },
+    {
+      "day": "Tue",
+      "swaps": 35,
+      "volumeUsd": 5175.24
+    },
+    {
+      "day": "Wed",
+      "swaps": 56,
+      "volumeUsd": 5453.55
+    },
+    {
+      "day": "Thu",
+      "swaps": 118,
+      "volumeUsd": 12173.61
+    },
+    {
+      "day": "Fri",
+      "swaps": 84,
+      "volumeUsd": 14334.82
+    },
+    {
+      "day": "Sat",
+      "swaps": 38,
+      "volumeUsd": 3465.76
+    },
+    {
+      "day": "Sun",
+      "swaps": 289,
+      "volumeUsd": 37328.16
+    }
+  ],
+  "sizes": [
+    {
+      "label": "< $100",
+      "minUsd": 0,
+      "maxUsd": 100,
+      "swaps": 506,
+      "volumeUsd": 23054.11
+    },
+    {
+      "label": "$100–1K",
+      "minUsd": 100,
+      "maxUsd": 1000,
+      "swaps": 265,
+      "volumeUsd": 54078.69
+    },
+    {
+      "label": "$1K–10K",
+      "minUsd": 1000,
+      "maxUsd": 10000,
+      "swaps": 6,
+      "volumeUsd": 15589.5
+    },
+    {
+      "label": "$10K–100K",
+      "minUsd": 10000,
+      "maxUsd": 100000,
+      "swaps": 0,
+      "volumeUsd": 0
+    },
+    {
+      "label": "≥ $100K",
+      "minUsd": 100000,
+      "maxUsd": null,
+      "swaps": 0,
+      "volumeUsd": 0
+    }
+  ],
+  "assets": [
+    {
+      "symbol": "NVDA",
+      "assetId": "nep141:bnb-0xa9ee28c80f960b889dfbd1902055218cba016f75.omdep.near",
+      "swaps": 323,
+      "volumeUsd": 37467.17,
+      "buys": 208,
+      "sells": 115
+    },
+    {
+      "symbol": "CRCL",
+      "assetId": "nep141:bnb-0x992879cd8ce0c312d98648875b5a8d6d042cbf34.omdep.near",
+      "swaps": 28,
+      "volumeUsd": 13105.54,
+      "buys": 19,
+      "sells": 9
+    },
+    {
+      "symbol": "TSLA",
+      "assetId": "nep141:bnb-0x2494b603319d4d9f9715c9f4496d9e0364b59d93.omdep.near",
+      "swaps": 92,
+      "volumeUsd": 9079.41,
+      "buys": 59,
+      "sells": 33
+    },
+    {
+      "symbol": "SPY",
+      "assetId": "nep141:bnb-0x6a708ead771238919d85930b5a0f10454e1c331a.omdep.near",
+      "swaps": 78,
+      "volumeUsd": 7979.36,
+      "buys": 47,
+      "sells": 31
+    },
+    {
+      "symbol": "GLD",
+      "assetId": "nep141:bnb-0xfa9a1e901085e269f6d428f79cd5252d8b919344.omdep.near",
+      "swaps": 46,
+      "volumeUsd": 3841.86,
+      "buys": 30,
+      "sells": 16
+    },
+    {
+      "symbol": "GOOGL",
+      "assetId": "nep141:bnb-0x091fc7778e6932d4009b087b191d1ee3bac5729a.omdep.near",
+      "swaps": 24,
+      "volumeUsd": 3642.9,
+      "buys": 16,
+      "sells": 8
+    },
+    {
+      "symbol": "QQQ",
+      "assetId": "nep141:bnb-0x0cde6936d305d5b34667fc46425e852efd73559a.omdep.near",
+      "swaps": 20,
+      "volumeUsd": 2978.79,
+      "buys": 14,
+      "sells": 6
+    },
+    {
+      "symbol": "SLV",
+      "assetId": "nep141:bnb-0x8b872732b07be325a8803cdb480d9d20b6f8d11b.omdep.near",
+      "swaps": 14,
+      "volumeUsd": 2367.76,
+      "buys": 9,
+      "sells": 5
+    },
+    {
+      "symbol": "AAPL",
+      "assetId": "nep141:bnb-0x390a684ef9cade28a7ad0dfa61ab1eb3842618c4.omdep.near",
+      "swaps": 29,
+      "volumeUsd": 2211.21,
+      "buys": 17,
+      "sells": 12
+    },
+    {
+      "symbol": "MRVL",
+      "assetId": "nep141:bnb-0x1501ec83ffef405b4331cc4f73277a40fb0c627d.omdep.near",
+      "swaps": 21,
+      "volumeUsd": 1918.34,
+      "buys": 12,
+      "sells": 9
+    },
+    {
+      "symbol": "INTC",
+      "assetId": "nep141:bnb-0xa528caaa2f96090e379d43f90834c75df54d6e74.omdep.near",
+      "swaps": 17,
+      "volumeUsd": 1894.51,
+      "buys": 11,
+      "sells": 6
+    },
+    {
+      "symbol": "META",
+      "assetId": "nep141:bnb-0xd7df5863a3e742f0c767768cdfcb63f09e0422f6.omdep.near",
+      "swaps": 17,
+      "volumeUsd": 1807.26,
+      "buys": 12,
+      "sells": 5
+    },
+    {
+      "symbol": "MSFT",
+      "assetId": "nep141:bnb-0x6bfe75d1ad432050ea973c3a3dcd88f02e2444c3.omdep.near",
+      "swaps": 15,
+      "volumeUsd": 1641.94,
+      "buys": 11,
+      "sells": 4
+    },
+    {
+      "symbol": "AMZN",
+      "assetId": "nep141:bnb-0x4553cfe1c09f37f38b12dc509f676964e392f8fc.omdep.near",
+      "swaps": 22,
+      "volumeUsd": 1197.45,
+      "buys": 14,
+      "sells": 8
+    },
+    {
+      "symbol": "HOOD",
+      "assetId": "nep141:bnb-0x19601179a60f55ff6636f5d1a8b6671053bd60a8.omdep.near",
+      "swaps": 15,
+      "volumeUsd": 708.5,
+      "buys": 8,
+      "sells": 7
+    },
+    {
+      "symbol": "TLT",
+      "assetId": "nep141:bnb-0xf69e40069ac227c11459e3f4e8a446b3401616b6.omdep.near",
+      "swaps": 4,
+      "volumeUsd": 250.43,
+      "buys": 3,
+      "sells": 1
+    },
+    {
+      "symbol": "TIP",
+      "assetId": "nep141:bnb-0x2ac26ec236df5d1d2ad1a6dd4e448a90e45dc35d.omdep.near",
+      "swaps": 4,
+      "volumeUsd": 233.45,
+      "buys": 3,
+      "sells": 1
+    },
+    {
+      "symbol": "SGOV",
+      "assetId": "nep141:bnb-0xc008c5f579ec1450f20099c39f587547e27c7523.omdep.near",
+      "swaps": 5,
+      "volumeUsd": 231.82,
+      "buys": 3,
+      "sells": 2
+    },
+    {
+      "symbol": "IAU",
+      "assetId": "nep141:bnb-0xcb2a0f46f67dc4c58a316f1c008edef5c2311795.omdep.near",
+      "swaps": 3,
+      "volumeUsd": 164.59,
+      "buys": 2,
+      "sells": 1
+    }
+  ],
+  "apps": [
+    {
+      "app": "sonear",
+      "swaps": 427,
+      "volumeUsd": 45604.96,
+      "firstWeek": "2026-09-21",
+      "lastWeek": "2026-11-02"
+    },
+    {
+      "app": "(none)",
+      "swaps": 200,
+      "volumeUsd": 19358.75,
+      "firstWeek": "2026-07-20",
+      "lastWeek": "2026-11-09"
+    },
+    {
+      "app": "shards",
+      "swaps": 89,
+      "volumeUsd": 6265.57,
+      "firstWeek": "2026-09-21",
+      "lastWeek": "2026-10-05"
+    },
+    {
+      "app": "swapkit",
+      "swaps": 21,
+      "volumeUsd": 18600.59,
+      "firstWeek": "2026-09-07",
+      "lastWeek": "2026-11-09"
+    },
+    {
+      "app": "umbra",
+      "swaps": 17,
+      "volumeUsd": 1722.52,
+      "firstWeek": "2026-09-21",
+      "lastWeek": "2026-09-21"
+    },
+    {
+      "app": "new.intents-referral.near",
+      "swaps": 11,
+      "volumeUsd": 805.49,
+      "firstWeek": "2026-07-27",
+      "lastWeek": "2026-08-31"
+    },
+    {
+      "app": "near-mobile",
+      "swaps": 4,
+      "volumeUsd": 165.5,
+      "firstWeek": "2026-11-02",
+      "lastWeek": "2026-11-02"
+    },
+    {
+      "app": "stonkbag",
+      "swaps": 4,
+      "volumeUsd": 54.42,
+      "firstWeek": "2026-11-09",
+      "lastWeek": "2026-11-09"
+    },
+    {
+      "app": "intents.tg",
+      "swaps": 2,
+      "volumeUsd": 76.34,
+      "firstWeek": "2026-09-21",
+      "lastWeek": "2026-11-02"
+    },
+    {
+      "app": "nero",
+      "swaps": 2,
+      "volumeUsd": 68.15,
+      "firstWeek": "2026-09-28",
+      "lastWeek": "2026-09-28"
+    }
+  ],
+  "summary": {
+    "data_since": "2026-05-18",
+    "data_until": "2026-11-09",
+    "ondo_swaps_total": 777,
+    "ondo_volume_total": 92722.3,
+    "ondo_traders_total": 236,
+    "ondo_swaps_30d": 57,
+    "ondo_volume_30d": 5971.55,
+    "ondo_traders_30d": 29,
+    "ondo_volume_prev_30d": 85342.34,
+    "ondo_volume_change_30d": -0.93,
+    "weeks_with_ondo_swaps": 15,
+    "first_ondo_week": "2026-07-20",
+    "weeks_measured_vs_1click": 8,
+    "ondo_share_latest": 0.00000198,
+    "ondo_share_latest_week": "2026-10-26",
+    "ondo_share_first": 0.00000282,
+    "ondo_share_first_week": "2026-09-07",
+    "weekend_volume_share": 0.44,
+    "weekend_swap_share": 0.4208,
+    "median_swap_usd": 63.06,
+    "share_swaps_under_1k": 0.9923,
+    "largest_swap_usd": 5548.37,
+    "top_asset": "NVDA",
+    "top_asset_volume_share": 0.4041,
+    "top10_trader_volume_share": 0.4167,
+    "peak_week": "2026-09-21",
+    "peak_week_volume": 48744.94,
+    "peak_week_traders": 150,
+    "latest_full_week": "2026-11-02",
+    "latest_full_week_volume": 1506.16,
+    "volume_change_from_peak": -0.9691,
+    "ondo_share_peak": 0.00013177,
+    "ondo_share_peak_week": "2026-09-21",
+    "apps_count": 9,
+    "top_app": "sonear",
+    "top_app_swap_share": 0.5495,
+    "top_app_volume_share": 0.4918,
+    "top_app_first_week": "2026-09-21",
+    "top_app_last_week": "2026-11-02",
+    "stonkbag_swaps": 4,
+    "stonkbag_tvl": 0,
+    "stonkbag_baskets": 5,
+    "stonkbag_holders": 0
+  },
+  "stonkbag": {
+    "at": "2026-11-09T22:01:33.920Z",
+    "tvlUsd": 0,
+    "baskets": 5,
+    "holders": 0,
+    "history": []
+  },
+  "stonkbagNote": null
+}
