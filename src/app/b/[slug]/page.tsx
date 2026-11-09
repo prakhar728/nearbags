@@ -128,7 +128,7 @@ function Header({ b }: { b: BasketView }) {
         <Meta k="Fee">{feePct(b.feeBps)}</Meta>
         <Meta k="Horizon">{HORIZON_LABEL[b.horizon]}</Meta>
         <Meta k="Min buy">${b.minBuyUsd}</Meta>
-        <Meta k={b.isHouse ? "Self-buy" : "Creator holds"}>{b.isHouse ? <span className="text-muted">House basket, none</span> : <span className="text-muted">—</span>}</Meta>
+        <Meta k={b.isHouse ? "Self-buy" : "Creator holds"}>{b.isHouse ? <span className="text-muted">House basket, none</span> : <Suspense fallback={<span className="text-muted">…</span>}><CreatorHolds id={b.id} /></Suspense>}</Meta>
       </dl>
       <div className="num flex flex-wrap gap-1.5 text-xs">
         {b.assets.map((a) => (
@@ -186,6 +186,12 @@ function Holdings({ b }: { b: BasketView }) {
   );
 }
 
+async function CreatorHolds({ id }: { id: number }) {
+  await connection();
+  const m = (await liveMetrics([id])).get(id)!;
+  return <span className="num">{m.creatorHoldsUsd == null ? "—" : usd(m.creatorHoldsUsd)}</span>;
+}
+
 async function LiveTrack({ b }: { b: BasketView }) {
   await connection();
   if (!b.publishedAt) return <p className="text-sm text-muted">Starts when the basket goes live.</p>;
@@ -203,8 +209,8 @@ async function LiveTrack({ b }: { b: BasketView }) {
         <Cell k="Net flow · 7d">{usd(m.inflow7dUsd, { compact: true })}</Cell>
       </div>
       <p className="mt-2 font-mono text-[10px] leading-relaxed text-faint">
-        Live = buy-and-hold index since {b.publishedAt.slice(0, 10)} on median reference closes{live ? ` (latest ${live.asOf})` : ""}. Held and holders come from on-chain
-        snapshots and show — until the first one.
+        Live = buy-and-hold index since {b.publishedAt.slice(0, 10)} on median reference closes{live ? ` (latest ${live.asOf})` : ""}. Held and holders are read from every
+        basket account on intents.near, refreshed every few minutes.
       </p>
     </div>
   );

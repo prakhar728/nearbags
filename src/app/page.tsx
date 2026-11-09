@@ -83,7 +83,7 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
     cards.sort((a, b) => (b.live?.value ?? -Infinity) - (a.live?.value ?? -Infinity));
   } else if (q.tab === "held") {
     cards.sort((a, b) => (b.metrics.tvlUsd ?? -1) - (a.metrics.tvlUsd ?? -1) || newest(a, b));
-    if (cards.every((c) => c.metrics.tvlUsd == null)) note = "Holdings aren't snapshotted yet. Sorted by newest until they are.";
+    if (cards.every((c) => !c.metrics.tvlUsd)) note = "Nothing held yet. Sorted by newest until there is.";
   } else cards.sort(newest);
 
   return (
@@ -132,7 +132,7 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
       )}
 
       <p className="font-mono text-[10px] leading-relaxed text-faint">
-        Live = buy-and-hold since the basket went live, on median reference prices. Backtest = historical, not a forecast. Held and holders come from on-chain snapshots.
+        Live = buy-and-hold since the basket went live, on median reference prices. Backtest = historical, not a forecast. Held and holders are read from basket accounts on-chain.
       </p>
     </div>
   );

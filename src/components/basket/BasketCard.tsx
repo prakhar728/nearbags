@@ -65,7 +65,7 @@ export function BasketCard({ basket: b, live, backtest, metrics }: CardData) {
         <span className="text-faint">·</span>
         <span>min ${b.minBuyUsd}</span>
         <span className="text-faint">·</span>
-        {b.isHouse ? <span className="text-text">House basket</span> : <span>creator holds —</span>}
+        {b.isHouse ? <span className="text-text">House basket</span> : <span>creator holds {metrics.creatorHoldsUsd == null ? "—" : usd(metrics.creatorHoldsUsd, { compact: true })}</span>}
       </div>
     </Link>
   );

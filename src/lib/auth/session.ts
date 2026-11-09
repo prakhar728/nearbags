@@ -1,6 +1,7 @@
 // Session cookie: an HS256 JWT holding the user id and wallet. HttpOnly, 7 days.
 import "server-only";
 import { cookies } from "next/headers";
+import { unstable_rethrow } from "next/navigation";
 import { jwtVerify, SignJWT } from "jose";
 
 const COOKIE = "sb_session";
@@ -68,6 +69,7 @@ export async function handle(fn: () => Promise<Response>): Promise<Response> {
   try {
     return await fn();
   } catch (e) {
+    unstable_rethrow(e); // let Next.js internals (prerender bail-outs, notFound, redirects) through
     if (e instanceof HttpError) return Response.json({ error: e.message }, { status: e.status });
     console.error(e);
     return Response.json({ error: (e as Error).message?.slice(0, 300) || "Server error" }, { status: 500 });

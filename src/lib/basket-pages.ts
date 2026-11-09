@@ -5,6 +5,7 @@ import { and, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { db, schema } from "@/db";
 import { getBasketBySlug, listBasketsByCreator, listPublicBaskets, type BasketView } from "@/lib/baskets";
+import { basketStats } from "@/lib/stats";
 
 export const TAG_BASKETS = "baskets";
 export const TAG_PROFILES = "profiles";
@@ -47,25 +48,18 @@ export async function listExploreBaskets(): Promise<BasketView[]> {
 const wasPublished = (b: BasketView) => b.status === "live" || b.publishedAt != null;
 
 export interface LiveMetrics {
-  tvlUsd: number | null; // latest snapshot, null until one exists
+  tvlUsd: number | null; // on-chain, from every position account (lib/stats, cached 5 min); null if the read failed
   holders: number | null;
+  creatorHoldsUsd: number | null;
   inflow7dUsd: number; // completed buys minus completed sells, last 7 days
 }
 
-/** Request-time metrics: latest snapshot (TVL, holders) and 7-day net inflow from orders. */
+/** Request-time metrics: on-chain TVL, holders and creator holdings, plus 7-day net inflow from orders. */
 export async function liveMetrics(basketIds: number[]): Promise<Map<number, LiveMetrics>> {
-  const out = new Map<number, LiveMetrics>(basketIds.map((id) => [id, { tvlUsd: null, holders: null, inflow7dUsd: 0 }]));
+  const out = new Map<number, LiveMetrics>(basketIds.map((id) => [id, { tvlUsd: null, holders: null, creatorHoldsUsd: null, inflow7dUsd: 0 }]));
   if (!basketIds.length) return out;
-  const snaps = await db()
-    .selectDistinctOn([schema.snapshots.basketId], {
-      basketId: schema.snapshots.basketId,
-      tvlUsd: schema.snapshots.tvlUsd,
-      holders: schema.snapshots.holders,
-    })
-    .from(schema.snapshots)
-    .where(inArray(schema.snapshots.basketId, basketIds))
-    .orderBy(schema.snapshots.basketId, desc(schema.snapshots.takenAt));
-  for (const s of snaps) Object.assign(out.get(s.basketId)!, { tvlUsd: s.tvlUsd, holders: s.holders });
+  const stats = await Promise.all(basketIds.map((id) => basketStats(id).catch(() => null)));
+  for (const st of stats) if (st) Object.assign(out.get(st.basketId)!, { tvlUsd: st.tvlUsd, holders: st.holders, creatorHoldsUsd: st.creatorHoldsUsd });
 
   const since = new Date(Date.now() - 7 * 86_400_000);
   const flows = await db()

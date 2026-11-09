@@ -9,6 +9,7 @@ import { db, schema } from "@/db";
 import { ASSETS, getAsset, USDC, withdrawTarget } from "@/lib/assets";
 import { minBuyUsd, RULES } from "@/lib/basket-rules";
 import { creatorFeeAccount, getBasketById, PLATFORM_FEE_BPS, type BasketView } from "@/lib/baskets";
+import { revalidateBasket } from "@/lib/basket-pages";
 import { eligibility } from "@/lib/compliance";
 import { getSettings } from "@/lib/settings";
 import type { Session } from "@/lib/auth/session";
@@ -523,7 +524,11 @@ export async function refreshOrder(s: Session, orderId: number) {
     const done = order.kind === "sell" ? legs.some((l) => l.seq === PAYOUT_SEQ) : order.kind === "reset" ? legs.some((l) => l.seq >= RESET_BUY_SEQ) || !(await legsOf(order.id)).length : true;
     if (done) {
       const allOk = legs.every((l) => l.status === "success");
-      await setOrder(order.id, { status: allOk ? "complete" : "partial" });
+      const payout = legs.find((l) => l.seq === PAYOUT_SEQ);
+      await setOrder(order.id, {
+        status: allOk ? "complete" : "partial",
+        ...(order.kind === "sell" && payout?.status === "success" ? { usdOut: Number(payout.amountIn) / 1e6 } : {}),
+      });
       if (allOk && order.kind === "buy") await maybeGoLive(position);
     }
   }
@@ -535,6 +540,7 @@ async function maybeGoLive(position: Position) {
   const basket = await getBasketById(position.basketId);
   if (basket?.status === "pending" && basket.creator.id === position.userId) {
     await db().update(schema.baskets).set({ status: "live", publishedAt: new Date() }).where(eq(schema.baskets.id, basket.id));
+    revalidateBasket(basket.slug);
   }
 }
 
