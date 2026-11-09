@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "test": "vitest run",
-    "prices:ingest": "tsx --env-file=.env.local scripts/ingest-prices.ts"
+    "prices:ingest": "tsx --env-file=.env.local scripts/ingest-prices.ts",
+    "db:seed": "tsx --env-file=.env.local scripts/seed-baskets.ts"
   },
   "dependencies": {
     "@near-wallet-selector/core": "^10.1.4",
