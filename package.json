@@ -11,7 +11,8 @@
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
     "test": "vitest run",
     "prices:ingest": "tsx --env-file=.env.local scripts/ingest-prices.ts",
-    "db:seed": "tsx --env-file=.env.local scripts/seed-baskets.ts"
+    "db:seed": "tsx --env-file=.env.local scripts/seed-baskets.ts",
+    "claim-seeds": "tsx --env-file=.env.local scripts/claim-seeds.ts"
   },
   "dependencies": {
     "@near-wallet-selector/core": "^10.1.4",
