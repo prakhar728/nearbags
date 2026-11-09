@@ -124,6 +124,8 @@ export const orders = pgTable(
     fundingDepositAddress: text("funding_deposit_address"),
     fundingDepositMemo: text("funding_deposit_memo"),
     fundingQuote: jsonb("funding_quote"),
+    grossUsdc: text("gross_usdc"), // buy: USDC that landed in the basket account (smallest units)
+    usdcStart: text("usdc_start"), // sell: USDC already in the account that this sell pays out (pct of it)
     error: text("error"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -144,6 +146,8 @@ export const orderLegs = pgTable(
     amountOutActual: text("amount_out_actual"),
     depositAddress: text("deposit_address"),
     intentHash: text("intent_hash"),
+    payload: text("payload"), // exact intent payload generated for signing; the submitted signature must cover it
+    attempts: integer("attempts").notNull().default(0),
     status: text("status", { enum: ["pending", "quoted", "submitted", "success", "refunded", "failed"] }).notNull().default("pending"),
     quote: jsonb("quote"),
     guard: jsonb("guard"),

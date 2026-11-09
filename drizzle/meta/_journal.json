@@ -15,6 +15,13 @@
       "when": 1794227052947,
       "tag": "0001_living_master_mold",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794230954258,
+      "tag": "0002_green_harry_osborn",
+      "breakpoints": true
     }
   ]
 }

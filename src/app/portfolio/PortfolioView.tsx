@@ -1,0 +1,120 @@
+"use client";
+import Link from "next/link";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { SellPanel } from "@/components/trade/SellPanel";
+import { useAuth } from "@/lib/client/auth";
+import type { PortfolioPosition } from "@/lib/trade/portfolio";
+
+const usd = (x: number) => `$${x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const signed = (x: number) => `${x >= 0 ? "+" : "−"}${usd(Math.abs(x))}`;
+
+export function PortfolioView() {
+  const { user, loading } = useAuth();
+  const [open, setOpen] = useState<number | null>(null);
+  const q = useQuery({
+    queryKey: ["portfolio", user?.id],
+    enabled: Boolean(user),
+    queryFn: async (): Promise<PortfolioPosition[]> => {
+      const r = await fetch("/api/portfolio", { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      return j.positions;
+    },
+  });
+  const rows = q.data ?? null;
+  const err = q.error ? (q.error as Error).message : null;
+  const load = () => void q.refetch();
+
+  if (loading) return <p className="num text-xs text-muted">Loading…</p>;
+  if (!user) return <p className="text-sm text-muted">Connect a wallet to see your baskets.</p>;
+  if (err) return <p className="text-sm text-loss">{err}</p>;
+  if (!rows) return <p className="num text-xs text-muted">Reading your basket accounts on-chain…</p>;
+  if (!rows.length)
+    return (
+      <p className="text-sm text-muted">
+        No baskets yet. <Link href="/" className="text-text underline decoration-border-strong underline-offset-4">Find one to bag</Link>.
+      </p>
+    );
+
+  const total = rows.reduce((s, r) => s + r.valueUsd, 0);
+  const exitAll = rows.every((r) => r.exitUsd != null) ? rows.reduce((s, r) => s + (r.exitUsd ?? 0), 0) : null;
+  const cost = rows.reduce((s, r) => s + r.costUsd, 0);
+  const pnl = cost > 0 ? (exitAll ?? total) - cost : null;
+
+  return (
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
+        <Stat label="Total value" value={usd(total)} sub={exitAll != null ? `sell value ${usd(exitAll)} · ${(((exitAll / total) - 1) * 100).toFixed(1)}% vs market` : "some assets can't be sold right now"} />
+        {pnl != null && <Stat label="P&L" value={signed(pnl)} tone={pnl >= 0 ? "text-gain" : "text-loss"} sub={`on ${usd(cost)} in`} />}
+      </div>
+
+      <div className="divide-y divide-border border border-border">
+        {rows.map((r) => (
+          <div key={r.positionId}>
+            <button type="button" onClick={() => setOpen(open === r.positionId ? null : r.positionId)} className="grid w-full gap-2 p-4 text-left sm:grid-cols-[1.5fr_1fr_1fr_1fr] sm:items-center hover:bg-surface">
+              <div>
+                <div className="text-sm font-medium">{r.basket.name}</div>
+                <div className="num text-[11px] text-faint">{r.boughtAt ? `bought ${new Date(r.boughtAt).toLocaleDateString()}` : "no completed buy yet"}</div>
+              </div>
+              <div className="num text-sm">{usd(r.valueUsd)}</div>
+              <div className={`num text-sm ${r.pnlUsd == null ? "text-muted" : r.pnlUsd >= 0 ? "text-gain" : "text-loss"}`}>
+                {r.pnlUsd == null ? "—" : `${signed(r.pnlUsd)} (${((r.pnlUsd / r.costUsd) * 100).toFixed(1)}%)`}
+              </div>
+              <div className="num text-xs text-muted">{r.openOrderId ? <span className="text-accent">open {r.openOrderKind} order</span> : open === r.positionId ? "close" : "details"}</div>
+            </button>
+
+            {open === r.positionId && (
+              <div className="grid gap-6 border-t border-border p-4 lg:grid-cols-[1.4fr_1fr]">
+                <div className="grid gap-3">
+                  <table className="num w-full text-xs">
+                    <thead className="text-faint">
+                      <tr>
+                        <th className="pb-2 text-left font-normal">Asset</th>
+                        <th className="pb-2 text-right font-normal">Units</th>
+                        <th className="pb-2 text-right font-normal">Value</th>
+                        <th className="pb-2 text-right font-normal">Now / target</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {r.holdings.map((h) => (
+                        <tr key={h.assetId} className="border-t border-border">
+                          <td className="py-1.5">{h.assetId}</td>
+                          <td className="py-1.5 text-right">{h.units.toPrecision(5)}</td>
+                          <td className="py-1.5 text-right">{usd(h.valueUsd)}</td>
+                          <td className="py-1.5 text-right">
+                            {(h.weightNowBps / 100).toFixed(1)}% / {(h.targetBps / 100).toFixed(0)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="num break-all text-[10px] text-faint">
+                    Basket account {r.accountId} on intents.near{r.recoveryKeyAdded ? " · your wallet is its recovery key" : ""}
+                  </div>
+                  <Link href={`/b/${r.basket.slug}`} className="font-mono text-xs text-muted hover:text-text">
+                    Open basket →
+                  </Link>
+                </div>
+                <div>
+                  <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-faint">Sell</div>
+                  <SellPanel positionId={r.positionId} basketId={r.basket.id} onDone={load} />
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
+  return (
+    <div>
+      <div className="font-mono text-[10px] uppercase tracking-wider text-faint">{label}</div>
+      <div className={`num mt-1 text-2xl ${tone ?? ""}`}>{value}</div>
+      {sub && <div className="num text-[11px] text-muted">{sub}</div>}
+    </div>
+  );
+}
