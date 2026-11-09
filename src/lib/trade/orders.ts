@@ -9,6 +9,8 @@ import { db, schema } from "@/db";
 import { ASSETS, getAsset, USDC } from "@/lib/assets";
 import { minBuyUsd, RULES } from "@/lib/basket-rules";
 import { creatorFeeAccount, getBasketById, PLATFORM_FEE_BPS, type BasketView } from "@/lib/baskets";
+import { eligibility } from "@/lib/compliance";
+import { getSettings } from "@/lib/settings";
 import type { Session } from "@/lib/auth/session";
 import { HttpError } from "@/lib/auth/session";
 import { parsePublicKey, bytesToHex } from "@/lib/intents/keys";
@@ -74,9 +76,21 @@ function assertSignedByAccount(signed: SignedRawEd25519, accountId: string) {
 
 // ---------- buy ----------
 
-export async function createBuyOrder(s: Session, p: { basketId: number; usd: number; payAssetId: string; refundAddress: string }) {
+export async function createBuyOrder(
+  s: Session,
+  p: { basketId: number; usd: number; payAssetId: string; refundAddress: string },
+  geo: { country: string | null; region: string | null },
+) {
   const basket = await getBasketById(p.basketId);
   if (!basket) throw new HttpError(404, "Basket not found.");
+  const [buyer] = await db().select().from(schema.users).where(eq(schema.users.id, s.userId));
+  const elig = eligibility({ ...geo, assetIds: basket.assets.map((a) => a.assetId), attested: buyer.attestations });
+  if (elig.status === "blocked") throw new HttpError(451, elig.reason ?? "Not available in your region.");
+  if (elig.status === "needs") throw new HttpError(409, "Accept the disclosures first.");
+  const settings = await getSettings();
+  if (settings.buysPaused) throw new HttpError(503, "Buying is paused for a moment. Selling still works.");
+  const delisted = basket.assets.filter((a) => settings.delisted.includes(a.assetId)).map((a) => a.assetId);
+  if (delisted.length) throw new HttpError(409, `${delisted.join(", ")} can't be bought right now. Holders can still sell.`);
   const isCreator = basket.creator.id === s.userId;
   if (!(basket.status === "live" || (basket.status === "pending" && isCreator))) throw new HttpError(409, "This basket isn't open for buying.");
 

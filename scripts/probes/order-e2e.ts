@@ -21,7 +21,7 @@ const expectBalanceError = async (label: string, signed: Parameters<typeof simul
 async function main() {
   process.env.PLATFORM_FEE_ACCOUNT ||= "stonkbag-fees.near"; // test value so the platform fee path runs
   const tag = `e2e-${Date.now()}`;
-  const [user] = await db().insert(schema.users).values({ walletChain: "evm", walletAddress: `0x${tag}` }).returning();
+  const [user] = await db().insert(schema.users).values({ walletChain: "evm", walletAddress: `0x${tag}`, attestations: { risk: "t", not_us_person: "t" } }).returning();
   const s = { userId: user.id, chain: "evm" as const, address: user.walletAddress };
   const basketId = 4; // Big Tech vs Bitcoin (QQQ, BTC, ETH)
   const key = deriveBasketKey(seedFromSignature(crypto.getRandomValues(new Uint8Array(64))), basketId);
@@ -30,7 +30,7 @@ async function main() {
 
   try {
     console.log("1. create buy order ($40, pay USDC on Arbitrum)");
-    const { order } = await createBuyOrder(s, { basketId, usd: 40, payAssetId: "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near", refundAddress: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e" });
+    const { order } = await createBuyOrder(s, { basketId, usd: 40, payAssetId: "nep141:arb-0xaf88d065e77c8cc2239327c5edb3a432268e5831.omft.near", refundAddress: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e" }, { country: "IN", region: null });
     const v1 = await orderView(order.id);
     console.log(`   status=${v1.order.status} next=${v1.next} deposit ${v1.order.deposit?.amountInFormatted} USDC → ${v1.order.deposit?.address?.slice(0, 12)}…`);
 

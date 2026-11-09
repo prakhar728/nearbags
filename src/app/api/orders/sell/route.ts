@@ -1,3 +1,4 @@
+import { rateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
 import { handle, HttpError, requireSession } from "@/lib/auth/session";
 import { createSellOrder, orderView } from "@/lib/trade/orders";
@@ -12,6 +13,7 @@ const Body = z.object({
 export async function POST(request: Request) {
   return handle(async () => {
     const s = await requireSession();
+    await rateLimit("sell", 10, 60_000, String(s.userId));
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed sell order.");
     const { order } = await createSellOrder(s, p.data);

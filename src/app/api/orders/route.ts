@@ -1,8 +1,10 @@
 // Create a buy order: preflight, then a deposit address that funds the basket account.
+import { rateLimit } from "@/lib/ratelimit";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { handle, HttpError, requireSession } from "@/lib/auth/session";
+import { visitorGeo } from "@/lib/geo";
 import { createBuyOrder, orderView, refreshOrder } from "@/lib/trade/orders";
 
 const Body = z.object({
@@ -15,9 +17,10 @@ const Body = z.object({
 export async function POST(request: Request) {
   return handle(async () => {
     const s = await requireSession();
+    await rateLimit("order", 10, 60_000, String(s.userId));
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed order.");
-    const { order, preflight } = await createBuyOrder(s, p.data);
+    const { order, preflight } = await createBuyOrder(s, p.data, await visitorGeo());
     return Response.json({ ...(await orderView(order.id)), preflight });
   });
 }

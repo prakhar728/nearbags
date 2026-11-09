@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "attestations" jsonb DEFAULT '{}'::jsonb NOT NULL;

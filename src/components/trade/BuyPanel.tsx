@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useConfig } from "wagmi";
+import { useQuery } from "@tanstack/react-query";
 import { ASSETS, getAsset } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
 import { basketKey } from "@/lib/client/keystore";
@@ -60,6 +61,12 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
 
   const token = tokens.find((t) => t.assetId === payAsset);
   const amountNum = Number(amount);
+
+  const elig = useQuery({
+    queryKey: ["eligibility", basket.id, user?.id ?? 0],
+    queryFn: () => api<{ status: "ok" | "needs" | "blocked"; needs: string[]; reason?: string; text: Record<string, string> }>(`/api/eligibility?basketId=${basket.id}`),
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
     api<{ tokens: PayToken[] }>("/api/pay-tokens")
@@ -200,6 +207,9 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   if (basket.status === "closed" || basket.status === "hidden") {
     return <Box title="Buy"><p className="text-sm text-muted">Closed to new buyers. Holders can still sell.</p></Box>;
   }
+  if (elig.data?.status === "blocked") {
+    return <Box title="Buy"><p className="text-sm text-muted">{elig.data.reason}</p></Box>;
+  }
   if (!user) {
     return (
       <Box title="Buy">
@@ -213,6 +223,10 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   }
 
   if (phase === "order" && view) return <OrderBox view={view} token={token} onPay={payNow} onRetry={retry} step={step} err={err} />;
+
+  if (elig.data?.status === "needs") {
+    return <Attest needs={elig.data.needs} text={elig.data.text} onDone={() => void elig.refetch()} />;
+  }
 
   const tooSmall = amountNum < basket.minBuyUsd;
   const tooBig = amountNum > 1000;
@@ -291,6 +305,40 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
         <p className="text-[11px] leading-relaxed text-faint">
           Your basket sits in its own NEAR Intents account. Only your browser key and your wallet can move it.
         </p>
+      </div>
+    </Box>
+  );
+}
+
+function Attest({ needs, text, onDone }: { needs: string[]; text: Record<string, string>; onDone: () => void }) {
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [err, setErr] = useState<string | null>(null);
+  const all = needs.every((n) => checked[n]);
+  return (
+    <Box title="Before your first buy">
+      <div className="grid gap-3">
+        {needs.map((n) => (
+          <label key={n} htmlFor={`attest-${n}`} className="flex cursor-pointer gap-3 text-xs leading-relaxed text-muted">
+            <input id={`attest-${n}`} type="checkbox" checked={!!checked[n]} onChange={(e) => setChecked((c) => ({ ...c, [n]: e.target.checked }))} className="mt-0.5 accent-[var(--accent)]" />
+            <span>{text[n]}</span>
+          </label>
+        ))}
+        {err && <p className="text-xs text-loss">{err}</p>}
+        <button
+          type="button"
+          disabled={!all}
+          onClick={async () => {
+            try {
+              await api("/api/eligibility", { method: "POST", body: JSON.stringify({ items: needs }) });
+              onDone();
+            } catch (e) {
+              setErr((e as Error).message);
+            }
+          }}
+          className="w-full border border-border-strong px-4 py-2.5 font-mono text-xs font-semibold hover:border-text disabled:opacity-40"
+        >
+          I AGREE
+        </button>
       </div>
     </Box>
   );

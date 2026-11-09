@@ -32,6 +32,7 @@ export const users = pgTable(
     xUrl: text("x_url"),
     isAdmin: boolean("is_admin").notNull().default(false),
     acceptedRiskAt: timestamp("accepted_risk_at", { withTimezone: true }),
+    attestations: jsonb("attestations").$type<Partial<Record<"risk" | "not_us_person" | "professional", string>>>().notNull().default({}),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_wallet_uq").on(t.walletChain, t.walletAddress), uniqueIndex("users_handle_uq").on(t.handle)],

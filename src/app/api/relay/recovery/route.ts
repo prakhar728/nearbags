@@ -1,6 +1,7 @@
 // Relay the "add my wallet as recovery key" intent for one of the user's basket accounts (spec §4.1).
 // Allowlist: signer must be the user's own position account, and the only intent allowed is add_public_key
 // with the user's verified wallet key. Anything else is refused before it reaches the relayer.
+import { rateLimit } from "@/lib/ratelimit";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
@@ -16,6 +17,7 @@ const Body = z.object({
 export async function POST(request: Request) {
   return handle(async () => {
     const s = await requireSession();
+    await rateLimit("relay", 10, 60_000, String(s.userId));
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed request.");
     const signed = p.data.signed as SignedRawEd25519;
