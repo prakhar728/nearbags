@@ -127,9 +127,10 @@ describe("weekTotals", () => {
 });
 
 describe("request params", () => {
-  it("filters by every Ondo id and pages with the last row as cursor", () => {
-    const p = streamParams("ondo-in", 100, 200, { depositAddress: "abc", depositMemo: "7" });
-    expect(p.filter(([k]) => k === "toTokenId").map(([, v]) => v)).toEqual(ONDO_IDS);
+  it("filters by one Ondo id and pages with the last row as cursor", () => {
+    const p = streamParams("ondo-in", 100, 200, { depositAddress: "abc", depositMemo: "7" }, ONDO_IDS[3]);
+    expect(p.filter(([k]) => k === "toTokenId").map(([, v]) => v)).toEqual([ONDO_IDS[3]]);
+    expect(() => streamParams("ondo-out", 100, 200)).toThrow();
     expect(p).toContainEqual(["startTimestampUnix", "99"]);
     expect(p).toContainEqual(["lastDepositAddress", "abc"]);
     expect(p).toContainEqual(["lastDepositMemo", "7"]);

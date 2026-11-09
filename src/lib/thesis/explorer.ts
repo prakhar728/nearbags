@@ -19,8 +19,10 @@ export interface Cursor {
   depositMemo: string | null;
 }
 
-/** Query params for one page of one stream in one [start, end) window (Unix seconds). */
-export function streamParams(kind: StreamKind, startSec: number, endSec: number, cursor?: Cursor | null): [string, string][] {
+/** Query params for one page of one stream in one [start, end) window (Unix seconds). Ondo streams take ONE token id:
+ *  the API does not OR repeated toTokenId/fromTokenId params (only the last one counts) and returns nothing for a
+ *  comma list (both probed 2026-11-10), so the pull asks once per token. */
+export function streamParams(kind: StreamKind, startSec: number, endSec: number, cursor?: Cursor | null, tokenId?: string): [string, string][] {
   const p: [string, string][] = [
     ["numberOfTransactions", String(PAGE_SIZE)],
     ["statuses", "SUCCESS"],
@@ -28,10 +30,11 @@ export function streamParams(kind: StreamKind, startSec: number, endSec: number,
     ["startTimestampUnix", String(startSec - 1)],
     ["endTimestampUnix", String(endSec)],
   ];
-  if (kind === "ondo-in") for (const id of ONDO_IDS) p.push(["toTokenId", id]);
-  if (kind === "ondo-out") for (const id of ONDO_IDS) p.push(["fromTokenId", id]);
-  // Token filters exclude "masking transactions"; minUsdPrice=0 applies the same exclusion to the unfiltered stream
-  // without dropping any swap, so the denominator matches the numerator. (Inferred from the spec text; check on first run.)
+  if (kind !== "all" && !tokenId) throw new Error(`${kind} needs a token id`);
+  if (kind === "ondo-in") p.push(["toTokenId", tokenId!]);
+  if (kind === "ondo-out") p.push(["fromTokenId", tokenId!]);
+  // Token filters exclude "masking transactions"; minUsdPrice=0 applies the same exclusion to the unfiltered stream.
+  // On 2026-11-10 one hour of the unfiltered feed had the same 454 rows with and without it.
   if (kind === "all") p.push(["minUsdPrice", "0"]);
   if (cursor) {
     p.push(["direction", "next"]); // next = older
@@ -52,10 +55,12 @@ export function requestTemplate(kind: StreamKind): string {
     `Authorization: Bearer $EXPLORER_JWT`,
     `  numberOfTransactions=${PAGE_SIZE}`,
     `  statuses=SUCCESS`,
-    `  startTimestampUnix=<week start − 1>  endTimestampUnix=<week end>   (one window per UTC week, Monday 00:00)`,
+    kind === "all"
+      ? `  startTimestampUnix=<week start − 1>  endTimestampUnix=<week end>   (one window per UTC week, Monday 00:00)`
+      : `  startTimestampUnix=<first week start − 1>  endTimestampUnix=<now>   (the whole range at once)`,
   ];
-  if (kind === "ondo-in") lines.push(`  toTokenId=<each Ondo id, repeated>   (${ONDO_IDS.length} ids, below)`);
-  if (kind === "ondo-out") lines.push(`  fromTokenId=<each Ondo id, repeated> (${ONDO_IDS.length} ids, below)`);
+  if (kind === "ondo-in") lines.push(`  toTokenId=<one Ondo id>     (one call per id: ${ONDO_IDS.length} ids, below)`);
+  if (kind === "ondo-out") lines.push(`  fromTokenId=<one Ondo id>   (one call per id: ${ONDO_IDS.length} ids, below)`);
   if (kind === "all") lines.push(`  minUsdPrice=0   (swaps only, same as the token-filtered calls)`);
   lines.push(`  then: direction=next&lastDepositAddress=<last row>&lastDepositMemo=<last row> until a page has < ${PAGE_SIZE} rows`);
   return lines.join("\n");

@@ -1,8 +1,8 @@
 // Usage: pnpm thesis [--weeks 26] [--total-weeks 8] [--max-requests 720] [--render-only]
 //
 // Rebuilds the thesis track from raw NEAR Intents Explorer data:
-//   1. pulls 1Click swaps that touch an Ondo stock/ETF token, one UTC week at a time, plus the unfiltered 1Click feed for
-//      the last few complete weeks (for the share-of-volume chart);
+//   1. pulls 1Click swaps into and out of each Ondo stock/ETF token (one call per token over the whole range), plus the
+//      unfiltered 1Click feed one UTC week at a time for the last few complete weeks (for the share-of-volume chart);
 //   2. caches every page under data/thesis/raw/ (gitignored) so reruns only fetch what is new;
 //   3. aggregates (src/lib/thesis/aggregate.ts) into data/thesis/thesis.json (checked in);
 //   4. renders THESIS.template.md into THESIS.md.
@@ -22,7 +22,8 @@
 //                                          deprecated). Docs: repeat until an empty array comes back.
 //   statuses             comma list of FAILED, INCOMPLETE_DEPOSIT, PENDING_DEPOSIT, PROCESSING, REFUNDED, SUCCESS
 //                        (default FAILED,PROCESSING,REFUNDED,SUCCESS)
-//   fromTokenId / toTokenId   repeatable, OR-matched; override fromChainId / toChainId. Also fromChainId/toChainId.
+//   fromTokenId / toTokenId   the spec says repeatable, but on 2026-11-10 repeating them returned only the LAST id's
+//                             swaps, and a comma list returned none. So we send one id per call.
 //   startTimestampUnix / endTimestampUnix   both "non-inclusive" (ISO variants startTimestamp / endTimestamp exist)
 //   minUsdPrice / maxUsdPrice, referral, affiliate, search, depositMemo, showTestTxs
 //   Note: every swap-specific filter (token, chain, referral, affiliate, min/max USD) "excludes masking transactions".
@@ -31,12 +32,10 @@
 //   Other fields: createdAt, amountIn(Formatted), amountOut(Formatted), appFees[], referral, intentHashes, nearTxHashes,
 //   originChainTxHashes, destinationChainTxHashes, refundReason, refundFee(Formatted), depositType, recipientType,
 //   refundType, depositAddressAndMemo.
-// NOT confirmed (no token yet, so nothing was fetched with auth):
-//   - whether an explorer-type JWT sees all 1Click swaps or only the partner's own (docs say the API "mirrors the data
-//     available on the NEAR Intents Explorer", which is global);
-//   - that the cursor combines with timestamp and token filters as expected;
-//   - what "masking transactions" are; minUsdPrice=0 on the unfiltered pull is our way to drop them so the total matches
-//     the token-filtered pulls. Check the first real run against https://explorer.near-intents.org.
+// Checked with a real explorer key on 2026-11-10:
+//   - the key sees all 1Click swaps (rows from SwapKit, Rango and others), not only our own;
+//   - minUsdPrice=0 made no difference on one hour of the unfiltered feed (454 rows either way);
+//   - the cursor is guarded below: rows outside the window are dropped and a stuck cursor stops the run.
 //   - the docs search snippet mentions GET /transactions-pages?page=N; it is not in the current OpenAPI file, so unused.
 // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
@@ -102,7 +101,7 @@ async function getPage(url: string, jwt: string): Promise<ExplorerTx[]> {
   throw new Error("Explorer API: gave up after 7 attempts");
 }
 
-// ── Raw cache: data/thesis/raw/<kind>/<week>/page-0001.json + state.json ───────────────────────────────────────────────
+// ── Raw cache: data/thesis/raw/<kind>/<week or token>/page-0001.json + state.json ───────────────────────────────────────────────
 interface PageFile {
   request: string; // URL without the token
   fetchedAt: string;
@@ -145,11 +144,10 @@ async function loadPages(dir: string): Promise<PageFile[]> {
   return out;
 }
 
-/** Pulls one stream for one week, resuming from cache. Returns every row and whether the pull reached the end. */
-async function pullWeek(kind: StreamKind, week: string, now: number, jwt: string): Promise<{ rows: ExplorerTx[]; complete: boolean }> {
-  const dir = path.join(RAW, kind, week);
-  const start = weekSec(week);
-  const end = start + 7 * DAY;
+/** Pulls one stream over [start, end), resuming from cache. Returns every row and whether the pull reached the end.
+ *  An unsettled window (it ended less than SETTLE ago) is refetched from scratch on every run. */
+async function pullStream(kind: StreamKind, key: string, start: number, end: number, now: number, jwt: string, tokenId?: string): Promise<{ rows: ExplorerTx[]; complete: boolean }> {
+  const dir = path.join(RAW, kind, key);
   const settled = end + SETTLE <= now;
   const state = await readJson<StreamState>(path.join(dir, "state.json"));
 
@@ -164,18 +162,20 @@ async function pullWeek(kind: StreamKind, week: string, now: number, jwt: string
 
   try {
     while (!complete) {
-      const url = transactionsUrl(streamParams(kind, start, end, cursor));
+      const url = transactionsUrl(streamParams(kind, start, end, cursor, tokenId));
       const got = await getPage(url, jwt);
-      const page: PageFile = { request: url, fetchedAt: new Date().toISOString(), rows: kind === "all" ? got.map(slim) : got };
+      const inWindow = got.filter((t) => t.createdAtTimestamp >= start && t.createdAtTimestamp < end);
+      if (inWindow.length < got.length) console.warn(`  ${kind} ${key}: dropped ${got.length - inWindow.length} rows outside the window`);
+      const page: PageFile = { request: url, fetchedAt: new Date().toISOString(), rows: kind === "all" ? inWindow.map(slim) : inWindow };
       pages.push(page);
       await writeFile(path.join(dir, `page-${String(pages.length).padStart(4, "0")}.json`), JSON.stringify(page));
       rows.push(...page.rows);
-      process.stdout.write(`  ${kind} ${week} page ${pages.length}: ${got.length} rows\n`);
-      if (got.length < PAGE_SIZE) complete = true;
+      process.stdout.write(`  ${kind} ${key} page ${pages.length}: ${got.length} rows\n`);
+      if (got.length < PAGE_SIZE || got.at(-1)!.createdAtTimestamp < start) complete = true;
       else {
         const last = got.at(-1)!;
         if (cursor && last.depositAddress === cursor.depositAddress && last.depositMemo === cursor.depositMemo) {
-          throw new Error(`cursor did not advance for ${kind} ${week}; check the pagination params`);
+          throw new Error(`cursor did not advance for ${kind} ${key}; check the pagination params`);
         }
         cursor = { depositAddress: last.depositAddress, depositMemo: last.depositMemo };
       }
@@ -251,9 +251,10 @@ async function main() {
 
   const ondoTxs: ExplorerTx[] = [];
   let ondoComplete = true;
+  const ondoStart = weekSec(ondoWeeks[0]);
   for (const kind of ["ondo-in", "ondo-out"] as const) {
-    for (const w of ondoWeeks) {
-      const r = await pullWeek(kind, w, now, jwt);
+    for (const id of ONDO_IDS) {
+      const r = await pullStream(kind, ONDO_SYMBOL[id], ondoStart, now, now, jwt, id);
       ondoTxs.push(...r.rows);
       ondoComplete &&= r.complete;
     }
@@ -265,7 +266,7 @@ async function main() {
 
   const totals: WeekTotals[] = [];
   for (const w of [...allWeeks].reverse()) {
-    const r = await pullWeek("all", w, now, jwt);
+    const r = await pullStream("all", w, weekSec(w), weekSec(w) + 7 * DAY, now, jwt);
     if (r.complete) totals.push(...weekTotals(r.rows, ONDO_IDS).filter((t) => t.week === w));
     else console.warn(`  all-1Click pull for ${w} is incomplete; its share point is left out (rerun to continue)`);
   }
