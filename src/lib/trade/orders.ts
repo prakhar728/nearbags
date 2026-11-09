@@ -16,7 +16,7 @@ import type { Session } from "@/lib/auth/session";
 import { HttpError } from "@/lib/auth/session";
 import { parsePublicKey, bytesToHex } from "@/lib/intents/keys";
 import { parsePayload, type Intent, type SignedRawEd25519 } from "@/lib/intents/payload";
-import { balancesOf } from "@/lib/intents/rpc";
+import { balancesOf, hasPublicKey } from "@/lib/intents/rpc";
 import { isFinal, oneclick, OneClickError, type QuoteResponse, type TokenInfo } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 import { relay } from "@/lib/relayer";
@@ -66,10 +66,16 @@ async function setLeg(id: number, patch: Partial<Leg>) {
   await db().update(schema.orderLegs).set({ ...patch, updatedAt: new Date() }).where(eq(schema.orderLegs.id, id));
 }
 
-/** The signed payload must come from the basket account's own key (implicit account = hex of the public key). */
-function assertSignedByAccount(signed: SignedRawEd25519, accountId: string) {
+/**
+ * The signed payload must come from a key the basket account trusts: its own key (implicit account = hex of the
+ * public key), or a device key the user's wallet authorized later (checked on-chain).
+ */
+async function assertSignedByAccount(signed: SignedRawEd25519, accountId: string) {
   const pk = parsePublicKey(signed.public_key);
-  if (pk.curve !== "ed25519" || bytesToHex(pk.bytes) !== accountId) throw new HttpError(403, "Signed by the wrong key.");
+  if (pk.curve !== "ed25519") throw new HttpError(403, "Signed by the wrong key.");
+  if (bytesToHex(pk.bytes) !== accountId && !(await hasPublicKey(accountId, signed.public_key).catch(() => false))) {
+    throw new HttpError(403, "This browser's key isn't authorized for this basket account.");
+  }
   const claim = parsePayload(signed);
   if (claim.signer_id !== accountId) throw new HttpError(403, "Signed for the wrong account.");
   return claim;
@@ -197,7 +203,7 @@ export async function submitFees(s: Session, orderId: number, signed: SignedRawE
   const { order, position } = await loadOwned(orderId, s.userId);
   if (order.status === "fees_paid" || order.status === "legs_running") return { already: true };
   if (order.status !== "funded") throw new HttpError(409, "No fees to pay right now.");
-  const claim = assertSignedByAccount(signed, position.accountId);
+  const claim = await assertSignedByAccount(signed, position.accountId);
   const expected = await expectedFeeIntents(orderId);
   const norm = (xs: Intent[]) => JSON.stringify(xs.map((x) => (x.intent === "transfer" ? { r: x.receiver_id, t: x.tokens } : x)));
   if (norm(claim.intents) !== norm(expected)) throw new HttpError(403, "Fee transfer doesn't match this order.");
@@ -282,7 +288,7 @@ export async function submitLeg(s: Session, orderId: number, seq: number, signed
   const [leg] = (await legsOf(orderId)).filter((l) => l.seq === seq);
   if (!leg) throw new HttpError(404, "No such swap.");
   if (leg.status !== "quoted" || !leg.payload) throw new HttpError(409, "Get a fresh quote for this swap first.");
-  assertSignedByAccount(signed, position.accountId);
+  await assertSignedByAccount(signed, position.accountId);
   if (signed.payload !== leg.payload) throw new HttpError(403, "Signed payload doesn't match the quote.");
   try {
     const r = await oneclick.submitIntent(signed);

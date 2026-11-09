@@ -7,7 +7,6 @@ import { useConfig } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import { ASSETS, getAsset } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
-import { basketKey } from "@/lib/client/keystore";
 import { driveOrder, retryLeg } from "@/lib/client/order-runner";
 import { canPayFromEvm, payFromEvm, type PayToken } from "@/lib/client/pay";
 import type { BasketKey } from "@/lib/intents/keys";
@@ -45,7 +44,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
-  const { user, ensureKeys, signInNear, busy: authBusy } = useAuth();
+  const { user, keyForBasket, signInNear, busy: authBusy } = useAuth();
   const wagmiConfig = useConfig();
   const [tokens, setTokens] = useState<PayToken[]>([]);
   const [amount, setAmount] = useState(String(Math.max(basket.minBuyUsd, 20)));
@@ -89,12 +88,10 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
 
   const keyFor = useCallback(async () => {
     if (!user) throw new Error("Sign in first.");
-    const mode = await ensureKeys();
-    const k = await basketKey(user.address, mode, basket.id);
-    if (!k) throw new Error("Couldn't unlock this basket's key.");
+    const { k, mode } = await keyForBasket(basket.id);
     keyRef.current = k;
     return { k, mode };
-  }, [user, ensureKeys, basket.id]);
+  }, [user, keyForBasket, basket.id]);
 
   const run = useCallback(async (orderId: number, k: BasketKey) => {
     runRef.current?.abort();

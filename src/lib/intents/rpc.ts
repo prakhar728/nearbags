@@ -1,5 +1,5 @@
 // Read-only NEAR RPC calls against intents.near. Works in browser and server.
-import type { SignedRawEd25519 } from "./payload";
+import type { SignedIntent } from "./wallet-sign";
 
 const DEFAULT_RPC = "https://rpc.mainnet.fastnear.com";
 export const rpcUrl = () => (typeof process !== "undefined" && process.env?.NEAR_RPC_URL) || DEFAULT_RPC;
@@ -47,4 +47,4 @@ export interface SimulationOutput {
 }
 
 /** Dry-run signed payloads against current mainnet state. Throws with the contract's panic message on failure. */
-export const simulateIntents = (signed: SignedRawEd25519[]) => viewCall<SimulationOutput>("simulate_intents", { signed });
+export const simulateIntents = (signed: SignedIntent[]) => viewCall<SimulationOutput>("simulate_intents", { signed });

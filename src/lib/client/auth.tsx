@@ -7,8 +7,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
 import { b64ToBytes, NEP413_RECIPIENT } from "@/lib/auth/messages";
 import { UNLOCK_MESSAGE_V1, UNLOCK_NONCE_V1 } from "@/lib/intents/keys";
-import { hexToBytes } from "@/lib/intents/keys";
-import { hasSeed, restoreDerived, setupKeys, type KeyMode } from "./keystore";
+import { hexToBytes, type BasketKey } from "@/lib/intents/keys";
+import type { Intent } from "@/lib/intents/payload";
+import { erc191Payload, erc191Signed, nep413Request, nep413Signed, type SignedErc191, type SignedNep413 } from "@/lib/intents/wallet-sign";
+import { basketKey, confirmDeviceKey, hasSeed, pendingDeviceKey, restoreDerived, setupKeys, type KeyMode } from "./keystore";
 
 export interface User {
   id: number;
@@ -30,6 +32,11 @@ interface AuthValue {
   signOut: () => Promise<void>;
   /** Make sure basket keys are usable in this browser. Returns the key mode. */
   ensureKeys: () => Promise<KeyMode>;
+  /**
+   * The key that signs for this basket in this browser. On a new device (device mode) the wallet first approves
+   * a new browser key for the existing basket account, once.
+   */
+  keyForBasket: (basketId: number) => Promise<{ k: BasketKey; mode: KeyMode }>;
   refresh: () => Promise<void>;
 }
 
@@ -169,9 +176,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, signUnlock, refresh]);
 
+  const keyForBasket = useCallback(
+    async (basketId: number): Promise<{ k: BasketKey; mode: KeyMode }> => {
+      if (!user) throw new Error("Sign in first.");
+      const mode = await ensureKeys();
+      const { positions } = await api<{ positions: { basketId: number; accountId: string }[] }>("/api/positions");
+      const accountId = positions.find((p) => p.basketId === basketId)?.accountId;
+      const k = await basketKey(user.address, mode, basketId, accountId);
+      if (k) {
+        if (accountId && k.accountId !== accountId) throw new Error("This basket account was made with a different key setup. Sign in with the wallet you used to buy it.");
+        return { k, mode };
+      }
+      if (mode === "derived" || !accountId) throw new Error("Couldn't unlock this basket's key.");
+
+      // New browser, device mode: the wallet (a recovery key on the account) approves a new browser key.
+      setBusy("New browser: approve once in your wallet to use this basket here…");
+      try {
+        const nk = await pendingDeviceKey(user.address, basketId, accountId);
+        const intents: Intent[] = [{ intent: "add_public_key", public_key: nk.publicKeyStr }];
+        let signed: SignedErc191 | SignedNep413;
+        if (user.chain === "evm") {
+          const payload = erc191Payload(accountId, intents);
+          signed = erc191Signed(payload, await signMessageAsync({ message: payload }));
+        } else {
+          const req = nep413Request(accountId, intents);
+          const s = await near.signMessage({ message: req.message, recipient: req.recipient, nonce: Buffer.from(req.nonce) });
+          if (!s) throw new Error("The wallet didn't return a signature.");
+          signed = nep413Signed(req, s.publicKey, s.signature);
+        }
+        await api("/api/relay/authorize-device", { method: "POST", body: JSON.stringify({ signed }) });
+        await confirmDeviceKey(user.address, basketId);
+        return { k: nk, mode };
+      } finally {
+        setBusy(null);
+      }
+    },
+    [user, ensureKeys, signMessageAsync, near],
+  );
+
   const value = useMemo(
-    () => ({ user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, refresh }),
-    [user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, refresh],
+    () => ({ user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, refresh }),
+    [user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

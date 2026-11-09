@@ -2,7 +2,6 @@
 // Reset to target weights and withdraw-as-tokens for one position (spec §5.6, §5.7).
 import { useState } from "react";
 import { useAuth } from "@/lib/client/auth";
-import { basketKey } from "@/lib/client/keystore";
 import { driveOrder } from "@/lib/client/order-runner";
 import type { OrderView } from "@/lib/trade/orders";
 
@@ -17,7 +16,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function ManagePanel({ positionId, basketId, onDone }: { positionId: number; basketId: number; onDone?: () => void }) {
-  const { user, ensureKeys } = useAuth();
+  const { user, keyForBasket } = useAuth();
   const [chains, setChains] = useState<Record<string, string[]> | null>(null);
   const [addr, setAddr] = useState<Record<string, string>>({});
   const [view, setView] = useState<OrderView | null>(null);
@@ -29,9 +28,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
     setErr(null);
     try {
       setStep("Unlocking your basket key…");
-      const mode = await ensureKeys();
-      const k = await basketKey(user.address, mode, basketId);
-      if (!k) throw new Error("Couldn't unlock this basket's key.");
+      const { k } = await keyForBasket(basketId);
       setStep(label);
       const v = await start();
       setView(v);

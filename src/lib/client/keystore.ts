@@ -92,24 +92,49 @@ export async function hasSeed(wallet: string) {
   return Boolean(await get(`seed:${walletNs(wallet)}`));
 }
 
-/** The basket key for (wallet, basket). Creates and stores one in device mode. Null if a derived seed is missing. */
-export async function basketKey(wallet: string, mode: KeyMode, basketId: number): Promise<BasketKey | null> {
-  const ns = walletNs(wallet);
+type Box = { iv: Uint8Array; ct: Uint8Array; accountId?: string; pending?: boolean };
+const deviceSlot = (wallet: string, basketId: number) => `device:${walletNs(wallet)}:${basketId}`;
+const onAccount = (k: BasketKey, accountId?: string): BasketKey => (accountId ? { ...k, accountId } : k);
+
+/**
+ * The basket key for (wallet, basket).
+ * - derived mode: recomputed from the seed (null if the seed isn't unlocked on this device).
+ * - device mode: the key this browser holds. With no key and no existing account, a new one is created.
+ *   With no key but an existing account (`accountId`), returns null: the wallet must authorize a new key first.
+ */
+export async function basketKey(wallet: string, mode: KeyMode, basketId: number, accountId?: string): Promise<BasketKey | null> {
   if (mode === "derived") {
-    const box = await get<{ iv: Uint8Array; ct: Uint8Array }>(`seed:${ns}`);
+    const box = await get<Box>(`seed:${walletNs(wallet)}`);
     if (!box) return null;
     return deriveBasketKey(await open(box), basketId);
   }
-  const box = await get<{ iv: Uint8Array; ct: Uint8Array }>(`device:${ns}:${basketId}`);
-  if (box) return keyFromSecret(await open(box));
+  const box = await get<Box>(deviceSlot(wallet, basketId));
+  if (box && !box.pending) {
+    const k = keyFromSecret(await open(box));
+    if (accountId && (box.accountId ?? k.accountId) !== accountId) return null; // a key for some other account
+    return onAccount(k, box.accountId);
+  }
+  if (accountId) return null;
   const k = randomBasketKey();
-  await put(`device:${ns}:${basketId}`, await seal(k.secretKey));
+  await put(deviceSlot(wallet, basketId), await seal(k.secretKey));
   return k;
 }
 
-/** Device mode only: keys this browser holds for a basket account that the server knows about. */
-export async function hasDeviceKey(wallet: string, basketId: number) {
-  return Boolean(await get(`device:${walletNs(wallet)}:${basketId}`));
+/**
+ * New device: a fresh key for an existing basket account, kept as pending until the wallet's approval lands
+ * on-chain. Calling again before confirming reuses the same pending key, so a retry never orphans one.
+ */
+export async function pendingDeviceKey(wallet: string, basketId: number, accountId: string): Promise<BasketKey> {
+  const box = await get<Box>(deviceSlot(wallet, basketId));
+  if (box?.pending && box.accountId === accountId) return onAccount(keyFromSecret(await open(box)), accountId);
+  const k = randomBasketKey();
+  await put(deviceSlot(wallet, basketId), { ...(await seal(k.secretKey)), accountId, pending: true });
+  return onAccount(k, accountId);
+}
+
+export async function confirmDeviceKey(wallet: string, basketId: number) {
+  const box = await get<Box>(deviceSlot(wallet, basketId));
+  if (box?.pending) await put(deviceSlot(wallet, basketId), { ...box, pending: false });
 }
 
 export async function forgetWallet(wallet: string) {

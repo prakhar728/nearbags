@@ -2,7 +2,6 @@
 // Sell 25/50/75/100% of a basket position, paid out in any token on any chain (spec §5.5). No fees on sells.
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/client/auth";
-import { basketKey } from "@/lib/client/keystore";
 import { driveOrder } from "@/lib/client/order-runner";
 import type { PayToken } from "@/lib/client/pay";
 import type { OrderView } from "@/lib/trade/orders";
@@ -21,7 +20,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function SellPanel({ positionId, basketId, onDone }: { positionId: number; basketId: number; onDone?: () => void }) {
-  const { user, ensureKeys } = useAuth();
+  const { user, keyForBasket } = useAuth();
   const [tokens, setTokens] = useState<PayToken[]>([]);
   const [pct, setPct] = useState(100);
   const [payout, setPayout] = useState("");
@@ -52,9 +51,7 @@ export function SellPanel({ positionId, basketId, onDone }: { positionId: number
     setErr(null);
     try {
       setStep("Unlocking your basket key…");
-      const mode = await ensureKeys();
-      const k = await basketKey(user.address, mode, basketId);
-      if (!k) throw new Error("Couldn't unlock this basket's key.");
+      const { k } = await keyForBasket(basketId);
       setStep("Quoting every asset…");
       const v = await api<OrderView>("/api/orders/sell", { method: "POST", body: JSON.stringify({ positionId, pct, payoutAssetId: token.assetId, payoutAddress: to }) });
       setView(v);

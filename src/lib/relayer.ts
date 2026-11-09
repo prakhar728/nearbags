@@ -3,7 +3,7 @@
 // costs nothing and the caller gets the contract's error message.
 import "server-only";
 import { Account, JsonRpcProvider, teraToGas, type KeyPairString } from "near-api-js-v7";
-import type { SignedRawEd25519 } from "@/lib/intents/payload";
+import type { SignedIntent } from "@/lib/intents/wallet-sign";
 import { rpcUrl, simulateIntents, type SimulationOutput } from "@/lib/intents/rpc";
 
 let account: Account | null = null;
@@ -28,7 +28,7 @@ export interface RelayResult {
   simulation: SimulationOutput;
 }
 
-export async function relay(signed: SignedRawEd25519[]): Promise<RelayResult> {
+export async function relay(signed: SignedIntent[]): Promise<RelayResult> {
   const simulation = await simulateIntents(signed); // throws with the contract's reason on failure
   const res = await relayerAccount().callFunctionRaw({
     contractId: "intents.near",
