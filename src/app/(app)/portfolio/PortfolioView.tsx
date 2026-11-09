@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ManagePanel } from "@/components/trade/ManagePanel";
 import { SellPanel } from "@/components/trade/SellPanel";
+import { Loading, LoadingNote, Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
 import type { PortfolioPosition } from "@/lib/trade/portfolio";
 
@@ -27,10 +28,10 @@ export function PortfolioView() {
   const err = q.error ? (q.error as Error).message : null;
   const load = () => void q.refetch();
 
-  if (loading) return <p className="num text-xs text-muted">Loading…</p>;
+  if (loading) return <PortfolioSkeleton />;
   if (!user) return <p className="text-sm text-muted">Connect a wallet to see your baskets.</p>;
   if (err) return <p className="text-sm text-loss">{err}</p>;
-  if (!rows) return <p className="num text-xs text-muted">Reading your basket accounts on-chain…</p>;
+  if (!rows) return <PortfolioSkeleton note="Reading your basket accounts on-chain…" />;
   if (!rows.length)
     return (
       <p className="text-sm text-muted">
@@ -108,6 +109,37 @@ export function PortfolioView() {
         ))}
       </div>
     </div>
+  );
+}
+
+/** Same layout as the loaded view: two stats, then position rows. */
+function PortfolioSkeleton({ note }: { note?: string }) {
+  return (
+    <Loading label={note ?? "Loading your bags"} className="grid gap-6">
+      <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
+        {[0, 1].map((i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-2.5 w-20" />
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-2.5 w-40" />
+          </div>
+        ))}
+      </div>
+      <div className="divide-y divide-border border border-border">
+        {[0, 1].map((i) => (
+          <div key={i} className="grid gap-2 p-4 sm:grid-cols-[1.5fr_1fr_1fr_1fr] sm:items-center">
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-2.5 w-24" />
+            </div>
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-3 w-12" />
+          </div>
+        ))}
+      </div>
+      {note && <LoadingNote>{note}</LoadingNote>}
+    </Loading>
   );
 }
 

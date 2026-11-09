@@ -8,8 +8,10 @@ import { Suspense } from "react";
 import { BacktestView } from "@/components/basket/BacktestView";
 import { Tag } from "@/components/basket/BasketCard";
 import { CreatorTools } from "@/components/basket/CreatorTools";
+import { BacktestSkeleton, CellsSkeleton } from "@/components/basket/Skeletons";
 import { Label, Pairs } from "@/components/basket/Pairs";
 import { Markdown } from "@/components/Markdown";
+import { Loading, SkeletonText } from "@/components/ui/Skeleton";
 import { BuyPanel } from "@/components/trade/BuyPanel";
 import { getAnalyticsView, getLiveReturn } from "@/lib/analytics/cached";
 import { getAsset } from "@/lib/assets";
@@ -64,7 +66,7 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
         }}
       />
 
-      <Suspense fallback={<Box className="h-[640px]" label="Running the backtest…" />}>
+      <Suspense fallback={<BacktestSkeleton assets={b.assets.length} />}>
         <Analytics b={b} />
       </Suspense>
 
@@ -94,7 +96,7 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
       )}
 
       <Section title="Live track record">
-        <Suspense fallback={<Box className="h-20" />}>
+        <Suspense fallback={<Loading label="Reading live numbers"><CellsSkeleton cells={4} /></Loading>}>
           <LiveTrack b={b} />
         </Suspense>
       </Section>
@@ -128,7 +130,7 @@ function Header({ b }: { b: BasketView }) {
         <Meta k="Fee">{feePct(b.feeBps)}</Meta>
         <Meta k="Horizon">{HORIZON_LABEL[b.horizon]}</Meta>
         <Meta k="Min buy">${b.minBuyUsd}</Meta>
-        <Meta k={b.isHouse ? "Self-buy" : "Creator holds"}>{b.isHouse ? <span className="text-muted">House basket, none</span> : <Suspense fallback={<span className="text-muted">…</span>}><CreatorHolds id={b.id} /></Suspense>}</Meta>
+        <Meta k={b.isHouse ? "Self-buy" : "Creator holds"}>{b.isHouse ? <span className="text-muted">House basket, none</span> : <Suspense fallback={<SkeletonText className="w-12" />}><CreatorHolds id={b.id} /></Suspense>}</Meta>
       </dl>
       <div className="num flex flex-wrap gap-1.5 text-xs">
         {b.assets.map((a) => (

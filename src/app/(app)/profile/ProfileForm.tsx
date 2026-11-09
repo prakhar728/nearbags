@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Field } from "@/components/basket/CreatorTools";
+import { Loading, Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
 import { BIO_MAX, HANDLE_RE } from "@/lib/profile-rules";
 
@@ -33,9 +34,10 @@ export function ProfileForm() {
     };
   }, [user]);
 
-  if (loading) return <p className="font-mono text-xs text-faint">…</p>;
+  if (loading) return <ProfileSkeleton />;
   if (!user) return <p className="text-sm text-muted">Connect a wallet (top right) to edit your profile.</p>;
-  if (!form) return <p className="font-mono text-xs text-faint">Loading…</p>;
+  if (!form && !err) return <ProfileSkeleton />;
+  if (!form) return <p className="text-xs text-loss">{err}</p>;
 
   const handleOk = !form.handle || HANDLE_RE.test(form.handle);
   const save = async () => {
@@ -84,5 +86,20 @@ export function ProfileForm() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Three fields and the save button, like the loaded form. */
+function ProfileSkeleton() {
+  return (
+    <Loading label="Loading your profile" className="max-w-lg space-y-5">
+      {[38, 80, 38].map((h, i) => (
+        <div key={i} className="space-y-1.5">
+          <Skeleton className="h-2.5 w-24" />
+          <Skeleton className="w-full" style={{ height: h }} />
+        </div>
+      ))}
+      <Skeleton className="h-8 w-20" />
+    </Loading>
   );
 }

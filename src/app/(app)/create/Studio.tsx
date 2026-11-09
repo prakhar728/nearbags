@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BacktestView } from "@/components/basket/BacktestView";
+import { BacktestSkeleton } from "@/components/basket/Skeletons";
 import { Field } from "@/components/basket/CreatorTools";
 import { Label, Pairs } from "@/components/basket/Pairs";
 import type { AnalyticsView } from "@/lib/analytics/view";
@@ -413,7 +414,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               <Pairs a={preview.data} compact />
             </div>
           ) : (
-            <div className="h-64 border border-border" />
+            <BacktestSkeleton compact assets={weights.length || 4} label="Running the preview backtest" />
           )}
         </aside>
       </div>

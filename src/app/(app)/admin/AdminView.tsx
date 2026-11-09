@@ -1,6 +1,7 @@
 "use client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Loading, Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
 
 interface AdminData {
@@ -25,10 +26,10 @@ export function AdminView() {
   const [err, setErr] = useState<string | null>(null);
   const q = useQuery({ queryKey: ["admin"], enabled: Boolean(user?.isAdmin), queryFn: () => api<AdminData>("/api/admin") });
 
-  if (loading) return <p className="num text-xs text-muted">Loading…</p>;
+  if (loading) return <AdminSkeleton />;
   if (!user?.isAdmin) return <p className="text-sm text-muted">Admins only. Sign in with an admin wallet.</p>;
   if (q.error) return <p className="text-sm text-loss">{(q.error as Error).message}</p>;
-  if (!q.data) return <p className="num text-xs text-muted">Loading…</p>;
+  if (!q.data) return <AdminSkeleton />;
   const d = q.data;
 
   const act = async (body: object) => {
@@ -108,5 +109,35 @@ export function AdminView() {
         </div>
       </section>
     </div>
+  );
+}
+
+function AdminSkeleton() {
+  return (
+    <Loading label="Loading admin" className="grid gap-8">
+      <section className="grid gap-3">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-[62px] w-full" />
+      </section>
+      <section className="grid gap-3">
+        <Skeleton className="h-3 w-16" />
+        <div className="flex flex-wrap gap-2">
+          {Array.from({ length: 14 }, (_, i) => (
+            <Skeleton key={i} className="h-[26px] w-12" />
+          ))}
+        </div>
+      </section>
+      <section className="grid gap-3">
+        <Skeleton className="h-3 w-20" />
+        <div className="divide-y divide-border border border-border">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i} className="flex items-center justify-between gap-3 p-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-6 w-20" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </Loading>
   );
 }
