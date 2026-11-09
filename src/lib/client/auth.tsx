@@ -1,0 +1,177 @@
+"use client";
+// Sign-in for NEAR wallets (NEP-413 signMessage) and EVM wallets (personal_sign), plus basket-key setup.
+import { Buffer } from "buffer";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useWalletSelector } from "@near-wallet-selector/react-hook";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
+import { b64ToBytes, NEP413_RECIPIENT } from "@/lib/auth/messages";
+import { UNLOCK_MESSAGE_V1, UNLOCK_NONCE_V1 } from "@/lib/intents/keys";
+import { hexToBytes } from "@/lib/intents/keys";
+import { hasSeed, restoreDerived, setupKeys, type KeyMode } from "./keystore";
+
+export interface User {
+  id: number;
+  chain: "near" | "evm";
+  address: string;
+  walletPubkey: string | null;
+  handle: string | null;
+  keyMode: KeyMode | null;
+  isAdmin: boolean;
+}
+
+interface AuthValue {
+  user: User | null;
+  loading: boolean;
+  busy: string | null; // what we're waiting on, shown in the UI
+  error: string | null;
+  signInNear: () => void;
+  signInEvm: (connectorId?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  /** Make sure basket keys are usable in this browser. Returns the key mode. */
+  ensureKeys: () => Promise<KeyMode>;
+  refresh: () => Promise<void>;
+}
+
+const Ctx = createContext<AuthValue | null>(null);
+export const useAuth = () => {
+  const v = useContext(Ctx);
+  if (!v) throw new Error("useAuth outside AuthProvider");
+  return v;
+};
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const r = await fetch(path, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error ?? `Request failed (${r.status})`);
+  return j as T;
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const near = useWalletSelector();
+  const evm = useAccount();
+  const { connectAsync, connectors } = useConnect();
+  const { disconnectAsync } = useDisconnect();
+  const { signMessageAsync } = useSignMessage();
+
+  const qc = useQueryClient();
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api<{ user: User | null }>("/api/auth/me").then((r) => r.user), staleTime: 60_000 });
+  const user = me.data ?? null;
+  const loading = me.isLoading;
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pendingNear = useRef(false);
+
+  const refresh = useCallback(async () => {
+    await qc.invalidateQueries({ queryKey: ["me"] });
+  }, [qc]);
+
+  const finishNear = useCallback(
+    async (accountId: string) => {
+      setBusy("Approve the sign-in message in your NEAR wallet…");
+      try {
+        const { nonce, message } = await api<{ nonce: string; message: string }>("/api/auth/nonce", { method: "POST" });
+        const signed = await near.signMessage({ message, recipient: NEP413_RECIPIENT, nonce: Buffer.from(b64ToBytes(nonce)) });
+        if (!signed) throw new Error("The wallet didn't return a signature.");
+        await api("/api/auth/verify", {
+          method: "POST",
+          body: JSON.stringify({ chain: "near", nonce, accountId: signed.accountId || accountId, publicKey: signed.publicKey, signature: signed.signature }),
+        });
+        await refresh();
+      } catch (e) {
+        setError((e as Error).message);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [near, refresh],
+  );
+
+  // NEAR sign-in is two steps: pick a wallet in the modal, then sign the message once an account is connected.
+  useEffect(() => {
+    if (pendingNear.current && near.signedAccountId) {
+      pendingNear.current = false;
+      void finishNear(near.signedAccountId);
+    }
+  }, [near.signedAccountId, finishNear]);
+
+  const signInNear = useCallback(() => {
+    setError(null);
+    if (near.signedAccountId) return void finishNear(near.signedAccountId);
+    pendingNear.current = true;
+    near.signIn();
+  }, [near, finishNear]);
+
+  const signInEvm = useCallback(
+    async (connectorId?: string) => {
+      setError(null);
+      try {
+        let address = evm.address;
+        if (!address) {
+          setBusy("Connect your wallet…");
+          const connector = connectors.find((c) => c.id === connectorId) ?? connectors[0];
+          const res = await connectAsync({ connector });
+          address = res.accounts[0];
+        }
+        setBusy("Approve the sign-in message in your wallet…");
+        const { nonce, message } = await api<{ nonce: string; message: string }>("/api/auth/nonce", { method: "POST" });
+        const signature = await signMessageAsync({ message });
+        await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ chain: "evm", nonce, address, signature }) });
+        await refresh();
+      } catch (e) {
+        setError((e as Error).message.split("\n")[0]);
+      } finally {
+        setBusy(null);
+      }
+    },
+    [evm.address, connectors, connectAsync, signMessageAsync, refresh],
+  );
+
+  const signOut = useCallback(async () => {
+    await api("/api/auth/logout", { method: "POST" });
+    if (user?.chain === "near") await near.signOut().catch(() => {});
+    if (user?.chain === "evm") await disconnectAsync().catch(() => {});
+    qc.setQueryData(["me"], null);
+  }, [user, near, disconnectAsync, qc]);
+
+  const signUnlock = useCallback(async (): Promise<Uint8Array> => {
+    if (!user) throw new Error("Sign in first.");
+    if (user.chain === "near") {
+      const s = await near.signMessage({ message: UNLOCK_MESSAGE_V1, recipient: "stonkbag-keys", nonce: Buffer.from(UNLOCK_NONCE_V1) });
+      if (!s) throw new Error("The wallet didn't return a signature.");
+      return b64ToBytes(s.signature);
+    }
+    return hexToBytes(await signMessageAsync({ message: UNLOCK_MESSAGE_V1 }));
+  }, [user, near, signMessageAsync]);
+
+  const ensureKeys = useCallback(async (): Promise<KeyMode> => {
+    if (!user) throw new Error("Sign in first.");
+    if (user.keyMode === "device") return "device";
+    if (user.keyMode === "derived") {
+      if (!(await hasSeed(user.address))) {
+        setBusy("Sign once to unlock your basket keys on this device…");
+        try {
+          await restoreDerived(user.address, signUnlock);
+        } finally {
+          setBusy(null);
+        }
+      }
+      return "derived";
+    }
+    setBusy("Sign the key message twice. This sets up your basket keys…");
+    try {
+      const mode = await setupKeys(user.address, signUnlock);
+      await api("/api/auth/me", { method: "PATCH", body: JSON.stringify({ keyMode: mode }) });
+      await refresh();
+      return mode;
+    } finally {
+      setBusy(null);
+    }
+  }, [user, signUnlock, refresh]);
+
+  const value = useMemo(
+    () => ({ user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, refresh }),
+    [user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, refresh],
+  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import { ConnectButton } from "@/components/ConnectButton";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
@@ -15,6 +17,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrains.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-bg text-text">
+        <Providers>
         <header className="border-b border-border">
           <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
             <Link href="/" className="font-mono text-sm font-semibold tracking-[0.2em]">
@@ -24,6 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               <Link href="/" className="hover:text-text">EXPLORE</Link>
               <Link href="/create" className="hover:text-text">CREATE</Link>
               <Link href="/portfolio" className="hover:text-text">PORTFOLIO</Link>
+              <ConnectButton />
             </nav>
           </div>
         </header>
@@ -33,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             Historical numbers, not forecasts. Tokenized stocks give price exposure only. Not available to US persons or restricted regions.
           </div>
         </footer>
+        </Providers>
       </body>
     </html>
   );

@@ -3,10 +3,8 @@ import { getAsset } from "@/lib/assets";
 import { loadSeries } from "@/lib/prices/store";
 import { benchmarkPath, runBacktest, type Backtest, type Holding, type Mode } from "./backtest";
 
-export interface WeightInput {
-  assetId: string;
-  weightBps: number;
-}
+import type { WeightInput } from "@/lib/trade/types";
+export type { WeightInput };
 
 export interface BasketAnalytics extends Backtest {
   benchmarks: { SPY: number[] | null; BTC: number[] | null };
