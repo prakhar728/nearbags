@@ -69,12 +69,15 @@ const walletNs = (wallet: string) => wallet.toLowerCase();
 export type KeyMode = "derived" | "device";
 
 /**
- * Ask the wallet to sign the unlock message twice and decide the key mode.
+ * Ask the wallet to sign the unlock message and decide the key mode.
  * `signUnlock` must return the raw signature bytes for UNLOCK_MESSAGE_V1.
+ * EVM wallets sign twice: most are deterministic (RFC 6979) but some smart wallets aren't, and those get device mode.
+ * NEAR wallets sign once: NEP-413 signatures are ed25519, which is deterministic by construction. (A second popup
+ * right after the first, with no click in between, is closed by popup wallets such as Meteor.)
  */
-export async function setupKeys(wallet: string, signUnlock: () => Promise<Uint8Array>): Promise<KeyMode> {
+export async function setupKeys(wallet: string, signUnlock: () => Promise<Uint8Array>, opts: { deterministic?: boolean } = {}): Promise<KeyMode> {
   const a = await signUnlock();
-  const b = await signUnlock();
+  const b = opts.deterministic ? a : await signUnlock();
   const same = a.length === b.length && a.every((x, i) => x === b[i]);
   if (same) {
     await put(`seed:${walletNs(wallet)}`, await seal(seedFromSignature(a)));

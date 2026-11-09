@@ -165,9 +165,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return "derived";
     }
-    setBusy("Sign the key message twice. This sets up your basket keys…");
+    const near1 = user.chain === "near";
+    setBusy(near1 ? "Sign the key message in your wallet. This sets up your basket keys…" : "Sign the key message twice. This sets up your basket keys…");
     try {
-      const mode = await setupKeys(user.address, signUnlock);
+      const mode = await setupKeys(user.address, signUnlock, { deterministic: near1 });
       await api("/api/auth/me", { method: "PATCH", body: JSON.stringify({ keyMode: mode }) });
       await refresh();
       return mode;
