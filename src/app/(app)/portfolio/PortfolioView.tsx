@@ -48,6 +48,8 @@ export function PortfolioView() {
   if (!user) return <p className="text-sm text-muted">Connect a wallet to see your baskets.</p>;
   if (err) return <p className="text-sm text-loss">{err}</p>;
   if (!rows) return <PortfolioSkeleton note="Reading your basket accounts on-chain…" />;
+  // No open bags yet: wait for the history before saying "no baskets", or a past trader sees an empty page flash.
+  if (!rows.length && h.isPending) return <PortfolioSkeleton note="Loading your trade history…" />;
   if (!rows.length && !hist?.trades.length)
     return (
       <p className="text-sm text-muted">
