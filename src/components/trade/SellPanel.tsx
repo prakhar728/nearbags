@@ -81,28 +81,29 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
   }
 
   return (
-    <div className="grid gap-3">
-      <div className="flex gap-2">
+    <div className="grid gap-3.5">
+      <div className="seg seg-fill" role="group" aria-label="How much to sell">
         {PCTS.map((p) => (
           <button
             key={p}
             type="button"
             onClick={() => setPct(p)}
             disabled={!!blockerFor(p, holdings)}
-            className={`num flex-1 border px-2 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-30 ${pct === p ? "border-accent text-accent" : "border-border text-muted hover:border-border-strong"}`}
+            aria-pressed={pct === p}
+            className="seg-item"
           >
             {p}%
           </button>
         ))}
       </div>
       {blockerFor(25, holdings) && (
-        <p className="num text-[11px] text-faint">
+        <p className="fine">
           {blockerFor(25, holdings)!.assetId} trades in swaps of at least ${blockerFor(25, holdings)!.min}, so this bag can be sold{" "}
           {PCTS.filter((p) => !blockerFor(p, holdings)).length === 1 ? "only in full" : `in ${PCTS.filter((p) => !blockerFor(p, holdings)).map((p) => `${p}%`).join(", ")} steps`}.
         </p>
       )}
       {tokens.length ? (
-        <select id={`sell-token-${positionId}`} value={payout} onChange={(e) => (setPayout(e.target.value), setAddress(""))} className="num border border-border bg-bg px-3 py-2 text-sm">
+        <select id={`sell-token-${positionId}`} value={payout} onChange={(e) => (setPayout(e.target.value), setAddress(""))} className="input num">
           {tokens.map((t) => (
             <option key={t.assetId} value={t.assetId}>
               Receive {t.symbol} on {CHAIN_NAMES[t.chain] ?? t.chain}
@@ -110,16 +111,16 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
           ))}
         </select>
       ) : (
-        <div role="status" className="flex h-[38px] items-center border border-border px-3">
+        <div role="status" className="input flex items-center">
           <span className="sr-only">Loading payout tokens</span>
           <Skeleton className="h-3 w-40" />
         </div>
       )}
       {token && !defaultAddr && (
-        <input id={`sell-addr-${positionId}`} placeholder={`Your ${CHAIN_NAMES[token.chain] ?? token.chain} address`} value={address} onChange={(e) => setAddress(e.target.value.trim())} className="num border border-border bg-bg px-3 py-2 text-xs" />
+        <input id={`sell-addr-${positionId}`} placeholder={`Your ${CHAIN_NAMES[token.chain] ?? token.chain} address`} value={address} onChange={(e) => setAddress(e.target.value.trim())} className="input num text-xs" />
       )}
       {view && (
-        <div className="grid gap-1">
+        <div className="well grid gap-2 p-3">
           {view.legs.map((l) => (
             <div key={l.seq} className="num flex justify-between text-xs">
               <span className="text-muted">{l.isPayout ? "Payout" : `Swap ${l.seq + 1}`}</span>
@@ -128,12 +129,17 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
           ))}
         </div>
       )}
-      {err && <p className="text-xs text-loss">{err}</p>}
-      {step && <p className="num text-xs text-accent">{step}</p>}
-      <button type="button" disabled={!token || !to || !!step} onClick={sell} className="border border-border-strong px-4 py-2 font-mono text-xs font-semibold hover:border-text disabled:opacity-40">
+      {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
+      {step && (
+        <p className="num flex items-center gap-2 text-xs text-accent">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent/30 border-t-accent" aria-hidden />
+          {step}
+        </p>
+      )}
+      <button type="button" disabled={!token || !to || !!step} onClick={sell} className="btn btn-primary btn-block">
         DUMP {pct}%
       </button>
-      <p className="text-[11px] text-faint">No fees on selling. Only the swap cost.</p>
+      <p className="fine text-center">No fees on selling. Only the swap cost.</p>
     </div>
   );
 }

@@ -59,21 +59,30 @@ const CHARTS: ChartDef[] = [
 export default async function ThesisPage() {
   const d = await loadThesis();
   return (
-    <article className="grid gap-10">
-      <header className="grid max-w-3xl gap-3">
-        <span className="font-mono text-[11px] uppercase tracking-wider text-faint">Thesis track</span>
-        <h1 className="text-2xl font-semibold tracking-tight">{CLAIM}</h1>
-        <p className="text-sm leading-relaxed text-muted">
+    <article className="grid grid-cols-[minmax(0,1fr)] gap-10">
+      <header className="grid max-w-4xl gap-4">
+        <span className="label rise flex items-center gap-2" style={{ "--i": 0 } as React.CSSProperties}>
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" aria-hidden />
+          Thesis track
+        </span>
+        <h1 className="display rise text-[clamp(28px,3.4vw,42px)] leading-[1.08]" style={{ "--i": 1, fontVariationSettings: '"wdth" 100' } as React.CSSProperties}>
+          {CLAIM}
+        </h1>
+        <p className="rise max-w-3xl text-[15px] leading-relaxed text-muted" style={{ "--i": 2 } as React.CSSProperties}>
           Each chart below comes from the NEAR Intents Explorer API and Stonkbag&apos;s own on-chain balances, rebuilt with{" "}
-          <code className="font-mono text-text">pnpm thesis</code>. We started from &ldquo;tokenized US stocks are becoming a real use of NEAR Intents&rdquo;; the
+          <code className="rounded-md bg-white/[0.07] px-1.5 py-0.5 font-mono text-[0.9em] text-text">pnpm thesis</code>. We started from &ldquo;tokenized US stocks are becoming a real use of NEAR Intents&rdquo;; the
           data below rejected that, so the claim changed. The full argument and the evidence against it are in THESIS.md in the repo.
         </p>
         {d ? (
-          <p className="font-mono text-[11px] text-faint">
-            Built {d.generatedAt.slice(0, 16).replace("T", " ")} UTC · {d.summary.data_since} to {d.summary.data_until} · {d.source.ondoAssetIds.length} Ondo tokens
+          <p className="rise flex flex-wrap gap-1.5" style={{ "--i": 3 } as React.CSSProperties}>
+            <span className="chip">Built {d.generatedAt.slice(0, 16).replace("T", " ")} UTC</span>
+            <span className="chip">
+              {d.summary.data_since} → {d.summary.data_until}
+            </span>
+            <span className="chip">{d.source.ondoAssetIds.length} Ondo tokens</span>
           </p>
         ) : (
-          <p className="border border-border-strong px-3 py-2 font-mono text-[11px] text-muted">
+          <p className="callout font-mono text-[11px]">
             Data pending: the Explorer API key is not set up yet, so nothing has been pulled. No numbers are shown until it is.
           </p>
         )}
@@ -85,15 +94,20 @@ export default async function ThesisPage() {
 
 function Card({ def, sentence, children }: { def: ChartDef; sentence: string; children?: React.ReactNode }) {
   return (
-    <section className="grid gap-3 border-t border-border pt-6">
-      <h2 className="font-mono text-[11px] uppercase tracking-wider text-muted">{def.title}</h2>
-      <p className="max-w-3xl text-sm leading-relaxed text-text">{sentence}</p>
+    <section className="card card-pad rise grid gap-4">
+      <h2 className="label flex items-center gap-2 text-muted">
+        <span className="inline-block h-px w-5 bg-accent/70" aria-hidden />
+        {def.title}
+      </h2>
+      <p className="max-w-3xl text-[17px] leading-relaxed text-text">{sentence}</p>
       {children}
-      <details className="group">
-        <summary className="cursor-pointer font-mono text-[11px] text-faint hover:text-muted">How this was made</summary>
-        <div className="mt-2 grid gap-2">
-          <pre className="overflow-x-auto border border-border bg-surface p-3 font-mono text-[11px] leading-relaxed text-muted">{def.request}</pre>
-          <p className="font-mono text-[11px] leading-relaxed text-faint">{def.rule}</p>
+      <details className="disclosure group">
+        <summary className="btn btn-ghost btn-sm w-fit px-3 normal-case tracking-normal">
+          <span className="transition-transform duration-300 group-open:rotate-90" aria-hidden>›</span> How this was made
+        </summary>
+        <div className="mt-3 grid gap-2">
+          <pre className="overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-black/30 p-4 font-mono text-[11px] leading-relaxed text-muted">{def.request}</pre>
+          <p className="fine">{def.rule}</p>
         </div>
       </details>
     </section>
@@ -102,10 +116,10 @@ function Card({ def, sentence, children }: { def: ChartDef; sentence: string; ch
 
 function Pending() {
   return (
-    <div className="grid gap-2">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       {CHARTS.map((c) => (
         <Card key={c.id} def={c} sentence={c.pending}>
-          <div className="flex h-24 items-center justify-center border border-dashed border-border font-mono text-[11px] text-faint">data pending</div>
+          <div className="flex h-24 items-center justify-center rounded-[var(--r-md)] border border-dashed border-[var(--line-strong)] font-mono text-[11px] text-faint">data pending</div>
         </Card>
       ))}
     </div>
@@ -123,7 +137,7 @@ function Charts({ d }: { d: ThesisData }) {
   const tvlHistory = d.stonkbag?.history ?? [];
 
   return (
-    <div className="grid gap-2">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <Card def={def("volume")} sentence={`Ondo swaps moved ${usd(s.ondo_volume_30d)} in the last 30 days${change}.`}>
         <WeeklyChart times={times} series={[{ id: "vol", label: "Volume", format: "usd", data: d.weekly.map((w) => w.ondoVolumeUsd) }]} />
       </Card>

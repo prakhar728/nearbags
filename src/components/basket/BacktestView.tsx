@@ -16,10 +16,10 @@ export function BacktestView({ a, compact = false }: { a: AnalyticsView; compact
   const w = a.windows.find((x) => x.key === key) ?? a.windows.at(-1)!;
 
   return (
-    <div className="space-y-10">
-      <section className="space-y-4">
+    <div className="space-y-6">
+      <section className={`card space-y-5 ${compact ? "p-4 sm:p-5" : "card-pad"}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1" role="tablist" aria-label="Backtest window">
+          <div className="seg" role="tablist" aria-label="Backtest window">
             {a.windows.map((x) => (
               <button
                 key={x.key}
@@ -27,41 +27,49 @@ export function BacktestView({ a, compact = false }: { a: AnalyticsView; compact
                 role="tab"
                 aria-selected={x.key === w.key}
                 onClick={() => setKey(x.key)}
-                className={`num border px-2.5 py-1 text-[11px] ${x.key === w.key ? "border-accent text-accent" : "border-border text-muted hover:border-border-strong hover:text-text"}`}
+                className="seg-item"
               >
                 {x.label}
               </button>
             ))}
           </div>
-          <label className="flex cursor-pointer items-center gap-2 font-mono text-[11px] text-muted">
-            <input type="checkbox" checked={monthly} onChange={(e) => setMonthly(e.target.checked)} className="accent-[var(--accent)]" />
+          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 font-mono text-[11px] text-muted hover:text-text">
+            <input type="checkbox" checked={monthly} onChange={(e) => setMonthly(e.target.checked)} className="check" />
             Show monthly-rebalanced line
           </label>
         </div>
         <GrowthChart w={w} monthly={monthly} height={compact ? 220 : 300} />
-        <p className="font-mono text-[10px] leading-relaxed text-faint">
+        <p className="fine">
           Historical, not a forecast. Buy-and-hold from {w.start} at target weights, dividends reinvested net of 30% withholding, no fees.
           {monthly && " The dashed line resets to target weights each month. Nobody does that for you here: baskets are buy-and-hold."}
           {a.limitedBy && ` History starts ${a.limitedBy.since}: ${a.limitedBy.assetId} has no older prices.`}
         </p>
-        <StatRow a={a} w={w} compact={compact} />
       </section>
 
-      <section className="space-y-4">
-        <H>Each asset, rebased to 100</H>
-        <AssetChart a={a} w={w} height={compact ? 200 : 260} />
-      </section>
+      <StatRow a={a} w={w} compact={compact} />
 
-      <section className="space-y-4">
-        <H>Where the return came from · {w.label}</H>
-        <Contributions a={a} w={w} />
-      </section>
+      <div className={`grid grid-cols-[minmax(0,1fr)] gap-6 ${compact ? "" : "lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]"}`}>
+        <section className={`card space-y-4 ${compact ? "p-4 sm:p-5" : "card-pad"}`}>
+          <H>Each asset, rebased to 100</H>
+          <AssetChart a={a} w={w} height={compact ? 200 : 260} />
+        </section>
+
+        <section className={`card space-y-4 ${compact ? "p-4 sm:p-5" : "card-pad"}`}>
+          <H>Where the return came from · {w.label}</H>
+          <Contributions a={a} w={w} />
+        </section>
+      </div>
     </div>
   );
 }
 
 function H({ children }: { children: React.ReactNode }) {
-  return <h2 className="font-mono text-[11px] uppercase tracking-wider text-muted">{children}</h2>;
+  return (
+    <h2 className="label flex items-center gap-2 text-muted">
+      <span className="inline-block h-px w-5 bg-accent/70" aria-hidden />
+      {children}
+    </h2>
+  );
 }
 
 function GrowthChart({ w, monthly, height }: { w: AnalyticsView["windows"][number]; monthly: boolean; height: number }) {
@@ -81,22 +89,24 @@ function GrowthChart({ w, monthly, height }: { w: AnalyticsView["windows"][numbe
     <div>
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-wider text-faint">
+          <div className="label">
             $1,000 on {w.start} → {hover == null ? "today" : w.times[i]}
           </div>
-          <div className="num mt-1 text-3xl text-accent">{usd(end)}</div>
-          <div className={`num text-xs ${tone(end / 1000 - 1)}`}>{pct(end / 1000 - 1)}</div>
+          <div className="mt-2 flex items-baseline gap-3">
+            <div className="big-num text-[clamp(36px,5vw,52px)] text-accent">{usd(end)}</div>
+            <span className={`badge ${end >= 1000 ? "badge-gain" : "badge-loss"} normal-case tracking-normal`}>{pct(end / 1000 - 1)}</span>
+          </div>
         </div>
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {[...lines].reverse().map((l) => (
-            <span key={l.id} className="num flex items-center gap-1.5 text-xs text-muted">
+            <span key={l.id} className="chip">
               <span className="inline-block h-px w-4" style={{ background: l.color, height: l.width === 2 ? 2 : 1, borderTop: l.dashed ? `1px dashed ${l.color}` : undefined }} />
               {l.label} <span className="text-text">{usd(l.data[i])}</span>
             </span>
           ))}
         </div>
       </div>
-      <div className="mt-3">
+      <div className="mt-5">
         <LineChart times={w.times} lines={lines} height={height} format={(v) => usd(v)} onHover={setHover} />
       </div>
     </div>
@@ -115,15 +125,15 @@ function StatRow({ a, w, compact }: { a: AnalyticsView; w: AnalyticsView["window
   ];
   return (
     <div>
-      <div className={`grid grid-cols-2 border-l border-t border-border sm:grid-cols-3 ${compact ? "" : "lg:grid-cols-6"}`}>
+      <div className={`stat-grid grid-cols-2 sm:grid-cols-3 ${compact ? "" : "lg:grid-cols-6"}`}>
         {items.map(([k, v]) => (
-          <div key={k} className="border-b border-r border-border p-3">
-            <div className="font-mono text-[10px] uppercase tracking-wider text-faint">{k}</div>
-            <div className="num mt-1 text-base">{v}</div>
+          <div key={k}>
+            <div className="label">{k}</div>
+            <div className="stat-value text-xl">{v}</div>
           </div>
         ))}
       </div>
-      <p className="mt-2 font-mono text-[10px] text-faint">Historical, not a forecast. CAGR shows — when the history is shorter than the window.</p>
+      <p className="fine mt-3">Historical, not a forecast. CAGR shows — when the history is shorter than the window.</p>
     </div>
   );
 }
@@ -158,14 +168,14 @@ function AssetChart({ a, w, height }: { a: AnalyticsView; w: AnalyticsView["wind
             {id} <span className="text-text">{w.assets[id]?.[i]?.toFixed(0)}</span>
           </LegendBtn>
         ))}
-        <button type="button" onClick={() => setLog(!log)} className={`num ml-auto border px-2 py-1 text-[10px] ${log ? "border-accent text-accent" : "border-border text-muted hover:text-text"}`}>
+        <button type="button" aria-pressed={log} onClick={() => setLog(!log)} className="chip ml-auto">
           LOG
         </button>
       </div>
-      <div className="mt-3">
+      <div className="mt-4">
         <LineChart times={w.times} lines={lines} height={height} format={(v) => v.toFixed(0)} onHover={setHover} logScale={log} />
       </div>
-      <p className="mt-1 font-mono text-[10px] text-faint">Click an asset to highlight it. 100 = its price on {w.start}.</p>
+      <p className="fine mt-2">Click an asset to highlight it. 100 = its price on {w.start}.</p>
     </div>
   );
 }
@@ -176,9 +186,9 @@ function LegendBtn({ children, active, dim, color, onClick }: { children: React.
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`num flex items-center gap-1.5 border px-2 py-1 text-[11px] ${active ? "border-border-strong bg-surface-2" : "border-border"} ${dim ? "text-faint" : "text-muted"} hover:text-text`}
+      className={`chip ${active ? "border-[var(--line-strong)] bg-[var(--layer-3)] text-text" : ""} ${dim ? "opacity-50" : ""}`}
     >
-      <span className="inline-block h-2 w-2" style={{ background: dim ? DIM : color }} />
+      <span className="inline-block h-2 w-2 rounded-full" style={{ background: dim ? DIM : color, boxShadow: dim ? undefined : `0 0 8px ${color}` }} />
       {children}
     </button>
   );
@@ -191,7 +201,7 @@ function Contributions({ a, w }: { a: AnalyticsView; w: AnalyticsView["windows"]
   const total = w.stats.totalReturn;
   return (
     <div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         {rows.map((r) => {
           const frac = Math.abs(r.c) / max;
           return (
@@ -199,10 +209,10 @@ function Contributions({ a, w }: { a: AnalyticsView; w: AnalyticsView["windows"]
               <div className="num text-xs">
                 {r.id} <span className="text-faint">{Math.round(r.weight * 100)}%</span>
               </div>
-              <div className="relative h-4">
-                {hasNeg && <div className="absolute inset-y-0 left-1/2 w-px bg-border-strong" />}
+              <div className="bar-track">
+                {hasNeg && <div className="absolute inset-y-0 left-1/2 z-10 w-px bg-white/25" />}
                 <div
-                  className={`absolute inset-y-0.5 ${r.c >= 0 ? "bg-gain/70" : "bg-loss/70"}`}
+                  className={`bar-fill ${r.c >= 0 ? "bg-gain/80" : "bg-loss/80"}`}
                   style={
                     hasNeg
                       ? r.c >= 0
@@ -217,7 +227,7 @@ function Contributions({ a, w }: { a: AnalyticsView; w: AnalyticsView["windows"]
           );
         })}
       </div>
-      <p className="mt-3 font-mono text-[10px] leading-relaxed text-faint">
+      <p className="fine mt-4">
         Each bar is the asset&apos;s share of the basket&apos;s {pct(total)} over {w.label}, in percentage points of the starting $1,000. They add up to the total. Historical, not a forecast.
       </p>
     </div>

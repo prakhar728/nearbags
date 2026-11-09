@@ -9,7 +9,8 @@ import { BacktestView } from "@/components/basket/BacktestView";
 import { Tag } from "@/components/basket/BasketCard";
 import { CreatorTools } from "@/components/basket/CreatorTools";
 import { BacktestSkeleton, CellsSkeleton } from "@/components/basket/Skeletons";
-import { Label, Pairs } from "@/components/basket/Pairs";
+import { Pairs } from "@/components/basket/Pairs";
+import { Card, Section as UISection } from "@/components/ui/Primitives";
 import { Markdown } from "@/components/Markdown";
 import { Loading, SkeletonText } from "@/components/ui/Skeleton";
 import { BuyPanel } from "@/components/trade/BuyPanel";
@@ -40,12 +41,12 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
   const { basket: b, edits } = data;
 
   return (
-    <div className="space-y-12">
-      <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
+    <div className="space-y-14">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
         <Header b={b} />
-        <div className="space-y-3 lg:sticky lg:top-6 lg:self-start">
+        <div className="rise space-y-3 lg:sticky lg:top-24 lg:self-start" style={{ "--i": 2 } as React.CSSProperties}>
           <BuyPanel basket={{ id: b.id, slug: b.slug, name: b.name, feeBps: b.feeBps, minBuyUsd: b.minBuyUsd, status: b.status, assets: weightsOf(b) }} />
-          <p className="num text-[11px] leading-relaxed text-faint">
+          <p className="fine px-1">
             Min buy ${b.minBuyUsd} · creator fee {feePct(b.feeBps)} + platform fee on buys · selling is free.
           </p>
         </div>
@@ -74,22 +75,28 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
         <Holdings b={b} />
       </Section>
 
-      <Section title="Thesis">
-        <Markdown text={b.thesis} />
-      </Section>
-      <div className="grid gap-12 md:grid-cols-2">
-        <Section title="Risks">
-          <Markdown text={b.risks} />
-        </Section>
-        <Section title="Exit signal">{b.exitSignal ? <Markdown text={b.exitSignal} /> : <p className="text-sm text-muted">None given.</p>}</Section>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+        <Card ticks className="lg:row-span-2">
+          <Section title="Thesis">
+            <Markdown text={b.thesis} />
+          </Section>
+        </Card>
+        <Card>
+          <Section title="Risks">
+            <Markdown text={b.risks} />
+          </Section>
+        </Card>
+        <Card>
+          <Section title="Exit signal">{b.exitSignal ? <Markdown text={b.exitSignal} /> : <p className="text-sm text-muted">None given.</p>}</Section>
+        </Card>
       </div>
       {b.deepDive && (
-        <details className="group border-t border-border pt-6">
-          <summary className="cursor-pointer list-none font-mono text-[11px] uppercase tracking-wider text-muted hover:text-text">
-            <span className="group-open:hidden">+ Deep dive</span>
-            <span className="hidden group-open:inline">− Deep dive</span>
+        <details className="disclosure card group overflow-hidden">
+          <summary className="flex min-h-14 items-center justify-between gap-3 px-5 sm:px-6">
+            <span className="label text-muted">Deep dive</span>
+            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full border border-[var(--line)] text-muted transition-transform duration-300 group-open:rotate-45">+</span>
           </summary>
-          <div className="mt-4 max-w-3xl">
+          <div className="max-w-3xl px-5 pb-6 sm:px-6">
             <Markdown text={b.deepDive} />
           </div>
         </details>
@@ -112,18 +119,22 @@ function Header({ b }: { b: BasketView }) {
   const statusTag =
     b.status === "live" ? <Tag tone="accent">Live</Tag> : b.status === "pending" ? <Tag>Pending</Tag> : b.status === "closed" ? <Tag>Closed</Tag> : <Tag tone="loss">Hidden</Tag>;
   return (
-    <div className="min-w-0 space-y-5">
-      <div className="flex flex-wrap items-center gap-2">
-        {statusTag}
-        {b.isHouse && <Tag>House basket</Tag>}
+    <div className="min-w-0 space-y-7">
+      <div className="rise flex flex-wrap items-center justify-between gap-3" style={{ "--i": 0 } as React.CSSProperties}>
+        <div className="flex flex-wrap items-center gap-2">
+          {statusTag}
+          {b.isHouse && <Tag>House basket</Tag>}
+        </div>
+        {/* Share actions go here (basket hero). */}
+        <div data-slot="basket-actions" className="flex flex-wrap items-center gap-2" />
       </div>
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{b.name}</h1>
-        <p className="max-w-2xl text-base text-muted">{b.tagline}</p>
+      <div className="rise space-y-3" style={{ "--i": 1 } as React.CSSProperties}>
+        <h1 className="display text-[clamp(40px,7vw,76px)]">{b.name}</h1>
+        <p className="max-w-2xl text-lg leading-relaxed text-muted">{b.tagline}</p>
       </div>
-      <dl className="num grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:flex sm:flex-wrap">
+      <dl className="rise stat-grid grid-cols-2 sm:grid-cols-5 max-sm:[&>*:last-child]:col-span-2" style={{ "--i": 2 } as React.CSSProperties}>
         <Meta k="Creator">
-          <Link href={creatorHref(b.creator)} className="hover:text-accent">
+          <Link href={creatorHref(b.creator)} className="text-accent hover:underline">
             {creatorName(b.creator)}
           </Link>
         </Meta>
@@ -132,27 +143,32 @@ function Header({ b }: { b: BasketView }) {
         <Meta k="Min buy">${b.minBuyUsd}</Meta>
         <Meta k={b.isHouse ? "Self-buy" : "Creator holds"}>{b.isHouse ? <span className="text-muted">House basket, none</span> : <Suspense fallback={<SkeletonText className="w-12" />}><CreatorHolds id={b.id} /></Suspense>}</Meta>
       </dl>
-      <div className="num flex flex-wrap gap-1.5 text-xs">
-        {b.assets.map((a) => (
-          <span key={a.assetId} className="border border-border px-2 py-1">
-            {a.assetId} <span className="text-faint">{a.weightBps / 100}%</span>
-          </span>
-        ))}
+      <div className="rise space-y-3" style={{ "--i": 3 } as React.CSSProperties}>
+        <div className="flex h-2.5 overflow-hidden rounded-full bg-[var(--layer-2)]" aria-hidden>
+          {b.assets.map((a, i) => (
+            <div key={a.assetId} className="h-full border-r-2 border-bg last:border-r-0" style={{ width: `${a.weightBps / 100}%`, background: i === 0 ? "var(--accent)" : `rgba(232,255,89,${Math.max(0.18, 0.75 - i * 0.14)})` }} />
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {b.assets.map((a) => (
+            <span key={a.assetId} className="chip">
+              <span className="text-text">{a.assetId}</span> {a.weightBps / 100}%
+            </span>
+          ))}
+        </div>
       </div>
-      {b.status === "pending" && (
-        <p className="border-l-2 border-border-strong pl-3 text-sm text-muted">Not live yet. It goes live once the creator buys at least ${b.minBuyUsd} of it.</p>
-      )}
-      {b.status === "closed" && <p className="border-l-2 border-border-strong pl-3 text-sm text-muted">Closed to new buyers. Holders can still sell and withdraw.</p>}
-      {b.status === "hidden" && <p className="border-l-2 border-loss/60 pl-3 text-sm text-muted">Hidden by an admin: off Explore, no new buys. Holders can still sell and withdraw.</p>}
+      {b.status === "pending" && <p className="callout">Not live yet. It goes live once the creator buys at least ${b.minBuyUsd} of it.</p>}
+      {b.status === "closed" && <p className="callout">Closed to new buyers. Holders can still sell and withdraw.</p>}
+      {b.status === "hidden" && <p className="callout callout-warn">Hidden by an admin: off Explore, no new buys. Holders can still sell and withdraw.</p>}
     </div>
   );
 }
 
 function Meta({ k, children }: { k: string; children: React.ReactNode }) {
   return (
-    <div>
-      <dt className="font-mono text-[10px] uppercase tracking-wider text-faint">{k}</dt>
-      <dd className="mt-0.5">{children}</dd>
+    <div className="min-w-0">
+      <dt className="label">{k}</dt>
+      <dd className="num mt-1.5 truncate text-sm">{children}</dd>
     </div>
   );
 }
@@ -161,10 +177,12 @@ async function Analytics({ b }: { b: BasketView }) {
   const a = await getAnalyticsView(weightsOf(b));
   if ("error" in a) return <Box label={`Backtest unavailable: ${a.error}`} />;
   return (
-    <div className="space-y-12">
+    <div className="space-y-14">
       <BacktestView a={a} />
       <Section title="Pairs">
-        <Pairs a={a} />
+        <Card>
+          <Pairs a={a} />
+        </Card>
       </Section>
     </div>
   );
@@ -172,15 +190,26 @@ async function Analytics({ b }: { b: BasketView }) {
 
 function Holdings({ b }: { b: BasketView }) {
   return (
-    <div className="border-t border-border">
+    <div className="grid gap-3 sm:grid-cols-2">
       {b.assets.map((a) => {
         const asset = getAsset(a.assetId);
         return (
-          <div key={a.assetId} className="grid grid-cols-[4.5rem_3.5rem_1fr] gap-x-4 gap-y-1 border-b border-border py-3 text-sm sm:grid-cols-[5rem_10rem_4rem_1fr]">
-            <div className="num">{a.assetId}</div>
-            <div className="hidden text-muted sm:block">{asset.name}</div>
-            <div className="num text-accent">{a.weightBps / 100}%</div>
-            <div className="col-span-3 text-muted sm:col-span-1">{a.why || "—"}</div>
+          <div key={a.assetId} className="card card-hover flex gap-4 p-4 sm:p-5">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[var(--r-md)] border border-[var(--line-strong)] bg-[var(--layer-2)] font-mono text-[11px] font-semibold">
+              {a.assetId.slice(0, 4)}
+            </div>
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="truncate text-sm font-medium">
+                  {a.assetId} <span className="font-normal text-muted">{asset.name}</span>
+                </div>
+                <div className="big-num shrink-0 text-xl text-accent">{a.weightBps / 100}%</div>
+              </div>
+              <div className="bar-track h-1.5">
+                <div className="bar-fill bg-accent/70" style={{ left: 0, width: `${a.weightBps / 100}%` }} />
+              </div>
+              <p className="text-sm leading-relaxed text-muted">{a.why || "—"}</p>
+            </div>
           </div>
         );
       })}
@@ -202,7 +231,7 @@ async function LiveTrack({ b }: { b: BasketView }) {
   const days = daysSince(b.publishedAt);
   return (
     <div>
-      <div className="grid grid-cols-2 border-l border-t border-border sm:grid-cols-4">
+      <div className="stat-grid grid-cols-2 sm:grid-cols-4">
         <Cell k={`Since live · ${days}d`}>
           <span className={tone(live?.value)}>{pct(live?.value)}</span>
         </Cell>
@@ -210,7 +239,7 @@ async function LiveTrack({ b }: { b: BasketView }) {
         <Cell k="Holders">{m.holders ?? "—"}</Cell>
         <Cell k="Net flow · 7d">{usd(m.inflow7dUsd, { compact: true })}</Cell>
       </div>
-      <p className="mt-2 font-mono text-[10px] leading-relaxed text-faint">
+      <p className="fine mt-3">
         Live = buy-and-hold index since {b.publishedAt.slice(0, 10)} on median reference closes{live ? ` (latest ${live.asOf})` : ""}. Held and holders are read from every
         basket account on intents.near, refreshed every few minutes.
       </p>
@@ -220,9 +249,9 @@ async function LiveTrack({ b }: { b: BasketView }) {
 
 function Cell({ k, children }: { k: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-r border-border p-3">
-      <div className="font-mono text-[10px] uppercase tracking-wider text-faint">{k}</div>
-      <div className="num mt-1 text-base">{children}</div>
+    <div>
+      <div className="label">{k}</div>
+      <div className="stat-value text-xl">{children}</div>
     </div>
   );
 }
@@ -232,14 +261,14 @@ async function EditLog({ edits, publishedAt }: { edits: BasketEdit[]; publishedA
   await connection(); // "2d ago" is relative to now
   const label = (f: string) => (f.startsWith("why:") ? `Why ${f.slice(4)}` : (FIELD_LABEL[f] ?? f));
   return (
-    <details className="group border-t border-border pt-6">
-      <summary className="cursor-pointer list-none font-mono text-[11px] text-muted hover:text-text">
+    <details className="disclosure card card-pad group">
+      <summary className="font-mono text-[11px] text-muted hover:text-text">
         Edited {ago(edits[0].editedAt)} · <span className="underline decoration-border-strong underline-offset-4 group-open:hidden">view history</span>
         <span className="hidden underline decoration-border-strong underline-offset-4 group-open:inline">hide history</span>
       </summary>
       <ol className="mt-4 space-y-4">
         {edits.map((e, i) => (
-          <li key={i} className="border-l border-border pl-4">
+          <li key={i} className="border-l-2 border-[var(--line-strong)] pl-4">
             <div className="num text-[11px] text-faint">
               {e.editedAt.slice(0, 16).replace("T", " ")} UTC · {label(e.field)}
             </div>
@@ -250,20 +279,15 @@ async function EditLog({ edits, publishedAt }: { edits: BasketEdit[]; publishedA
           </li>
         ))}
       </ol>
-      {publishedAt && <p className="mt-4 font-mono text-[10px] text-faint">Assets, weights, fee and name are frozen since {publishedAt.slice(0, 10)}.</p>}
+      {publishedAt && <p className="fine mt-4">Assets, weights, fee and name are frozen since {publishedAt.slice(0, 10)}.</p>}
     </details>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-4">
-      <Label>{title}</Label>
-      {children}
-    </section>
-  );
+  return <UISection title={title}>{children}</UISection>;
 }
 
 function Box({ label, className = "" }: { label?: string; className?: string }) {
-  return <div className={`flex items-center justify-center border border-border font-mono text-xs text-faint ${className || "p-6"}`}>{label}</div>;
+  return <div className={`card flex items-center justify-center font-mono text-xs text-faint ${className || "p-6"}`}>{label}</div>;
 }

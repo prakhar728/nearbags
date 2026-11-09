@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/ui/Primitives";
 export const metadata = { title: "Terms · Stonkbag" };
 
 const SECTIONS: [string, string[]][] = [
@@ -23,17 +24,17 @@ const SECTIONS: [string, string[]][] = [
 
 export default function Terms() {
   return (
-    <article className="grid max-w-2xl gap-8">
-      <h1 className="font-mono text-xl font-semibold tracking-tight">Terms</h1>
+    <article className="grid max-w-3xl gap-10">
+      <PageHeader kicker="The fine print" title="Terms" />
       {SECTIONS.map(([h, ps]) => (
-        <section key={h} className="grid gap-2">
-          <h2 className="font-mono text-[11px] uppercase tracking-wider text-faint">{h}</h2>
+        <section key={h} className="card grid gap-3 p-5 sm:p-6">
+          <h2 className="label text-muted">{h}</h2>
           {ps.map((p) => (
-            <p key={p.slice(0, 20)} className="text-sm leading-relaxed text-muted">{p}</p>
+            <p key={p.slice(0, 20)} className="text-[15px] leading-relaxed text-muted">{p}</p>
           ))}
         </section>
       ))}
-      <p className="num text-[11px] text-faint">Hackathon build, November 2026. Not legal advice.</p>
+      <p className="fine">Hackathon build, November 2026. Not legal advice.</p>
     </article>
   );
 }

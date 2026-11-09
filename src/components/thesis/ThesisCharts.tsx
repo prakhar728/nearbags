@@ -28,12 +28,12 @@ export function WeeklyChart({ times, series, height = 240, pointLabel = "week of
   const format = series[0].format;
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 font-mono text-[11px]">
-        <span className="num text-faint">{pointLabel} {times[i] ?? "—"}</span>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
+        <span className="label mr-2">{pointLabel} {times[i] ?? "—"}</span>
         {series.map((s, k) => (
-          <span key={s.id} className="flex items-baseline gap-1.5">
-            <span className="inline-block h-px w-3 self-center" style={{ background: k === 0 ? ACCENT : SECOND }} />
+          <span key={s.id} className="chip">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ background: k === 0 ? ACCENT : SECOND }} />
             <span className="text-muted">{s.label}</span>
             <span className="num text-text">{fmt(s.format, s.data[i])}</span>
           </span>
@@ -54,12 +54,12 @@ export interface BarRow {
 export function Bars({ rows, format }: { rows: BarRow[]; format: "usd" | "count" }) {
   const max = Math.max(0, ...rows.map((r) => r.value));
   return (
-    <ul className="grid gap-1.5">
+    <ul className="grid gap-2.5">
       {rows.map((r) => (
         <li key={r.label} className="grid grid-cols-[5.5rem_1fr_auto] items-center gap-3 font-mono text-[11px] sm:grid-cols-[7rem_1fr_auto]">
           <span className="truncate text-muted">{r.label}</span>
-          <span className="h-3 bg-surface-2">
-            <span className="block h-full bg-accent" style={{ width: max > 0 ? `${(r.value / max) * 100}%` : 0 }} />
+          <span className="bar-track">
+            <span className="bar-fill left-0 bg-accent" style={{ width: max > 0 ? `${Math.max(1.5, (r.value / max) * 100)}%` : 0, boxShadow: "0 0 12px rgba(232,255,89,0.35)" }} />
           </span>
           <span className="num min-w-[5.5rem] text-right text-text">
             {fmt(format, r.value)}

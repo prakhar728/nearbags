@@ -34,7 +34,7 @@ export function Pairs({ a, compact = false }: { a: AnalyticsView; compact?: bool
           <p className="mt-2 text-sm text-muted">—</p>
         ) : (
           <>
-            <p className="num mt-2 text-2xl text-accent">{Math.round(Math.max(0, div) * 100)}%</p>
+            <p className="big-num mt-3 text-4xl text-accent">{Math.round(Math.max(0, div) * 100)}%</p>
             <p className="mt-1 text-xs leading-relaxed text-muted">
               {div > 0.01 ? `Mixing cut swings by ${Math.round(div * 100)}% versus holding each asset on its own.` : "Mixing barely cut swings: these assets move as one."}
             </p>
@@ -43,14 +43,14 @@ export function Pairs({ a, compact = false }: { a: AnalyticsView; compact?: bool
       </div>
 
       {ids.length > 1 && (
-        <details className={`group ${compact ? "sm:col-span-2" : "md:col-span-3"}`}>
-          <summary className="cursor-pointer list-none font-mono text-[11px] uppercase tracking-wider text-muted hover:text-text">
-            <span className="group-open:hidden">+ Show all pairs</span>
-            <span className="hidden group-open:inline">− Hide pairs</span>
+        <details className={`disclosure group ${compact ? "sm:col-span-2" : "md:col-span-3"}`}>
+          <summary className="btn btn-secondary btn-sm">
+            <span className="group-open:hidden">Show all pairs</span>
+            <span className="hidden group-open:inline">Hide pairs</span>
           </summary>
           <div className="mt-4 overflow-x-auto">
             <Heatmap ids={ids} rho={rho} />
-            <p className="mt-2 font-mono text-[10px] text-faint">Correlation of daily returns, last 12 months. 1 = identical moves, −1 = opposite.</p>
+            <p className="fine mt-2">Correlation of daily returns, last 12 months. 1 = identical moves, −1 = opposite.</p>
           </div>
         </details>
       )}
@@ -63,7 +63,7 @@ function PairList({ title, items, empty }: { title: string; items: { a: string; 
     <div>
       <Label>{title}</Label>
       {items.length ? (
-        <ul className="mt-2 space-y-2 text-sm">
+        <ul className="mt-3 space-y-2.5 text-sm">
           {items.map((p) => (
             <li key={p.a + p.b} className="flex items-baseline justify-between gap-3">
               <span>
@@ -102,7 +102,7 @@ function Heatmap({ ids, rho }: { ids: string[]; rho: (a: string, b: string) => n
           const r = rho(x, y);
           return (
             <g key={x + y}>
-              <rect x={pad + j * cell} y={pad + i * cell} width={cell - 2} height={cell - 2} fill={r == null ? "var(--surface)" : i === j ? "var(--surface-2)" : cellColor(r)} />
+              <rect x={pad + j * cell} y={pad + i * cell} width={cell - 2} height={cell - 2} rx={6} fill={r == null ? "var(--surface)" : i === j ? "var(--surface-2)" : cellColor(r)} />
               {r != null && i !== j && (
                 <text
                   x={pad + j * cell + (cell - 2) / 2}
@@ -124,5 +124,5 @@ function Heatmap({ ids, rho }: { ids: string[]; rho: (a: string, b: string) => n
 }
 
 export function Label({ children }: { children: React.ReactNode }) {
-  return <div className="font-mono text-[10px] uppercase tracking-wider text-faint">{children}</div>;
+  return <div className="label">{children}</div>;
 }
