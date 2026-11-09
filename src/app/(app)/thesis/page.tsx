@@ -62,7 +62,6 @@ export default async function ThesisPage() {
     <article className="grid grid-cols-[minmax(0,1fr)] gap-10">
       <header className="grid max-w-4xl gap-4">
         <span className="label rise flex items-center gap-2" style={{ "--i": 0 } as React.CSSProperties}>
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" aria-hidden />
           Thesis track
         </span>
         <h1 className="display rise text-[clamp(28px,3.4vw,42px)] leading-[1.08]" style={{ "--i": 1, fontVariationSettings: '"wdth" 100' } as React.CSSProperties}>

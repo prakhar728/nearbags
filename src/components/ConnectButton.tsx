@@ -40,7 +40,6 @@ export function ConnectButton({ variant = "landing" }: { variant?: "landing" | "
             : `font-mono text-xs ${user ? "border border-border px-3 py-1.5 text-text hover:border-border-strong" : "bg-accent px-3 py-1.5 font-semibold text-accent-ink"}`
         }
       >
-        {user && app && <span className="inline-block h-1.5 w-1.5 rounded-full bg-gain shadow-[0_0_8px_var(--gain)]" aria-hidden />}
         {user ? short(user.address) : "CONNECT"}
       </button>
 

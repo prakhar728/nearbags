@@ -133,7 +133,6 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
 
       {!loading && !user && (
         <p className="callout flex items-center gap-3 text-text">
-          <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" aria-hidden />
           Connect a wallet (top right) to publish. You can build and preview without one.
         </p>
       )}

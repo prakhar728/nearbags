@@ -51,7 +51,7 @@ export function CreatorTools({ basket: b }: { basket: CreatorToolsBasket }) {
   return (
     <div className="card card-ticks card-pad space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="label flex items-center gap-2"><span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />Your basket</div>
+        <div className="label flex items-center gap-2">Your basket</div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setEditing(!editing)} className="btn btn-secondary btn-sm">
             {editing ? "Cancel edit" : "Edit text"}

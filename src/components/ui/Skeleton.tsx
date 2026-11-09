@@ -23,5 +23,5 @@ export function Loading({ label = "Loading", className = "", children }: { label
 
 /** A small caption under a skeleton, for waits that take more than a moment. */
 export function LoadingNote({ children }: { children: React.ReactNode }) {
-  return <p className="num flex items-center gap-2 text-[11px] text-faint"><span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accent" aria-hidden />{children}</p>;
+  return <p className="num flex items-center gap-2 text-[11px] text-faint">{children}</p>;
 }

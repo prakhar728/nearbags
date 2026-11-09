@@ -120,7 +120,7 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
         </div>
       </div>
 
-      {note && <p className="fine flex items-center gap-2"><span className="inline-block h-1.5 w-1.5 rounded-full bg-faint" aria-hidden />{note}</p>}
+      {note && <p className="fine flex items-center gap-2">{note}</p>}
 
       {cards.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

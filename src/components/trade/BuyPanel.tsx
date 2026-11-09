@@ -550,7 +550,6 @@ function Box({ title, children }: { title: string; children: React.ReactNode }) 
     <div className="card card-ticks p-5">
       <div className="mb-4 flex items-center justify-between">
         <div className="display text-2xl">{title}</div>
-        <span className="inline-block h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_var(--accent)]" aria-hidden />
       </div>
       {children}
     </div>

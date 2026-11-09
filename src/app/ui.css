@@ -336,14 +336,6 @@ button.chip:hover {
   border-color: var(--accent-line);
   background: var(--accent-soft);
 }
-.badge-accent::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-}
 .badge-loss {
   color: var(--loss);
   border-color: rgba(255, 92, 92, 0.4);

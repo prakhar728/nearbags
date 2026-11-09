@@ -42,7 +42,6 @@ function Header({ right }: { right: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, letterSpacing: 6, color: MUTED }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ width: 14, height: 14, borderRadius: 7, background: ACCENT }} />
         <span style={{ color: TEXT, fontWeight: 800 }}>STONKBAG</span>
       </div>
       <span style={{ letterSpacing: 2 }}>{right}</span>

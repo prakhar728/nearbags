@@ -24,7 +24,6 @@ export function PageHeader({
       <div className="min-w-0 space-y-3">
         {kicker && (
           <div className="label rise flex items-center gap-2" style={{ "--i": 0 } as React.CSSProperties}>
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_var(--accent)]" aria-hidden />
             {kicker}
           </div>
         )}
