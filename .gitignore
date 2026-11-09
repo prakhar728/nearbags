@@ -43,3 +43,6 @@ next-env.d.ts
 
 # Claude Code local state (agent worktrees)
 .claude/
+
+# thesis track: raw Explorer API pages (thesis.json is checked in)
+/data/thesis/raw/
