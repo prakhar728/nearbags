@@ -2,7 +2,7 @@
 // Charts for /thesis. Line charts reuse LineChart (lightweight-charts); categorical data uses plain HTML bars.
 import { useMemo, useState } from "react";
 import { LineChart, type ChartLine } from "@/components/charts/LineChart";
-import { pct, usd } from "@/lib/format";
+import { pctSig, usd } from "@/lib/format";
 
 const ACCENT = "#e8ff59";
 const SECOND = "#8a8a8a";
@@ -15,7 +15,7 @@ export interface SeriesSpec {
 }
 
 const fmt = (kind: SeriesSpec["format"], v: number | null | undefined) =>
-  v == null || !Number.isFinite(v) ? "—" : kind === "usd" ? usd(v, { compact: true }) : kind === "pct" ? pct(v, 2, false) : Math.round(v).toLocaleString("en-US");
+  v == null || !Number.isFinite(v) ? "—" : kind === "usd" ? usd(v, { compact: true }) : kind === "pct" ? pctSig(v) : Math.round(v).toLocaleString("en-US");
 
 /** One or two time series (weekly by default) on a shared axis, with a hover readout. */
 export function WeeklyChart({ times, series, height = 240, pointLabel = "week of" }: { times: string[]; series: SeriesSpec[]; height?: number; pointLabel?: string }) {

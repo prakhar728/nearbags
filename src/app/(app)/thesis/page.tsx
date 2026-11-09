@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { cacheLife } from "next/cache";
 import { Bars, WeeklyChart } from "@/components/thesis/ThesisCharts";
-import { pct, usd } from "@/lib/format";
+import { pct, usd, pctSig } from "@/lib/format";
 import { ONDO_ASSETS, requestTemplate, type StreamKind } from "@/lib/thesis/explorer";
 import type { ThesisData } from "@/lib/thesis/types";
 
@@ -141,7 +141,7 @@ function Charts({ d }: { d: ThesisData }) {
         sentence={
           s.ondo_share_latest == null
             ? "No complete week of all-1Click data has been pulled yet."
-            : `Ondo swaps were ${pct(s.ondo_share_latest, 2, false)} of all 1Click volume in the week of ${s.ondo_share_latest_week}.`
+            : `Ondo swaps were ${pctSig(s.ondo_share_latest)} of all 1Click volume in the week of ${s.ondo_share_latest_week}.`
         }
       >
         {shareRows.length > 0 && (

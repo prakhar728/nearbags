@@ -135,7 +135,7 @@ export function aggregate(input: AggregateInput): AggregateOutput {
       sells: 0,
       allSwaps: tot ? tot.swaps : null,
       allVolumeUsd: tot ? r2(tot.volumeUsd) : null,
-      ondoShare: tot ? frac(tot.ondoVolumeUsd, tot.volumeUsd) : null,
+      ondoShare: tot && tot.volumeUsd > 0 ? Math.round((tot.ondoVolumeUsd / tot.volumeUsd) * 1e8) / 1e8 : null, // tiny: keep 8 decimals
       traders: new Set(),
     });
   }

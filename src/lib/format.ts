@@ -3,6 +3,15 @@
 export const pct = (x: number | null | undefined, digits = 1, sign = true) =>
   x == null || !Number.isFinite(x) ? "—" : `${sign && x >= 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x * 100).toFixed(digits)}%`;
 
+/** Percent with at least two significant digits, for small shares: 0.00013 → "0.013%". */
+export const pctSig = (x: number | null | undefined) => {
+  if (x == null || !Number.isFinite(x)) return "—";
+  const p = Math.abs(x * 100);
+  if (p === 0) return "0%";
+  const digits = p >= 1 ? 1 : Math.min(6, Math.max(1, 1 - Math.floor(Math.log10(p))));
+  return `${x < 0 ? "−" : ""}${p.toFixed(digits)}%`;
+};
+
 export const tone = (x: number | null | undefined) => (x == null || !Number.isFinite(x) ? "text-muted" : x > 0 ? "text-gain" : x < 0 ? "text-loss" : "text-muted");
 
 export function usd(x: number | null | undefined, opts: { compact?: boolean; cents?: boolean } = {}) {

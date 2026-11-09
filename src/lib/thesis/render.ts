@@ -1,6 +1,6 @@
 // Renders THESIS.template.md: every {{key}} must be a field of the generated summary (or generated_at). An unknown key
 // throws, so the document can never carry a number that did not come from data/thesis/thesis.json.
-import { pct, usd } from "@/lib/format";
+import { pct, pctSig, usd } from "@/lib/format";
 import type { ThesisData, ThesisSummary } from "./types";
 
 const PLACEHOLDER = /\{\{\s*([a-z0-9_]+)\s*\}\}/g;
@@ -8,6 +8,7 @@ const PLACEHOLDER = /\{\{\s*([a-z0-9_]+)\s*\}\}/g;
 export function formatValue(key: string, v: string | number | null): string {
   if (v == null) return "n/a";
   if (typeof v === "string") return v;
+  if (/^ondo_share_/.test(key)) return pctSig(v);
   if (/share|change/.test(key)) return pct(v, 1, key.endsWith("change_30d"));
   if (/volume|usd|tvl/.test(key)) return usd(v);
   return v.toLocaleString("en-US");
