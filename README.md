@@ -52,7 +52,7 @@ From a clone (no funds, no gas, read-only calls to NEAR mainnet):
 
 ```sh
 pnpm install
-pnpm test                                        # 58 unit tests: backtests, keys, guards, fees, signing
+pnpm test                                        # unit tests: backtests, keys, guards, fees, signing, thesis aggregation
 pnpm tsx scripts/verify-keys-mainnet.ts          # a derived basket account adds EVM and NEAR recovery keys (simulate_intents)
 pnpm tsx scripts/verify-wallet-sign-mainnet.ts   # an EVM wallet (ERC-191) and a NEAR wallet (NEP-413) each authorize a new browser key
 ```
