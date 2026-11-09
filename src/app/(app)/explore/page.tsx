@@ -47,7 +47,7 @@ function href(q: Q, patch: Partial<Q>) {
   if (n.kind !== "all") p.set("kind", n.kind);
   if (n.fee != null) p.set("fee", String(n.fee));
   const s = p.toString();
-  return s ? `/?${s}` : "/";
+  return s ? `/explore?${s}` : "/explore";
 }
 
 export default function Explore({ searchParams }: PageProps<"/">) {
@@ -147,7 +147,7 @@ function Empty({ q, total }: { q: Q; total: number }) {
     <div className="border border-dashed border-border p-8 text-center">
       <p className="text-sm text-muted">{msg}</p>
       <div className="mt-4 flex justify-center gap-4 font-mono text-xs">
-        <Link href="/?tab=new" className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-accent">
+        <Link href="/explore?tab=new" className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-accent">
           See newest
         </Link>
         <Link href="/create" className="text-text underline decoration-border-strong underline-offset-4 hover:decoration-accent">

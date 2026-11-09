@@ -34,7 +34,7 @@ export function PortfolioView() {
   if (!rows.length)
     return (
       <p className="text-sm text-muted">
-        No baskets yet. <Link href="/" className="text-text underline decoration-border-strong underline-offset-4">Find one to bag</Link>.
+        No baskets yet. <Link href="/explore" className="text-text underline decoration-border-strong underline-offset-4">Find one to bag</Link>.
       </p>
     );
 
