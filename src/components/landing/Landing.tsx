@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { Suspense, use, useCallback, useState } from "react";
 import { ConnectButton } from "@/components/ConnectButton";
 import type { LandingData } from "@/lib/landing";
 import { HeroChart } from "./HeroChart";
@@ -65,11 +65,89 @@ function Spark({ values, i }: { values: number[]; i: number }) {
   );
 }
 
-export function Landing({ data }: { data: LandingData | null }) {
+type Data = Promise<LandingData | null>;
+
+// The shell (title, copy, sections) renders once; only the price-driven parts stream in.
+// Swapping the whole page in after the data loads used to remount the title and replay its animation.
+function ChartSlot({ data, onProgress }: { data: Data; onProgress: (v: number, done: boolean) => void }) {
+  const hero = use(data)?.hero;
+  return hero ? <HeroChart data={hero} onProgress={onProgress} /> : null;
+}
+
+function Caption({ data }: { data: Data }) {
+  const hero = use(data)?.hero;
+  if (!hero) return <>REAL PRICES · HISTORICAL, NOT A FORECAST</>;
+  const end = hero.basket.at(-1) ?? null;
+  return (
+    <>
+      {hero.name.toUpperCase()} · SINCE {hero.start.slice(0, 4)}
+      {end ? ` · ${pct(end / 1000 - 1)}` : ""}
+      <br />
+      REAL PRICES · HISTORICAL, NOT A FORECAST · HOVER THE CHART
+    </>
+  );
+}
+
+function Tapes({ data }: { data: Data }) {
+  const d = use(data);
+  if (!d || d.tape.length === 0) return null;
+  return (
+    <div className="lp-tapes">
+      <Tape items={d.tape} variant="b" />
+      <Tape items={d.tape} variant="a" />
+    </div>
+  );
+}
+
+function Bags({ data }: { data: Data }) {
+  const d = use(data);
+  if (!d || d.bags.length === 0) return null;
+  return (
+        <section className="lp-sec lp-wrap">
+          <Reveal>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 20, flexWrap: "wrap", marginBottom: 28 }}>
+              <div>
+                <span className="lp-label">04 / BAGS</span>
+                <h2 className="lp-h2">
+                  <Line i={0}>Fresh</Line>
+                  <Line i={1}>
+                    <em>bags.</em>
+                  </Line>
+                </h2>
+              </div>
+              <Link href="/explore" className="lp-btn lp-up-in">SEE ALL</Link>
+            </div>
+            <div className="lp-bags">
+              {d.bags.map((b, i) => (
+                <Tilt key={b.slug} href={`/b/${b.slug}`} className="lp-bag" style={{ "--i": i } as React.CSSProperties}>
+                  <h3>{b.name}</h3>
+                  <div className="lp-cap" style={{ textTransform: "none", letterSpacing: 0 }}>{b.tagline}</div>
+                  <Spark values={b.spark} i={i} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <span className="lp-big-num" style={{ fontSize: 30, color: b.value >= 0 ? "var(--accent)" : "var(--loss)" }}>
+                      {pct(b.value)}
+                    </span>
+                    <span className="lp-cap">{b.isCagr ? `${b.label.toUpperCase()}` : "TOTAL"} · BACKTEST</span>
+                  </div>
+                  <div className="lp-chips">
+                    {b.assets.map((a) => (
+                      <span key={a}>{a}</span>
+                    ))}
+                  </div>
+                  <div className="lp-cap">
+                    MIN ${b.minBuy} · FEE {(b.feeBps / 100).toFixed(2)}%{b.house ? " · HOUSE" : ""}
+                  </div>
+                </Tilt>
+              ))}
+            </div>
+          </Reveal>
+        </section>
+  );
+}
+
+export function Landing({ data }: { data: Data }) {
   const [counter, setCounter] = useState<{ v: number; done: boolean }>({ v: 1000, done: false });
   const onProgress = useCallback((v: number, done: boolean) => setCounter({ v, done }), []);
-  const hero = data?.hero;
-  const end = hero?.basket.at(-1) ?? null;
 
   return (
     <div className="lp">
@@ -85,7 +163,11 @@ export function Landing({ data }: { data: LandingData | null }) {
       {/* ---------- hero ---------- */}
       <section className="lp-hero lp-wrap">
         <div className="lp-grid" aria-hidden />
-        <div className="lp-chart">{hero && <HeroChart data={hero} onProgress={onProgress} />}</div>
+        <div className="lp-chart">
+          <Suspense fallback={null}>
+            <ChartSlot data={data} onProgress={onProgress} />
+          </Suspense>
+        </div>
         <div>
           <div className="lp-kicker lp-fade" style={{ "--d": "0.1s" } as React.CSSProperties}>
             <span className="lp-dot" aria-hidden />
@@ -107,27 +189,17 @@ export function Landing({ data }: { data: LandingData | null }) {
             <span className={counter.done ? "lp-acc" : ""}>{money(counter.v)}</span>
           </div>
           <div className="lp-cap">
-            {hero ? (
-              <>
-                {hero.name.toUpperCase()} · SINCE {hero.start.slice(0, 4)}
-                {end ? ` · ${pct(end / 1000 - 1)}` : ""}
-                <br />
-                REAL PRICES · HISTORICAL, NOT A FORECAST · HOVER THE CHART
-              </>
-            ) : (
-              "LOADING REAL PRICES…"
-            )}
+            <Suspense fallback="LOADING REAL PRICES…">
+              <Caption data={data} />
+            </Suspense>
           </div>
         </div>
       </section>
 
       {/* ---------- tapes ---------- */}
-      {data && data.tape.length > 0 && (
-        <div className="lp-tapes">
-          <Tape items={data.tape} variant="b" />
-          <Tape items={data.tape} variant="a" />
-        </div>
-      )}
+      <Suspense fallback={null}>
+        <Tapes data={data} />
+      </Suspense>
 
       {/* ---------- any chain in ---------- */}
       <section className="lp-sec lp-wrap">
@@ -191,47 +263,9 @@ export function Landing({ data }: { data: LandingData | null }) {
       </section>
 
       {/* ---------- bags ---------- */}
-      {data && data.bags.length > 0 && (
-        <section className="lp-sec lp-wrap">
-          <Reveal>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 20, flexWrap: "wrap", marginBottom: 28 }}>
-              <div>
-                <span className="lp-label">04 / BAGS</span>
-                <h2 className="lp-h2">
-                  <Line i={0}>Fresh</Line>
-                  <Line i={1}>
-                    <em>bags.</em>
-                  </Line>
-                </h2>
-              </div>
-              <Link href="/explore" className="lp-btn lp-up-in">SEE ALL</Link>
-            </div>
-            <div className="lp-bags">
-              {data.bags.map((b, i) => (
-                <Tilt key={b.slug} href={`/b/${b.slug}`} className="lp-bag" style={{ "--i": i } as React.CSSProperties}>
-                  <h3>{b.name}</h3>
-                  <div className="lp-cap" style={{ textTransform: "none", letterSpacing: 0 }}>{b.tagline}</div>
-                  <Spark values={b.spark} i={i} />
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                    <span className="lp-big-num" style={{ fontSize: 30, color: b.value >= 0 ? "var(--accent)" : "var(--loss)" }}>
-                      {pct(b.value)}
-                    </span>
-                    <span className="lp-cap">{b.isCagr ? `${b.label.toUpperCase()}` : "TOTAL"} · BACKTEST</span>
-                  </div>
-                  <div className="lp-chips">
-                    {b.assets.map((a) => (
-                      <span key={a}>{a}</span>
-                    ))}
-                  </div>
-                  <div className="lp-cap">
-                    MIN ${b.minBuy} · FEE {(b.feeBps / 100).toFixed(2)}%{b.house ? " · HOUSE" : ""}
-                  </div>
-                </Tilt>
-              ))}
-            </div>
-          </Reveal>
-        </section>
-      )}
+      <Suspense fallback={null}>
+        <Bags data={data} />
+      </Suspense>
 
       {/* ---------- final ---------- */}
       <section className="lp-final lp-wrap">

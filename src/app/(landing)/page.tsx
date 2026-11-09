@@ -1,5 +1,4 @@
 import { connection } from "next/server";
-import { Suspense } from "react";
 import { Landing } from "@/components/landing/Landing";
 import { getLandingData } from "@/lib/landing";
 import "./landing.css";
@@ -10,15 +9,11 @@ export const metadata = {
 };
 
 export default function Home() {
-  return (
-    <Suspense fallback={<Landing data={null} />}>
-      <WithData />
-    </Suspense>
-  );
+  // Not awaited: the page shell renders immediately and the price data streams into it.
+  return <Landing data={loadData()} />;
 }
 
-async function WithData() {
+async function loadData() {
   await connection(); // real prices at request time; the build never touches the database
-  const data = await getLandingData().catch(() => null);
-  return <Landing data={data} />;
+  return getLandingData().catch(() => null);
 }
