@@ -1,47 +1,13 @@
 // Insert the 5 seed baskets as House baskets owned by a "house" user (spec §11, Q20).
-// Theses are placeholders until Prakhar edits them (Day 4). Re-running updates text, never weights of a live basket.
+// Texts come from src/lib/seed-content.ts. Re-running updates text; weights change only while a basket has no holders.
+
+
 // Usage: pnpm tsx --env-file=.env.local scripts/seed-baskets.ts
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "../src/db";
 import { SEED_BASKETS } from "../src/lib/seeds";
+import { SEED_TEXT } from "../src/lib/seed-content";
 
-const DRAFT: Record<string, { tagline: string; thesis: string; risks: string; horizon: "3m" | "1y" | "3y+"; why: Record<string, string> }> = {
-  "degen-mix": {
-    tagline: "Tesla, Circle and two fast chains in one bag.",
-    thesis: "Draft thesis. Prakhar edits this before launch.",
-    risks: "Every asset here can drop 50% or more. Circle has little trading history.",
-    horizon: "1y",
-    why: { TSLA: "Draft.", CRCL: "Draft.", SOL: "Draft.", NEAR: "Draft." },
-  },
-  "ai-picks-and-shovels": {
-    tagline: "The companies selling to the AI gold rush.",
-    thesis: "Draft thesis. Prakhar edits this before launch.",
-    risks: "Concentrated in one theme. AI spending can slow.",
-    horizon: "3y+",
-    why: { NVDA: "Draft.", MSFT: "Draft.", GOOGL: "Draft.", MRVL: "Draft.", META: "Draft." },
-  },
-  "gold-and-btc-hedge": {
-    tagline: "Old money and new money against inflation.",
-    thesis: "Draft thesis. Prakhar edits this before launch.",
-    risks: "Neither gold nor bitcoin pays income. Both can fall together in a liquidity crunch.",
-    horizon: "3y+",
-    why: { GLD: "Draft.", SLV: "Draft.", BTC: "Draft." },
-  },
-  "big-tech-vs-bitcoin": {
-    tagline: "Half Nasdaq, half crypto majors.",
-    thesis: "Draft thesis. Prakhar edits this before launch.",
-    risks: "Crypto and tech have moved together in sell-offs.",
-    horizon: "3y+",
-    why: { QQQ: "Draft.", BTC: "Draft.", ETH: "Draft." },
-  },
-  "yield-shelter": {
-    tagline: "T-bills and inflation-linked bonds while you wait.",
-    thesis: "Draft thesis. Prakhar edits this before launch.",
-    risks: "Long bonds (TLT) fell hard in 2022 when rates rose.",
-    horizon: "1y",
-    why: { SGOV: "Draft.", TLT: "Draft.", TIP: "Draft.", USDC: "Draft." },
-  },
-};
 
 async function main() {
   const [house] = await db()
@@ -51,16 +17,25 @@ async function main() {
     .returning();
 
   for (const s of SEED_BASKETS) {
-    const d = DRAFT[s.slug];
+    const d = SEED_TEXT[s.slug];
     const [existing] = await db().select().from(schema.baskets).where(eq(schema.baskets.slug, s.slug));
-    const text = { name: s.name, tagline: d.tagline, thesis: d.thesis, risks: d.risks, horizon: d.horizon };
+    const text = { name: s.name, tagline: d.tagline, thesis: d.thesis, risks: d.risks, horizon: d.horizon, exitSignal: d.exitSignal };
     let id: number;
     if (existing) {
       id = existing.id;
       await db().update(schema.baskets).set(text).where(eq(schema.baskets.id, id));
       if (existing.status === "live") {
-        console.log(`${s.slug}: live, text updated, weights untouched`);
-        continue;
+        for (const [assetId, why] of Object.entries(d.why)) {
+          await db().update(schema.basketAssets).set({ why }).where(and(eq(schema.basketAssets.basketId, id), eq(schema.basketAssets.assetId, assetId)));
+        }
+        const cur = await db().select().from(schema.basketAssets).where(eq(schema.basketAssets.basketId, id));
+        const same = cur.length === s.weights.length && s.weights.every((w) => cur.some((c) => c.assetId === w.assetId && c.weightBps === w.weightBps));
+        const hasHolders = (await db().select().from(schema.positions).where(eq(schema.positions.basketId, id))).length > 0;
+        if (same || hasHolders) {
+          console.log(`${s.slug}: live, text updated${same ? "" : ", weights NOT changed (basket has holders)"}`);
+          continue;
+        }
+        console.log(`${s.slug}: live with no holders, weights updated to seeds.ts`);
       }
       await db().delete(schema.basketAssets).where(eq(schema.basketAssets.basketId, id));
     } else {
