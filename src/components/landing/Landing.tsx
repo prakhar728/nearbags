@@ -170,7 +170,6 @@ export function Landing({ data }: { data: Data }) {
         </div>
         <div>
           <div className="lp-kicker lp-fade" style={{ "--d": "0.1s" } as React.CSSProperties}>
-            <span className="lp-dot" aria-hidden />
             <SessionClock />
             <span>STOCKS + CRYPTO · ANY CHAIN · YOUR KEYS</span>
           </div>
