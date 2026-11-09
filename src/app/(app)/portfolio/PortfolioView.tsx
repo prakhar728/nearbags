@@ -57,7 +57,7 @@ export function PortfolioView() {
             <button type="button" onClick={() => setOpen(open === r.positionId ? null : r.positionId)} className="grid w-full gap-2 p-4 text-left sm:grid-cols-[1.5fr_1fr_1fr_1fr] sm:items-center hover:bg-surface">
               <div>
                 <div className="text-sm font-medium">{r.basket.name}</div>
-                <div className="num text-[11px] text-faint">{r.boughtAt ? `bought ${new Date(r.boughtAt).toLocaleDateString()}` : "no completed buy yet"}</div>
+                <div className="num text-[11px] text-faint">{r.boughtAt ? `bought ${new Date(r.boughtAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "no completed buy yet"}</div>
               </div>
               <div className="num text-sm">{usd(r.valueUsd)}</div>
               <div className={`num text-sm ${r.pnlUsd == null ? "text-muted" : r.pnlUsd >= 0 ? "text-gain" : "text-loss"}`}>
@@ -101,7 +101,7 @@ export function PortfolioView() {
                 </div>
                 <div>
                   <div className="mb-2 font-mono text-[10px] uppercase tracking-wider text-faint">Sell</div>
-                  <SellPanel positionId={r.positionId} basketId={r.basket.id} onDone={load} />
+                  <SellPanel positionId={r.positionId} basketId={r.basket.id} holdings={r.holdings} onDone={load} />
                 </div>
               </div>
             )}

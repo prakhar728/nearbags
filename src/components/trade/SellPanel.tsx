@@ -2,6 +2,7 @@
 // Sell 25/50/75/100% of a basket position, paid out in any token on any chain (spec §5.5). No fees on sells.
 import { useEffect, useMemo, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { ASSETS } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder } from "@/lib/client/order-runner";
 import type { PayToken } from "@/lib/client/pay";
@@ -20,7 +21,20 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return j as T;
 }
 
-export function SellPanel({ positionId, basketId, onDone }: { positionId: number; basketId: number; onDone?: () => void }) {
+const PCTS = [25, 50, 75, 100];
+
+/** The asset that stops a partial sell: some leg would fall under 1Click's minimum swap for that asset. */
+function blockerFor(pct: number, holdings: { assetId: string; valueUsd: number }[]) {
+  if (pct === 100) return null;
+  for (const h of holdings) {
+    const min = ASSETS.find((a) => a.id === h.assetId)?.minLegUsd ?? 0;
+    const leg = (h.valueUsd * pct) / 100;
+    if (leg > 0.01 && leg < min) return { assetId: h.assetId, leg, min };
+  }
+  return null;
+}
+
+export function SellPanel({ positionId, basketId, holdings = [], onDone }: { positionId: number; basketId: number; holdings?: { assetId: string; valueUsd: number }[]; onDone?: () => void }) {
   const { user, keyForBasket } = useAuth();
   const [tokens, setTokens] = useState<PayToken[]>([]);
   const [pct, setPct] = useState(100);
@@ -69,12 +83,24 @@ export function SellPanel({ positionId, basketId, onDone }: { positionId: number
   return (
     <div className="grid gap-3">
       <div className="flex gap-2">
-        {[25, 50, 75, 100].map((p) => (
-          <button key={p} type="button" onClick={() => setPct(p)} className={`num flex-1 border px-2 py-1.5 text-xs ${pct === p ? "border-accent text-accent" : "border-border text-muted hover:border-border-strong"}`}>
+        {PCTS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPct(p)}
+            disabled={!!blockerFor(p, holdings)}
+            className={`num flex-1 border px-2 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-30 ${pct === p ? "border-accent text-accent" : "border-border text-muted hover:border-border-strong"}`}
+          >
             {p}%
           </button>
         ))}
       </div>
+      {blockerFor(25, holdings) && (
+        <p className="num text-[11px] text-faint">
+          {blockerFor(25, holdings)!.assetId} trades in swaps of at least ${blockerFor(25, holdings)!.min}, so this bag can be sold{" "}
+          {PCTS.filter((p) => !blockerFor(p, holdings)).length === 1 ? "only in full" : `in ${PCTS.filter((p) => !blockerFor(p, holdings)).map((p) => `${p}%`).join(", ")} steps`}.
+        </p>
+      )}
       {tokens.length ? (
         <select id={`sell-token-${positionId}`} value={payout} onChange={(e) => (setPayout(e.target.value), setAddress(""))} className="num border border-border bg-bg px-3 py-2 text-sm">
           {tokens.map((t) => (

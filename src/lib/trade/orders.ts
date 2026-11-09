@@ -340,7 +340,14 @@ export async function createSellOrder(s: Session, p: { positionId: number; pct: 
       const g = guard({ side: "sell", usd: Number(q.quote.amountOut) / 1e6, units: Number(l.amountIn) / 10 ** l.asset.decimals, referencePrice: ref.price, kind: l.asset.kind, session });
       if (g.verdict === "block") problems.push(`${l.asset.id} would sell ${(g.deviation * 100).toFixed(1)}% below the market price right now.`);
     } catch (e) {
-      problems.push(e instanceof OneClickError && e.noLiquidity ? `${l.asset.id} isn't tradable right now (or the amount is below the minimum swap).` : `${l.asset.id}: ${(e as Error).message.slice(0, 120)}`);
+      const below = e instanceof OneClickError && e.noLiquidity && l.asset.minLegUsd > 0 && p.pct < 100;
+      problems.push(
+        below
+          ? `${l.asset.id}: ${p.pct}% of your holding may be under its $${l.asset.minLegUsd} minimum swap. Try a bigger percentage.`
+          : e instanceof OneClickError && e.noLiquidity
+            ? `${l.asset.id} isn't tradable right now.`
+            : `${l.asset.id}: ${(e as Error).message.slice(0, 120)}`,
+      );
     }
   }
   if (problems.length) throw new HttpError(409, problems.join(" "));
