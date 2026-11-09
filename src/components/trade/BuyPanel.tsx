@@ -3,12 +3,13 @@
 //   <BuyPanel basket={{ id, slug, name, feeBps, minBuyUsd, status, assets }} />
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useConfig } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import { ASSETS, getAsset } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder, retryLeg } from "@/lib/client/order-runner";
-import { canPayFromEvm, payFromEvm, type PayToken } from "@/lib/client/pay";
+import { canPayFromEvm, canPayFromNear, payFromEvm, payFromNear, type PayToken } from "@/lib/client/pay";
 import type { BasketKey } from "@/lib/intents/keys";
 import { signIntents } from "@/lib/intents/payload";
 import type { BuyPreflight } from "@/lib/trade/preflight";
@@ -46,6 +47,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const { user, keyForBasket, signInNear, busy: authBusy } = useAuth();
   const wagmiConfig = useConfig();
+  const near = useWalletSelector();
   const [tokens, setTokens] = useState<PayToken[]>([]);
   const [amount, setAmount] = useState(String(Math.max(basket.minBuyUsd, 20)));
   const [payAsset, setPayAsset] = useState("");
@@ -59,6 +61,25 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const runRef = useRef<AbortController | null>(null);
 
   const token = tokens.find((t) => t.assetId === payAsset);
+  const canPayFrom = useCallback(
+    (t: PayToken) => (user?.chain === "near" ? canPayFromNear(t) : user?.chain === "evm" ? canPayFromEvm(t) : false),
+    [user?.chain],
+  );
+  // NEAR wallets pay wNEAR by wrapping native NEAR on the fly, so show it as NEAR.
+  const tokenLabel = (t: PayToken) => (user?.chain === "near" && t.contract === "wrap.near" ? "NEAR" : t.symbol);
+  const balance = useQuery({
+    queryKey: ["near-balance", user?.address, token?.assetId],
+    enabled: user?.chain === "near" && !!token && canPayFromNear(token),
+    staleTime: 30_000,
+    queryFn: async () => {
+      const t = token!;
+      const raw = BigInt(String((await near.viewFunction({ contractId: t.contract!, method: "ft_balance_of", args: { account_id: user!.address } })) ?? "0"));
+      const f = (x: bigint, d: number) => (Number(x) / 10 ** d).toLocaleString(undefined, { maximumFractionDigits: 4 });
+      if (t.contract !== "wrap.near") return `${f(raw, t.decimals)} ${t.symbol}`;
+      const native = await near.getBalance(user!.address);
+      return `${f(native, 24)} NEAR${raw > 0n ? ` + ${f(raw, 24)} wNEAR` : ""}`;
+    },
+  });
   const amountNum = Number(amount);
 
   const elig = useQuery({
@@ -181,7 +202,11 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     setErr(null);
     try {
       setStep("Confirm the transfer in your wallet…");
-      await payFromEvm(wagmiConfig, token, view.order.deposit.address!, view.order.deposit.amountIn);
+      if (user?.chain === "near" && canPayFromNear(token)) {
+        await payFromNear(near, user.address, token, view.order.deposit.address!, view.order.deposit.amountIn);
+      } else {
+        await payFromEvm(wagmiConfig, token, view.order.deposit.address!, view.order.deposit.amountIn);
+      }
       setStep("Sent. Waiting for it to arrive…");
     } catch (e) {
       setStep(null);
@@ -219,7 +244,8 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     );
   }
 
-  if (phase === "order" && view) return <OrderBox view={view} token={token} onPay={payNow} onRetry={retry} step={step} err={err} />;
+  const walletCanPay = !!token && (user?.chain === "near" ? canPayFromNear(token) : canPayFromEvm(token));
+  if (phase === "order" && view) return <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={step} err={err} />;
 
   if (elig.data?.status === "needs") {
     return <Attest needs={elig.data.needs} text={elig.data.text} onDone={() => void elig.refetch()} />;
@@ -260,12 +286,26 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
             }}
             className="num border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-border-strong"
           >
-            {tokens.map((t) => (
-              <option key={t.assetId} value={t.assetId}>
-                {t.symbol} on {CHAIN_NAMES[t.chain] ?? t.chain}
-              </option>
-            ))}
+            {[
+              ["Pay from your wallet", tokens.filter((t) => canPayFrom(t))],
+              ["Send from anywhere", tokens.filter((t) => !canPayFrom(t))],
+            ].map(([label, list]) =>
+              (list as PayToken[]).length ? (
+                <optgroup key={label as string} label={label as string}>
+                  {(list as PayToken[]).map((t) => (
+                    <option key={t.assetId} value={t.assetId}>
+                      {tokenLabel(t)} on {CHAIN_NAMES[t.chain] ?? t.chain}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null,
+            )}
           </select>
+          {balance.data && (
+            <span className="num text-[11px] text-faint">
+              In your wallet: {balance.data}
+            </span>
+          )}
         </label>
 
         {token && !defaultRefund && (
@@ -372,7 +412,7 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
   );
 }
 
-function OrderBox({ view, token, onPay, onRetry, step, err }: { view: OrderView; token?: PayToken; onPay: () => void; onRetry: (seq: number) => void; step: string | null; err: string | null }) {
+function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: OrderView; token?: PayToken; canPay: boolean; onPay: () => void; onRetry: (seq: number) => void; step: string | null; err: string | null }) {
   const o = view.order;
   const dep = o.deposit;
   const steps: [string, "done" | "now" | "todo" | "bad"][] = [
@@ -407,7 +447,7 @@ function OrderBox({ view, token, onPay, onRetry, step, err }: { view: OrderView;
             Arrives in about {Math.max(1, Math.round((dep.timeEstimate ?? 60) / 60))} min after it confirms. Send it before {dep.deadline ? new Date(dep.deadline).toLocaleTimeString() : "the quote expires"}.
             Keep this tab open, or come back here to finish.
           </p>
-          {token && canPayFromEvm(token) && (
+          {canPay && (
             <button type="button" onClick={onPay} disabled={!!step} className="w-full bg-accent px-4 py-2.5 font-mono text-xs font-semibold text-accent-ink disabled:opacity-40">
               PAY FROM WALLET
             </button>
