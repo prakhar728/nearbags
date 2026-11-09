@@ -1,0 +1,7 @@
+.env*
+!.env.example
+.claude
+.next
+node_modules
+*.log
+*.tsbuildinfo
