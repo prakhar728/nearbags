@@ -6,7 +6,9 @@ import { ManagePanel } from "@/components/trade/ManagePanel";
 import { SellPanel } from "@/components/trade/SellPanel";
 import { Loading, LoadingNote, Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
+import type { History } from "@/lib/trade/history";
 import type { PortfolioPosition } from "@/lib/trade/portfolio";
+import { ClosedBags, PnlChart, TradeHistory } from "./History";
 
 const usd = (x: number) => `$${x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = (x: number) => `${x >= 0 ? "+" : "−"}${usd(Math.abs(x))}`;
@@ -24,15 +26,29 @@ export function PortfolioView() {
       return j.positions;
     },
   });
+  const h = useQuery({
+    queryKey: ["portfolio-history", user?.id],
+    enabled: Boolean(user),
+    queryFn: async (): Promise<History> => {
+      const r = await fetch("/api/portfolio/history", { cache: "no-store" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      return j;
+    },
+  });
   const rows = q.data ?? null;
+  const hist = h.data ?? null;
   const err = q.error ? (q.error as Error).message : null;
-  const load = () => void q.refetch();
+  const load = () => {
+    void q.refetch();
+    void h.refetch();
+  };
 
   if (loading) return <PortfolioSkeleton />;
   if (!user) return <p className="text-sm text-muted">Connect a wallet to see your baskets.</p>;
   if (err) return <p className="text-sm text-loss">{err}</p>;
   if (!rows) return <PortfolioSkeleton note="Reading your basket accounts on-chain…" />;
-  if (!rows.length)
+  if (!rows.length && !hist?.trades.length)
     return (
       <p className="text-sm text-muted">
         No baskets yet. <Link href="/explore" className="text-text underline decoration-border-strong underline-offset-4">Find one to bag</Link>.
@@ -43,14 +59,47 @@ export function PortfolioView() {
   const exitAll = rows.every((r) => r.exitUsd != null) ? rows.reduce((s, r) => s + (r.exitUsd ?? 0), 0) : null;
   const cost = rows.reduce((s, r) => s + r.costUsd, 0);
   const pnl = cost > 0 ? (exitAll ?? total) - cost : null;
+  const all = hist?.totals;
 
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-8">
       <div className="flex flex-wrap items-end gap-x-10 gap-y-3">
-        <Stat label="Total value" value={usd(total)} sub={exitAll != null ? `sell value ${usd(exitAll)} · ${(((exitAll / total) - 1) * 100).toFixed(1)}% vs market` : "some assets can't be sold right now"} />
-        {pnl != null && <Stat label="P&L" value={signed(pnl)} tone={pnl >= 0 ? "text-gain" : "text-loss"} sub={`on ${usd(cost)} in`} />}
+        <Stat
+          label="Holding now"
+          value={usd(total)}
+          sub={!rows.length ? "no open bags" : exitAll != null ? `sell value ${usd(exitAll)} · ${(((exitAll / total) - 1) * 100).toFixed(1)}% vs market` : "some assets can't be sold right now"}
+        />
+        {rows.length > 0 && pnl != null && <Stat label="Open P&L" value={signed(pnl)} tone={pnl >= 0 ? "text-gain" : "text-loss"} sub={`on ${usd(cost)} in`} />}
+        {all && all.investedUsd > 0 ? (
+          <Stat
+            label="All-time P&L"
+            value={`${signed(all.pnlUsd)} (${((all.pnlUsd / all.investedUsd) * 100).toFixed(1)}%)`}
+            tone={all.pnlUsd >= 0 ? "text-gain" : "text-loss"}
+            sub={`${usd(all.investedUsd)} in · ${usd(all.returnedUsd)} back`}
+          />
+        ) : h.isPending ? (
+          <div className="space-y-2">
+            <Skeleton className="h-2.5 w-20" />
+            <Skeleton className="h-7 w-32" />
+            <Skeleton className="h-2.5 w-40" />
+          </div>
+        ) : null}
       </div>
 
+      {hist && hist.series.length >= 2 && (
+        <section className="grid gap-2">
+          <h2 className="font-mono text-[10px] uppercase tracking-wider text-faint">P&amp;L over time</h2>
+          <PnlChart series={hist.series} />
+        </section>
+      )}
+
+      <section className="grid gap-2">
+      <h2 className="font-mono text-[10px] uppercase tracking-wider text-faint">Open bags</h2>
+      {!rows.length ? (
+        <p className="text-sm text-muted">
+          No open bags. <Link href="/explore" className="text-text underline decoration-border-strong underline-offset-4">Find one to bag</Link>.
+        </p>
+      ) : (
       <div className="divide-y divide-border border border-border">
         {rows.map((r) => (
           <div key={r.positionId}>
@@ -108,6 +157,11 @@ export function PortfolioView() {
           </div>
         ))}
       </div>
+      )}
+      </section>
+
+      {hist && <ClosedBags closed={hist.closed} />}
+      {hist && <TradeHistory trades={hist.trades} />}
     </div>
   );
 }

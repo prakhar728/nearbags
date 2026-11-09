@@ -1,7 +1,7 @@
 "use client";
 // Thin wrapper over TradingView lightweight-charts for our line charts. Colors come from the CSS tokens.
 import { useEffect, useRef } from "react";
-import { ColorType, createChart, CrosshairMode, LineSeries, LineStyle, PriceScaleMode, type IChartApi, type ISeriesApi, type LineWidth } from "lightweight-charts";
+import { ColorType, createChart, CrosshairMode, LineSeries, LineStyle, PriceScaleMode, type IChartApi, type ISeriesApi, type LineWidth, type Time } from "lightweight-charts";
 
 export interface ChartLine {
   id: string;
@@ -22,7 +22,7 @@ export function LineChart({
   onHover,
   logScale = false,
 }: {
-  times: string[];
+  times: (string | number)[]; // "YYYY-MM-DD" days, or Unix seconds for intraday points
   lines: ChartLine[];
   height?: number;
   format: (v: number) => string;
@@ -61,7 +61,7 @@ export function LineChart({
     c.subscribeCrosshairMove((p) => {
       if (!hover.current) return;
       if (!p.time) return hover.current(null);
-      const i = timesRef.current.indexOf(String(p.time));
+      const i = timesRef.current.findIndex((t) => String(t) === String(p.time));
       hover.current(i >= 0 ? i : null);
     });
     chart.current = c;
@@ -86,10 +86,11 @@ export function LineChart({
         crosshairMarkerVisible: (l.width ?? 1) > 1,
         crosshairMarkerRadius: 3,
       });
-      s.setData(times.map((t, i) => ({ time: t, value: l.data[i] })).filter((d) => Number.isFinite(d.value)));
+      s.setData(times.map((t, i) => ({ time: t as Time, value: l.data[i] })).filter((d) => Number.isFinite(d.value)));
       return s;
     });
     c.priceScale("right").applyOptions({ mode: logScale ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal });
+    c.timeScale().applyOptions({ timeVisible: typeof times[0] === "number" });
     c.timeScale().fitContent();
   }, [times, lines, logScale]);
 
