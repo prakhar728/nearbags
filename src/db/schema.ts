@@ -148,6 +148,7 @@ export const orderLegs = pgTable(
     depositAddress: text("deposit_address"),
     intentHash: text("intent_hash"),
     payload: text("payload"), // exact intent payload generated for signing; the submitted signature must cover it
+    recipient: text("recipient"), // set when the leg delivers outside Intents (payout, withdraw); null = back to the basket account
     attempts: integer("attempts").notNull().default(0),
     status: text("status", { enum: ["pending", "quoted", "submitted", "success", "refunded", "failed"] }).notNull().default("pending"),
     quote: jsonb("quote"),

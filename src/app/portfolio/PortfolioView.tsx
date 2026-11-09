@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ManagePanel } from "@/components/trade/ManagePanel";
 import { SellPanel } from "@/components/trade/SellPanel";
 import { useAuth } from "@/lib/client/auth";
 import type { PortfolioPosition } from "@/lib/trade/portfolio";
@@ -92,6 +93,7 @@ export function PortfolioView() {
                   <div className="num break-all text-[10px] text-faint">
                     Basket account {r.accountId} on intents.near{r.recoveryKeyAdded ? " · your wallet is its recovery key" : ""}
                   </div>
+                  <ManagePanel positionId={r.positionId} basketId={r.basket.id} onDone={load} />
                   <Link href={`/b/${r.basket.slug}`} className="font-mono text-xs text-muted hover:text-text">
                     Open basket →
                   </Link>

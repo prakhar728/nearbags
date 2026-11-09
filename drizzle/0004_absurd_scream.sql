@@ -1,0 +1,1 @@
+ALTER TABLE "order_legs" ADD COLUMN "recipient" text;

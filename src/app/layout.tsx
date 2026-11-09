@@ -34,7 +34,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
         <footer className="border-t border-border">
           <div className="mx-auto max-w-6xl px-4 py-6 font-mono text-[11px] leading-relaxed text-faint">
-            Historical numbers, not forecasts. Tokenized stocks give price exposure only. Not available to US persons or restricted regions.
+            Historical numbers, not forecasts. Tokenized stocks give price exposure only. Not available to US persons or restricted regions.{" "}
+            <Link href="/terms" className="underline decoration-border-strong underline-offset-2 hover:text-muted">Terms</Link> ·{" "}
+            <Link href="/risk" className="underline decoration-border-strong underline-offset-2 hover:text-muted">Risks</Link>
           </div>
         </footer>
         </Providers>

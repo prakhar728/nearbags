@@ -6,7 +6,7 @@
 import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { ASSETS, getAsset, USDC } from "@/lib/assets";
+import { ASSETS, getAsset, USDC, withdrawTarget } from "@/lib/assets";
 import { minBuyUsd, RULES } from "@/lib/basket-rules";
 import { creatorFeeAccount, getBasketById, PLATFORM_FEE_BPS, type BasketView } from "@/lib/baskets";
 import { eligibility } from "@/lib/compliance";
@@ -222,6 +222,7 @@ export async function prepareLeg(s: Session, orderId: number, seq: number) {
   if (BigInt(amountIn) === 0n) throw new HttpError(409, "Nothing left to swap for this leg.");
 
   const isPayout = leg.seq === PAYOUT_SEQ;
+  const recipient = leg.recipient ?? (isPayout ? order.payoutAddress : null);
   let q: QuoteResponse;
   try {
     q = await oneclick.quote({
@@ -231,8 +232,8 @@ export async function prepareLeg(s: Session, orderId: number, seq: number) {
       depositType: "INTENTS",
       destinationAsset: leg.assetTo,
       amount: amountIn,
-      recipient: isPayout ? order.payoutAddress! : position.accountId,
-      recipientType: isPayout ? "DESTINATION_CHAIN" : "INTENTS",
+      recipient: recipient ?? position.accountId,
+      recipientType: recipient ? "DESTINATION_CHAIN" : "INTENTS",
       refundTo: position.accountId,
       refundType: "INTENTS",
     });
@@ -242,15 +243,16 @@ export async function prepareLeg(s: Session, orderId: number, seq: number) {
     throw new HttpError(409, msg);
   }
 
-  // Price guard on asset legs (not on the payout leg, which converts to the user's chosen token).
+  // Price guard on USDC↔asset swaps. Not on payouts (user's chosen token) or withdrawals (same token out).
   let g = null;
-  if (!isPayout) {
-    const assetId = order.kind === "buy" ? leg.assetTo : leg.assetFrom;
+  const side = leg.assetFrom === USDC.intentsAssetId ? "buy" : leg.assetTo === USDC.intentsAssetId ? "sell" : null;
+  if (!isPayout && order.kind !== "withdraw" && side) {
+    const assetId = side === "buy" ? leg.assetTo : leg.assetFrom;
     const a = ASSETS.find((x) => x.intentsAssetId === assetId)!;
     const ref = await livePrice(a.id);
-    const usd = order.kind === "buy" ? Number(amountIn) / 1e6 : Number(q.quote.amountOut) / 1e6;
-    const units = order.kind === "buy" ? Number(q.quote.amountOut) / 10 ** a.decimals : Number(amountIn) / 10 ** a.decimals;
-    g = guard({ side: order.kind === "buy" ? "buy" : "sell", usd, units, referencePrice: ref.price, kind: a.kind, session: usSession() });
+    const usd = side === "buy" ? Number(amountIn) / 1e6 : Number(q.quote.amountOut) / 1e6;
+    const units = side === "buy" ? Number(q.quote.amountOut) / 10 ** a.decimals : Number(amountIn) / 10 ** a.decimals;
+    g = guard({ side, usd, units, referencePrice: ref.price, kind: a.kind, session: usSession() });
     if (g.verdict === "block") {
       await setLeg(leg.id, { error: "Price too far from market", guard: g as unknown as object, attempts: leg.attempts + 1 });
       throw new HttpError(409, `${a.id} is ${(g.deviation * 100).toFixed(1)}% off the market price right now. Try again in a few minutes.`);
@@ -363,6 +365,117 @@ const legReady = (l: Leg) => l.status === "pending" || (l.status === "quoted" &&
 
 const isLegFinal = (st: Leg["status"]) => st === "success" || st === "refunded" || st === "failed";
 
+// ---------- reset to target weights (spec §5.7) ----------
+
+export const RESET_BUY_SEQ = 200;
+
+export async function createResetOrder(s: Session, positionId: number) {
+  const position = await ownedIdlePosition(s, positionId);
+  const basket = (await getBasketById(position.basketId))!;
+  const assets = basket.assets.map((w) => ({ w, a: getAsset(w.assetId) }));
+  const bals = await balancesOf(position.accountId, assets.map(({ a }) => a.intentsAssetId));
+  const prices = await Promise.all(assets.map(({ a }) => livePrice(a.id).then((p) => p.price)));
+  const values = assets.map((_, i) => (Number(bals[i]) / 10 ** assets[i].a.decimals) * prices[i]);
+  const total = values.reduce((x, y) => x + y, 0);
+  if (total < 1) throw new HttpError(409, "Nothing in this basket to rebalance.");
+
+  const sells = assets
+    .map(({ w, a }, i) => ({ a, excessUsd: values[i] - (total * w.weightBps) / 10_000, i }))
+    .filter((x) => x.a.id !== "USDC" && x.excessUsd >= x.a.minLegUsd);
+  const underweight = assets.some(({ w, a }, i) => a.id !== "USDC" && (total * w.weightBps) / 10_000 - values[i] >= a.minLegUsd);
+  if (!sells.length && !underweight) throw new HttpError(409, "Already close to target. Each swap would be below its minimum size.");
+
+  const [order] = await db().insert(schema.orders).values({ positionId: position.id, kind: "reset", status: "fees_paid" }).returning();
+  if (sells.length) {
+    await db().insert(schema.orderLegs).values(
+      sells.map((x, k) => {
+        const units = BigInt(Math.floor((x.excessUsd / prices[x.i]) * 10 ** Math.min(x.a.decimals, 12))) * 10n ** BigInt(Math.max(0, x.a.decimals - 12));
+        const amt = units > BigInt(bals[x.i]) ? BigInt(bals[x.i]) : units;
+        return { orderId: order.id, seq: k, assetFrom: x.a.intentsAssetId, assetTo: USDC.intentsAssetId, amountIn: amt.toString() };
+      }),
+    );
+  }
+  await maybeCreateResetBuys(order);
+  return { order };
+}
+
+/** After the sells settle, spend the account's USDC on the assets that are under target. */
+async function maybeCreateResetBuys(order: Order) {
+  const legs = await legsOf(order.id);
+  if (legs.some((l) => l.seq >= RESET_BUY_SEQ) || !legs.every((l) => isLegFinal(l.status))) return;
+  const [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, order.positionId));
+  const basket = (await getBasketById(position.basketId))!;
+  const assets = basket.assets.map((w) => ({ w, a: getAsset(w.assetId) }));
+  const bals = await balancesOf(position.accountId, assets.map(({ a }) => a.intentsAssetId));
+  const prices = await Promise.all(assets.map(({ a }) => livePrice(a.id).then((p) => p.price)));
+  const values = assets.map((_, i) => (Number(bals[i]) / 10 ** assets[i].a.decimals) * prices[i]);
+  const total = values.reduce((x, y) => x + y, 0);
+  const usdcIdx = assets.findIndex(({ a }) => a.id === "USDC");
+  const [usdcBal] = await balancesOf(position.accountId, [USDC.intentsAssetId]);
+  const usdcTarget = usdcIdx >= 0 ? (total * assets[usdcIdx].w.weightBps) / 10_000 : 0;
+  let spendable = Math.max(0, Number(usdcBal) / 1e6 - usdcTarget);
+  const deficits = assets
+    .map(({ w, a }, i) => ({ a, need: (total * w.weightBps) / 10_000 - values[i] }))
+    .filter((x) => x.a.id !== "USDC" && x.need >= x.a.minLegUsd)
+    .sort((x, y) => y.need - x.need);
+  const rows = [];
+  for (const [k, d] of deficits.entries()) {
+    const spend = Math.min(d.need, spendable);
+    if (spend < d.a.minLegUsd) continue;
+    spendable -= spend;
+    rows.push({ orderId: order.id, seq: RESET_BUY_SEQ + k, assetFrom: USDC.intentsAssetId, assetTo: d.a.intentsAssetId, amountIn: String(Math.floor(spend * 1e6)) });
+  }
+  if (rows.length) await db().insert(schema.orderLegs).values(rows);
+  else if (!legs.length) await setOrder(order.id, { status: "complete" });
+}
+
+// ---------- withdraw as tokens (spec §5.6) ----------
+
+export async function createWithdrawOrder(s: Session, p: { positionId: number; addresses: Record<string, string> }) {
+  const position = await ownedIdlePosition(s, p.positionId);
+  const basket = (await getBasketById(position.basketId))!;
+  const assets = [...new Set([...basket.assets.map((w) => w.assetId), "USDC"])].map(getAsset);
+  const bals = await balancesOf(position.accountId, assets.map((a) => a.intentsAssetId));
+  const rows = [];
+  for (const [i, a] of assets.entries()) {
+    if (BigInt(bals[i]) === 0n) continue;
+    const t = withdrawTarget(a);
+    const to = p.addresses[t.chain]?.trim();
+    if (!to) throw new HttpError(400, `Add your ${t.chain.toUpperCase()} address to receive ${a.id}.`);
+    rows.push({ orderId: 0, seq: rows.length, assetFrom: a.intentsAssetId, assetTo: t.assetId, amountIn: bals[i], recipient: to });
+  }
+  if (!rows.length) throw new HttpError(409, "Nothing to withdraw.");
+  const [order] = await db().insert(schema.orders).values({ positionId: position.id, kind: "withdraw", status: "fees_paid" }).returning();
+  await db().insert(schema.orderLegs).values(rows.map((r) => ({ ...r, orderId: order.id })));
+  return { order };
+}
+
+/** Which chains need an address to withdraw this position (for the form). */
+export async function withdrawChains(s: Session, positionId: number) {
+  const [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, positionId));
+  if (!position || position.userId !== s.userId) throw new HttpError(404, "Position not found.");
+  const basket = (await getBasketById(position.basketId))!;
+  const assets = [...new Set([...basket.assets.map((w) => w.assetId), "USDC"])].map(getAsset);
+  const bals = await balancesOf(position.accountId, assets.map((a) => a.intentsAssetId));
+  const out: Record<string, string[]> = {};
+  assets.forEach((a, i) => {
+    if (BigInt(bals[i]) === 0n) return;
+    const c = withdrawTarget(a).chain;
+    (out[c] ??= []).push(a.id);
+  });
+  return out;
+}
+
+async function ownedIdlePosition(s: Session, positionId: number): Promise<Position> {
+  const [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, positionId));
+  if (!position || position.userId !== s.userId) throw new HttpError(404, "Position not found.");
+  const open = await db().select().from(schema.orders).where(eq(schema.orders.positionId, position.id));
+  if (open.some((o) => ["awaiting_deposit", "funded", "fees_paid", "legs_running"].includes(o.status))) {
+    throw new HttpError(409, "Finish the open order on this basket first.");
+  }
+  return position;
+}
+
 // ---------- refresh + view ----------
 
 export type NextStep = "deposit" | "sign_fees" | "run_legs" | "wait" | "done";
@@ -403,10 +516,11 @@ export async function refreshOrder(s: Session, orderId: number) {
 
   [order] = await db().select().from(schema.orders).where(eq(schema.orders.id, orderId));
   if (order.kind === "sell") await maybeCreatePayout(order);
+  if (order.kind === "reset") await maybeCreateResetBuys(order);
 
   const legs = await legsOf(order.id);
   if (["fees_paid", "legs_running", "partial"].includes(order.status) && legs.length && legs.every((l) => isLegFinal(l.status))) {
-    const done = order.kind === "sell" ? legs.some((l) => l.seq === PAYOUT_SEQ) : true;
+    const done = order.kind === "sell" ? legs.some((l) => l.seq === PAYOUT_SEQ) : order.kind === "reset" ? legs.some((l) => l.seq >= RESET_BUY_SEQ) || !(await legsOf(order.id)).length : true;
     if (done) {
       const allOk = legs.every((l) => l.status === "success");
       await setOrder(order.id, { status: allOk ? "complete" : "partial" });
@@ -479,6 +593,7 @@ export async function orderView(orderId: number) {
       error: l.error,
       attempts: l.attempts,
       isPayout: l.seq === PAYOUT_SEQ,
+      recipient: l.recipient,
       ready: legReady(l),
     })),
     fees: fees.map((f) => ({ kind: f.recipientKind, account: f.recipientAccount, amount: f.amount, status: f.status, txHash: f.txHash })),

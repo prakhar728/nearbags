@@ -16,6 +16,24 @@ export interface Asset {
   minLegUsd: number; // smallest single swap solvers quoted (measured 2026-11-09 pre-market) + ~20% margin. Preflight is still the final check.
 }
 
+// "Withdraw as tokens" (spec §5.6): which 1Click asset and chain each holding leaves Intents as. Verified 2026-11-09
+// with dry quotes (same-token withdrawals). Stocks go to BNB Chain as the Ondo token itself.
+export const WITHDRAW: Record<string, { assetId: string; chain: string }> = {
+  BTC: { assetId: "nep141:btc.omft.near", chain: "btc" },
+  ETH: { assetId: "nep141:eth.omft.near", chain: "eth" },
+  SOL: { assetId: "nep141:sol.omft.near", chain: "sol" },
+  NEAR: { assetId: "nep141:wrap.near", chain: "near" },
+  ZEC: { assetId: "nep141:zec.omft.near", chain: "zec" },
+  XRP: { assetId: "nep141:xrp.omft.near", chain: "xrp" },
+  DOGE: { assetId: "nep141:doge.omft.near", chain: "doge" },
+  SUI: { assetId: "nep141:sui.omft.near", chain: "sui" },
+  BNB: { assetId: "nep245:v2_1.omni.hot.tg:56_11111111111111111111", chain: "bsc" },
+  USDC: { assetId: "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1", chain: "near" },
+};
+export function withdrawTarget(a: Asset): { assetId: string; chain: string } {
+  return WITHDRAW[a.id] ?? { assetId: a.intentsAssetId, chain: "bsc" };
+}
+
 const ondo = (id: string, name: string, kind: "stock" | "etf", bnbAddr: string, minLegUsd: number): Asset => ({
   id,
   name,
