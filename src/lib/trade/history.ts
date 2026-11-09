@@ -26,6 +26,7 @@ export interface Trade {
 }
 
 export interface ClosedPosition {
+  positionId: number;
   basket: { name: string; slug: string };
   usdIn: number;
   usdOut: number;
@@ -221,7 +222,7 @@ export async function history(userId: number): Promise<History> {
     if (!f || f.in === 0) continue;
     const left = valueOf(units.get(p.id)!, now, true);
     if (left > 0.01) continue;
-    closed.push({ basket: basketOf(p.id), usdIn: f.in, usdOut: f.out, pnlUsd: f.out - f.in, closedAt: new Date(f.lastT).toISOString() });
+    closed.push({ positionId: p.id, basket: basketOf(p.id), usdIn: f.in, usdOut: f.out, pnlUsd: f.out - f.in, closedAt: new Date(f.lastT).toISOString() });
   }
 
   const last = series_.at(-1)!;
