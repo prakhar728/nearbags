@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useConfig } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { ASSETS, getAsset } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder, retryLeg } from "@/lib/client/order-runner";
@@ -276,6 +277,12 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
 
         <label className="grid gap-1">
           <span className="font-mono text-[10px] uppercase tracking-wider text-faint">Pay with</span>
+          {tokens.length === 0 ? (
+            <div role="status" className="flex h-[38px] items-center border border-border px-3">
+              <span className="sr-only">Loading payment tokens</span>
+              <Skeleton className="h-3 w-40" />
+            </div>
+          ) : (
           <select
             id="buy-token"
             value={payAsset}
@@ -301,6 +308,8 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
               ) : null,
             )}
           </select>
+          )}
+          {balance.isPending && balance.fetchStatus === "fetching" && <Skeleton className="h-3 w-32" />}
           {balance.data && (
             <span className="num text-[11px] text-faint">
               In your wallet: {balance.data}
