@@ -246,7 +246,9 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   }
 
   const walletCanPay = !!token && (user?.chain === "near" ? canPayFromNear(token) : canPayFromEvm(token));
-  if (phase === "order" && view) return <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={step} err={err} />;
+  // "Sent. Waiting for it to arrive…" belongs to the deposit step only.
+  const orderStep = step?.startsWith("Sent.") && view && view.order.status !== "awaiting_deposit" ? null : step;
+  if (phase === "order" && view) return <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={orderStep} err={err} />;
 
   if (elig.data?.status === "needs") {
     return <Attest needs={elig.data.needs} text={elig.data.text} onDone={() => void elig.refetch()} />;

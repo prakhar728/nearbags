@@ -87,7 +87,16 @@ export async function listBasketsByCreator(creatorId: number): Promise<BasketVie
   return hydrate(rows);
 }
 
-/** Intents account that receives a creator's fees: their NEAR account, or their EVM address (eth-implicit). */
+/** Someone can hold keys for this id: a named account (has a dot), a NEAR implicit id, or an EVM address. */
+const ownable = (a: string) => a.includes(".") || /^[0-9a-f]{64}$/.test(a) || /^0x[0-9a-f]{40}$/.test(a);
+
+/** Intents account that receives a creator's fees: their NEAR account, or their EVM address (eth-implicit).
+ *  A creator id nobody can own (the seed "house" user) would strand the fee in intents.near, so it goes to the
+ *  platform fee account instead. */
 export function creatorFeeAccount(c: BasketView["creator"]): string {
-  return c.chain === "evm" ? c.address.toLowerCase() : c.address;
+  const a = c.chain === "evm" ? c.address.toLowerCase() : c.address;
+  if (ownable(a)) return a;
+  const platform = process.env.PLATFORM_FEE_ACCOUNT;
+  if (!platform) throw new Error("This basket's creator can't receive fees and PLATFORM_FEE_ACCOUNT isn't set.");
+  return platform;
 }
