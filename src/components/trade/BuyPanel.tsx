@@ -16,6 +16,7 @@ import { signIntents } from "@/lib/intents/payload";
 import type { BuyPreflight } from "@/lib/trade/preflight";
 import type { OrderView } from "@/lib/trade/orders";
 import type { WeightInput } from "@/lib/trade/types";
+import { AssetTag } from "@/components/AssetLogo";
 
 export interface BuyPanelBasket {
   id: number;
@@ -451,7 +452,7 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
       <div className="mt-1 grid gap-1.5 border-t border-[var(--line)] pt-3">
         {pre.legs.map((l) => (
           <div key={l.assetId} className="num flex justify-between text-[11px] text-muted">
-            <span>{l.assetId}</span>
+            <AssetTag id={l.assetId} size={14} />
             <span className={l.ok ? (l.guard?.verdict === "warn" ? "text-accent" : "") : "text-loss"}>
               {l.ok ? (l.amountOutUsd != null ? usd(l.amountOutUsd) : "—") : "blocked"}
               {l.guard && l.ok ? ` · ${(l.guard.deviation * 100).toFixed(1)}% vs market` : ""}
@@ -530,7 +531,7 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err, legErrs }: {
             return (
               <div key={l.seq} className="num grid gap-1 text-xs">
                 <div className="flex items-center justify-between gap-2">
-                  <span>{sym}</span>
+                  {l.isPayout || sym === "?" ? <span>{sym}</span> : <AssetTag id={sym} size={14} />}
                   <span className={tone}>
                     {l.status === "success" && l.amountOutActual && sym !== "?" && !l.isPayout
                       ? `${units(l.amountOutActual, getAsset(sym).decimals).toPrecision(4)} ${sym}`

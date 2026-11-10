@@ -15,9 +15,10 @@ import type { Session } from "@/lib/auth/session";
 import { HttpError } from "@/lib/auth/session";
 import { livePrice } from "@/lib/prices/live";
 import { createResetOrder, prepareLeg, refreshOrder, submitLeg } from "@/lib/trade/orders";
+import { untradeable } from "@/lib/trade/availability";
 import type { SignedRawEd25519 } from "@/lib/intents/payload";
 import { proofUrl, runModule, signerModule, strategistModule } from "./outlayer";
-export { DEFAULT_LIMITS, sanitizeAgentConfig } from "./config";
+export { DEFAULT_LIMITS, minMaxWeightBps, sanitizeAgentConfig } from "./config";
 
 export const MAX_LEG_USD = 100; // the signer's own hard cap is $250; this is tighter for now
 const RUN_BUDGET_MS = 200_000; // stay inside one serverless invocation; unfinished orders continue on the next pump
@@ -92,6 +93,9 @@ export async function runAgent(basketId: number, trigger: Run["trigger"]): Promi
   const strategist = strategistModule();
   if (!strategist) throw new HttpError(503, "The strategist isn't configured yet.");
   const basket = (await getBasketById(basketId))!;
+  // Don't move targets the agent couldn't trade toward; try again on the next run.
+  const paused = await untradeable(basket.assets.map((a) => a.assetId));
+  if (paused.length) throw new HttpError(409, `Trading is paused for ${paused.join(", ")} on NEAR Intents, so the agent will skip this run.`);
   const before = Object.fromEntries(basket.assets.map((a) => [a.assetId, a.weightBps]));
   const [run] = await db().insert(schema.agentRuns).values({ basketId, trigger, weightsBefore: before }).returning();
 

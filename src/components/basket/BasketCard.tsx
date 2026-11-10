@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { BasketView } from "@/lib/baskets";
 import type { LiveMetrics } from "@/lib/basket-pages";
 import { creatorName, feePct, pct, tone, usd } from "@/lib/format";
+import { AssetLogo } from "@/components/AssetLogo";
 
 export interface CardData {
   basket: BasketView;
@@ -44,7 +45,8 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
 
       <div className="flex flex-wrap gap-1.5">
         {shown.map((t) => (
-          <span key={t} className="chip h-7 px-2.5 text-[10.5px]">
+          <span key={t} className="chip h-7 gap-1.5 pl-1 pr-2.5 text-[10.5px]">
+            <AssetLogo id={t} size={18} />
             {t}
           </span>
         ))}

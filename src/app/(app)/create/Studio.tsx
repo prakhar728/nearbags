@@ -2,6 +2,7 @@
 // Creator studio (spec §5.3): 1 assets & weights with live analytics, 2 thesis, 3 fee, 4 review + publish.
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { minMaxWeightBps } from "@/lib/agent/config";
 import { BacktestView } from "@/components/basket/BacktestView";
 import { BacktestSkeleton } from "@/components/basket/Skeletons";
 import { Field } from "@/components/basket/CreatorTools";
@@ -13,6 +14,7 @@ import { minBuyUsd, RULES, validateWeights } from "@/lib/basket-rules";
 import { HORIZON_LABEL, HORIZONS, LIMITS, markdownProblems, type Horizon } from "@/lib/basket-text";
 import { useAuth } from "@/lib/client/auth";
 import { feePct } from "@/lib/format";
+import { AssetLogo, AssetTag } from "@/components/AssetLogo";
 
 interface Choice {
   assetId: string;
@@ -119,7 +121,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
           feeBps,
           assets: picks.map((p) => ({ assetId: p.assetId, weightBps: Math.round(p.pct * 100), why: why[p.assetId] ?? "" })),
           house: user?.isAdmin ? house : undefined,
-          agent: agentOn ? { strategy, limits: { maxWeightBps: maxWeight * 100 } } : undefined,
+          agent: agentOn ? { strategy, limits: { maxWeightBps: Math.max(maxWeight * 100, minMaxWeightBps(picks.length)) } } : undefined,
           acceptRisk: accept,
         }),
       });
@@ -189,8 +191,9 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                             aria-pressed={on}
                             disabled={!on && picks.length >= RULES.maxAssets}
                             onClick={() => toggle(a.id)}
-                            className={`chip disabled:cursor-not-allowed disabled:opacity-30 ${on ? "!border-accent !bg-accent !text-accent-ink" : ""}`}
+                            className={`chip gap-1.5 pl-1.5 disabled:cursor-not-allowed disabled:opacity-30 ${on ? "!border-accent !bg-accent !text-accent-ink" : ""}`}
                           >
+                            <AssetLogo id={a.id} size={18} />
                             {a.id}
                           </button>
                         );
@@ -220,7 +223,10 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                       const bad = !Number.isInteger(p.pct) || p.pct < 5 || p.pct > 50;
                       return (
                         <div key={p.assetId} className="flex items-center gap-2 py-2.5">
-                          <span className="num w-14 text-sm">{p.assetId}</span>
+                          <span className="num flex w-20 items-center gap-2 text-sm">
+                            <AssetLogo id={p.assetId} size={20} />
+                            {p.assetId}
+                          </span>
                           <span className="hidden flex-1 truncate text-xs text-muted sm:block">{getAsset(p.assetId).name}</span>
                           <span className="flex-1 sm:hidden" />
                           <button type="button" aria-label={`Less ${p.assetId}`} onClick={() => setPct(p.assetId, Math.max(5, Math.round(p.pct) - 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-accent hover:text-accent active:scale-95">
@@ -341,7 +347,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                 <span className="num text-text">{feePct(platformFeeBps)}</span>. Selling is free. The fee is frozen once you publish.
               </p>
               <MinBuy minBuy={minBuy} hint={hint} />
-              <AgentOption on={agentOn} setOn={setAgentOn} strategy={strategy} setStrategy={setStrategy} maxWeight={maxWeight} setMaxWeight={setMaxWeight} />
+              <AgentOption on={agentOn} setOn={setAgentOn} strategy={strategy} setStrategy={setStrategy} maxWeight={Math.max(maxWeight, minMaxWeightBps(picks.length) / 100)} minMax={minMaxWeightBps(picks.length) / 100} setMaxWeight={setMaxWeight} />
               <Nav back={() => setStep(1)} next={!agentOn || strategy.trim().length >= 20 ? () => setStep(3) : undefined} />
             </div>
           )}
@@ -356,7 +362,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                 <div className="flex flex-wrap gap-1.5">
                   {picks.map((p) => (
                     <span key={p.assetId} className="chip">
-                      <span className="text-text">{p.assetId}</span> {p.pct}%
+                      <AssetTag id={p.assetId} className="text-text" /> {p.pct}%
                     </span>
                   ))}
                 </div>
@@ -538,7 +544,7 @@ function usePreview(weights: { assetId: string; weightBps: number }[] | null) {
 }
 
 /** Opt the basket into the AI agent: a private strategy, and a cap on any one asset's weight. */
-function AgentOption(p: { on: boolean; setOn: (v: boolean) => void; strategy: string; setStrategy: (v: string) => void; maxWeight: number; setMaxWeight: (v: number) => void }) {
+function AgentOption(p: { on: boolean; setOn: (v: boolean) => void; strategy: string; setStrategy: (v: string) => void; maxWeight: number; minMax: number; setMaxWeight: (v: number) => void }) {
   return (
     <div className="well space-y-4 p-5">
       <label className="flex cursor-pointer items-start gap-3">
@@ -567,7 +573,7 @@ function AgentOption(p: { on: boolean; setOn: (v: boolean) => void; strategy: st
           </div>
           <div>
             <Label>Most any one asset can be: {p.maxWeight}%</Label>
-            <input type="range" min={20} max={80} step={5} value={p.maxWeight} onChange={(e) => p.setMaxWeight(Number(e.target.value))} aria-label="Max weight per asset" className="mt-3 h-2 w-full cursor-pointer accent-accent" />
+            <input type="range" min={Math.ceil(p.minMax / 5) * 5} max={80} step={5} value={Math.max(p.maxWeight, Math.ceil(p.minMax / 5) * 5)} onChange={(e) => p.setMaxWeight(Number(e.target.value))} aria-label="Max weight per asset" className="mt-3 h-2 w-full cursor-pointer accent-accent" />
           </div>
           <p className="text-sm text-muted">
             Fixed limits: each asset stays at 5% or more, moves at most 15 points a day, and at most 20% of the basket changes hands per run.

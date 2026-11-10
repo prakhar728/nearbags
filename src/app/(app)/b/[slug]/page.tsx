@@ -19,11 +19,13 @@ import { StickyBuy } from "@/components/trade/StickyBuy";
 import { ShareBasket } from "@/components/share/ShareBasket";
 import { getAnalyticsView, getLiveReturn } from "@/lib/analytics/cached";
 import { getAsset } from "@/lib/assets";
+import { untradeable } from "@/lib/trade/availability";
 import { getBasketPage, liveMetrics, type BasketEdit } from "@/lib/basket-pages";
 import { daysSince } from "@/lib/cards";
 import { FIELD_LABEL, HORIZON_LABEL } from "@/lib/basket-text";
 import type { BasketView } from "@/lib/baskets";
 import { ago, creatorHref, creatorName, feePct, pct, tone, usd } from "@/lib/format";
+import { AssetLogo } from "@/components/AssetLogo";
 
 export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -159,7 +161,8 @@ function Header({ b }: { b: BasketView }) {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {b.assets.map((a) => (
-            <span key={a.assetId} className="chip">
+            <span key={a.assetId} className="chip gap-1.5 pl-1.5">
+              <AssetLogo id={a.assetId} size={20} />
               <span className="text-text">{a.assetId}</span> {a.weightBps / 100}%
             </span>
           ))}
@@ -168,7 +171,29 @@ function Header({ b }: { b: BasketView }) {
       {b.status === "pending" && <p className="callout">Not live yet. It goes live once the creator buys at least ${b.minBuyUsd} of it.</p>}
       {b.status === "closed" && <p className="callout">Closed to new buyers. Holders can still sell and withdraw.</p>}
       {b.status === "hidden" && <p className="callout callout-warn">Hidden by an admin: off Explore, no new buys. Holders can still sell and withdraw.</p>}
+      {(b.status === "live" || b.status === "pending" || b.status === "closed") && (
+        <Suspense fallback={null}>
+          <TradingNotice b={b} />
+        </Suspense>
+      )}
     </div>
+  );
+}
+
+/** Shown only while 1Click refuses to quote one of the basket's assets (checked live, cached 10 minutes). */
+async function TradingNotice({ b }: { b: BasketView }) {
+  await connection();
+  const bad = await untradeable(b.assets.map((a) => a.assetId)).catch(() => []);
+  if (!bad.length) return null;
+  const list = bad.length === 1 ? bad[0] : `${bad.slice(0, -1).join(", ")} and ${bad[bad.length - 1]}`;
+  const stocks = bad.every((id) => ["stock", "etf"].includes(getAsset(id).kind));
+  return (
+    <p className="callout callout-warn" role="status">
+      <span className="font-medium text-text">Trading paused for {list}.</span>{" "}
+      {stocks ? "NEAR Intents isn't quoting tokenized stocks right now. " : "NEAR Intents isn't quoting these right now. "}
+      Until it does, this basket can&rsquo;t be bought{b.agent ? " or rebalanced by its agent" : ""}, and selling {bad.length === 1 ? "that asset" : "those assets"} will
+      wait. Holdings stay safe in each holder&rsquo;s own account. This notice goes away by itself once quotes return.
+    </p>
   );
 }
 
@@ -203,9 +228,7 @@ function Holdings({ b }: { b: BasketView }) {
         const asset = getAsset(a.assetId);
         return (
           <div key={a.assetId} className="card card-hover flex gap-4 p-4 sm:p-5">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[var(--r-md)] border border-[var(--line-strong)] bg-[var(--layer-2)] font-mono text-[11px] font-semibold">
-              {a.assetId.slice(0, 4)}
-            </div>
+            <AssetLogo id={a.assetId} size={48} className="ring-1 ring-[var(--line-strong)]" />
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex items-baseline justify-between gap-3">
                 <div className="truncate text-sm font-medium">
