@@ -1,6 +1,7 @@
 "use client";
 // "Any chain in": token coins fall with gravity, collide and pile into a bag. Push them around with the cursor.
 // Small hand-written physics (circles, gravity, position-based collision). Starts when scrolled into view.
+// Coins with a logo in public/logos draw as that logo; the rest draw as a labelled disc.
 import { useEffect, useRef } from "react";
 
 const COINS = [
@@ -9,6 +10,8 @@ const COINS = [
   ["ETH", "Base"], ["TRX", "Tron"], ["USDC", "NEAR"], ["ETH", "Ethereum"], ["SOL", "Solana"], ["USDC", "Solana"],
   ["BTC", "Bitcoin"], ["POL", "Polygon"], ["ETH", "Optimism"], ["USDT", "Tron"], ["NEAR", "NEAR"], ["USDC", "Polygon"],
 ] as const;
+// Coins that have a logo file in public/logos.
+const LOGOS = new Set(["ETH", "USDC", "SOL", "BTC", "NEAR", "ZEC", "BNB", "XRP", "DOGE", "SUI"]);
 
 interface Coin {
   x: number;
@@ -29,17 +32,25 @@ export function Pour() {
   useEffect(() => {
     const canvas = cv.current!;
     const ctx = canvas.getContext("2d")!;
-    const css = getComputedStyle(document.documentElement);
+    // Colors from the box's own scope (it sits in a dark widget on the green band).
+    const css = getComputedStyle(box.current!);
     const C = {
-      accent: css.getPropertyValue("--accent").trim() || "#e8ff59",
-      ink: css.getPropertyValue("--accent-ink").trim() || "#0a0a0a",
-      text: css.getPropertyValue("--text").trim() || "#ededed",
-      surface: css.getPropertyValue("--surface-2").trim() || "#181818",
-      border: css.getPropertyValue("--border-strong").trim() || "#333",
-      faint: css.getPropertyValue("--faint").trim() || "#5a5a5a",
+      accent: css.getPropertyValue("--accent").trim() || "#00ec97",
+      ink: css.getPropertyValue("--accent-ink").trim() || "#000000",
+      text: css.getPropertyValue("--text").trim() || "#ffffff",
+      surface: css.getPropertyValue("--surface-2").trim() || "#333333",
+      border: css.getPropertyValue("--border-strong").trim() || "rgba(255,255,255,0.2)",
+      faint: css.getPropertyValue("--faint").trim() || "#8c8c8c",
     };
-    const MONO = `${css.getPropertyValue("--font-jetbrains").trim() || "ui-monospace"}, monospace`;
-    const DISPLAY = `${css.getPropertyValue("--font-anybody").trim() || "Arial Black"}, sans-serif`;
+    const MONO = `${css.getPropertyValue("--font-figtree").trim() || "ui-sans-serif"}, system-ui, sans-serif`;
+    const DISPLAY = MONO;
+    const logos = new Map<string, HTMLImageElement>();
+    for (const sym of new Set(COINS.map(([s]) => s))) {
+      if (!LOGOS.has(sym)) continue;
+      const img = new Image();
+      img.src = `/logos/${sym}.png`;
+      logos.set(sym, img);
+    }
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let W = 0;
@@ -156,13 +167,25 @@ export function Pour() {
       ctx.lineTo(b.x1 + 18, b.top);
       ctx.stroke();
       ctx.fillStyle = C.faint;
-      ctx.font = `800 ${Math.round(Math.min(W / 9, 70))}px ${DISPLAY}`;
+      ctx.font = `600 ${Math.round(Math.min(W / 10, 56))}px ${DISPLAY}`;
       ctx.textAlign = "center";
       ctx.globalAlpha = 0.35;
-      ctx.fillText("YOUR BAG", (b.x0 + b.x1) / 2, b.floor - 26);
+      ctx.fillText("Your bag", (b.x0 + b.x1) / 2, b.floor - 26);
       ctx.globalAlpha = 1;
 
       for (const c of coins) {
+        const img = logos.get(c.sym);
+        if (img?.complete && img.naturalWidth) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+          ctx.clip();
+          ctx.fillStyle = "#fff";
+          ctx.fill();
+          ctx.drawImage(img, c.x - c.r, c.y - c.r, c.r * 2, c.r * 2);
+          ctx.restore();
+          continue;
+        }
         ctx.beginPath();
         ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
         ctx.fillStyle = c.hot ? C.accent : C.surface;
@@ -172,7 +195,7 @@ export function Pour() {
         ctx.stroke();
         ctx.fillStyle = c.hot ? C.ink : C.text;
         ctx.textAlign = "center";
-        ctx.font = `700 ${Math.round(c.r * 0.46)}px ${MONO}`;
+        ctx.font = `700 ${Math.round(c.r * 0.44)}px ${MONO}`;
         ctx.fillText(c.sym, c.x, c.y + c.r * 0.08);
         ctx.font = `${Math.max(8, Math.round(c.r * 0.26))}px ${MONO}`;
         ctx.globalAlpha = 0.7;
@@ -257,7 +280,7 @@ export function Pour() {
   return (
     <div ref={box} className="lp-pour">
       <button type="button" className="lp-pour-btn" onClick={() => shake.current()}>
-        SHAKE
+        Pour again
       </button>
       <canvas ref={cv} role="img" aria-label="Tokens from many chains falling into one bag." />
     </div>

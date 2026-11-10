@@ -66,10 +66,10 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
         <button type="button" disabled={!!step} onClick={() => run(() => api<OrderView>("/api/orders/reset", { method: "POST", body: JSON.stringify({ positionId }) }), "Rebalancing…")} className="btn btn-secondary btn-sm">
-          RESET TO TARGET
+          Reset to target
         </button>
         <button type="button" disabled={!!step || opening} onClick={openWithdraw} className="btn btn-secondary btn-sm">
-          WITHDRAW AS TOKENS
+          Withdraw as tokens
         </button>
       </div>
       {opening && !chains && (
@@ -101,7 +101,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
             onClick={() => run(() => api<OrderView>("/api/orders/withdraw", { method: "POST", body: JSON.stringify({ positionId, addresses: addr }) }), "Withdrawing…")}
             className="btn btn-primary btn-block"
           >
-            WITHDRAW EVERYTHING
+            Withdraw everything
           </button>
         </div>
       )}
@@ -117,8 +117,8 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
       )}
       {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
       {step && (
-        <p className="num flex items-center gap-2 text-xs text-accent">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent/30 border-t-accent" aria-hidden />
+        <p className="num flex items-center gap-2 text-xs text-accent-fg">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent-fg/30 border-t-accent-fg" aria-hidden />
           {step}
         </p>
       )}

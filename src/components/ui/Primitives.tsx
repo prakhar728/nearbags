@@ -49,8 +49,7 @@ export function PageHeader({
 export function SectionHead({ title, right, className }: { title: React.ReactNode; right?: React.ReactNode; className?: string }) {
   return (
     <div className={cx("flex flex-wrap items-center justify-between gap-3", className)}>
-      <h2 className="label flex items-center gap-2 text-muted">
-        <span className="inline-block h-px w-5 bg-accent/70" aria-hidden />
+      <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-text">
         {title}
       </h2>
       {right}

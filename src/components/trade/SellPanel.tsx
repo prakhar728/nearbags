@@ -131,8 +131,8 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
       )}
       {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
       {step && (
-        <p className="num flex items-center gap-2 text-xs text-accent">
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent/30 border-t-accent" aria-hidden />
+        <p className="num flex items-center gap-2 text-xs text-accent-fg">
+          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-accent-fg/30 border-t-accent-fg" aria-hidden />
           {step}
         </p>
       )}

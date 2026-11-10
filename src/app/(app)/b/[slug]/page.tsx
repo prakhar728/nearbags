@@ -26,6 +26,7 @@ import { FIELD_LABEL, HORIZON_LABEL } from "@/lib/basket-text";
 import type { BasketView } from "@/lib/baskets";
 import { ago, creatorHref, creatorName, feePct, pct, tone, usd } from "@/lib/format";
 import { AssetLogo } from "@/components/AssetLogo";
+import { assetColor } from "@/lib/palette";
 
 export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -144,7 +145,7 @@ function Header({ b }: { b: BasketView }) {
       </div>
       <dl className="rise stat-grid grid-cols-2 sm:grid-cols-5 max-sm:[&>*:last-child]:col-span-2" style={{ "--i": 2 } as React.CSSProperties}>
         <Meta k="Creator">
-          <Link href={creatorHref(b.creator)} className="text-accent hover:underline">
+          <Link href={creatorHref(b.creator)} className="text-accent-fg hover:underline">
             {creatorName(b.creator)}
           </Link>
         </Meta>
@@ -156,7 +157,7 @@ function Header({ b }: { b: BasketView }) {
       <div className="rise space-y-3" style={{ "--i": 3 } as React.CSSProperties}>
         <div className="flex h-2.5 overflow-hidden rounded-full bg-[var(--layer-2)]" aria-hidden>
           {b.assets.map((a, i) => (
-            <div key={a.assetId} className="h-full border-r-2 border-bg last:border-r-0" style={{ width: `${a.weightBps / 100}%`, background: i === 0 ? "var(--accent)" : `rgba(232,255,89,${Math.max(0.18, 0.75 - i * 0.14)})` }} />
+            <div key={a.assetId} className="h-full border-r-2 border-bg last:border-r-0" style={{ width: `${a.weightBps / 100}%`, background: assetColor(i) }} />
           ))}
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -242,7 +243,7 @@ function Holdings({ b }: { b: BasketView }) {
                 <div className="truncate text-sm font-medium">
                   {a.assetId} <span className="font-normal text-muted">{asset.name}</span>
                 </div>
-                <div className="big-num shrink-0 text-xl text-accent">{a.weightBps / 100}%</div>
+                <div className="big-num shrink-0 text-xl text-accent-fg">{a.weightBps / 100}%</div>
               </div>
               <div className="bar-track h-1.5">
                 <div className="bar-fill bg-accent/70" style={{ left: 0, width: `${a.weightBps / 100}%` }} />
@@ -301,7 +302,7 @@ async function EditLog({ edits, publishedAt }: { edits: BasketEdit[]; publishedA
   const label = (f: string) => (f.startsWith("why:") ? `Why ${f.slice(4)}` : (FIELD_LABEL[f] ?? f));
   return (
     <details className="disclosure card card-pad group">
-      <summary className="font-mono text-[11px] text-muted hover:text-text">
+      <summary className="text-[13px] font-medium text-muted hover:text-text">
         Edited {ago(edits[0].editedAt)} · <span className="underline decoration-border-strong underline-offset-4 group-open:hidden">view history</span>
         <span className="hidden underline decoration-border-strong underline-offset-4 group-open:inline">hide history</span>
       </summary>
@@ -328,5 +329,5 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Box({ label, className = "" }: { label?: string; className?: string }) {
-  return <div className={`card flex items-center justify-center font-mono text-xs text-faint ${className || "p-6"}`}>{label}</div>;
+  return <div className={`card flex items-center justify-center text-sm text-muted ${className || "p-6"}`}>{label}</div>;
 }

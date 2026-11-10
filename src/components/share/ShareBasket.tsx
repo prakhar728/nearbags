@@ -47,10 +47,10 @@ export function ShareBasket({ slug, name, tagline, className = "" }: { slug: str
         onClick={() => setOpen((o) => !o)}
         className="btn btn-secondary btn-sm"
       >
-        <ShareIcon /> SHARE
+        <ShareIcon /> Share
       </button>
       {open && (
-        <div role="menu" className="pop absolute right-0 z-30 mt-2 grid w-56 gap-1 rounded-[var(--r-lg)] border border-[var(--line-strong)] bg-[#141414] p-1.5 shadow-2xl shadow-black/60">
+        <div role="menu" className="pop absolute right-0 z-30 mt-2 grid w-56 gap-1 rounded-[var(--r-lg)] border border-[var(--line-strong)] bg-[var(--elev)] p-1.5 shadow-[var(--shadow-lg)]">
           <a role="menuitem" href={xIntent(text, url)} target="_blank" rel="noopener noreferrer" className="rounded-xl px-3 py-2.5 text-sm hover:bg-[var(--layer-2)]">
             Post on X
           </a>

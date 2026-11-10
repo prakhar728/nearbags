@@ -23,15 +23,17 @@ export function HeroChart({ data, onProgress }: { data: HeroSeries; onProgress?:
   useEffect(() => {
     const canvas = ref.current!;
     const ctx = canvas.getContext("2d")!;
-    const css = getComputedStyle(document.documentElement);
+    // Colors come from the canvas's own scope, so the chart follows whichever surface it sits on.
+    const css = getComputedStyle(canvas);
     const C = {
-      accent: css.getPropertyValue("--accent").trim() || "#e8ff59",
-      text: css.getPropertyValue("--text").trim() || "#ededed",
-      muted: css.getPropertyValue("--muted").trim() || "#8a8a8a",
-      border: css.getPropertyValue("--border-strong").trim() || "#333",
-      bg: css.getPropertyValue("--bg").trim() || "#0a0a0a",
+      accent: css.getPropertyValue("--chart-line").trim() || css.getPropertyValue("--accent-fg").trim() || "#009660",
+      dot: css.getPropertyValue("--accent").trim() || "#00ec97",
+      text: css.getPropertyValue("--text").trim() || "#171717",
+      muted: css.getPropertyValue("--muted").trim() || "#737373",
+      border: css.getPropertyValue("--border-strong").trim() || "#d4d4d4",
+      bg: css.getPropertyValue("--bg").trim() || "#ffffff",
     };
-    const MONO = `${css.getPropertyValue("--font-jetbrains").trim() || "ui-monospace"}, monospace`;
+    const MONO = `${css.getPropertyValue("--font-figtree").trim() || "ui-sans-serif"}, system-ui, sans-serif`;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const N = data.basket.length;
     // Log scale: NVDA's 6x would otherwise flatten every other line.
@@ -85,12 +87,12 @@ export function HeroChart({ data, onProgress }: { data: HeroSeries; onProgress?:
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = C.muted;
-      ctx.font = `10px ${MONO}`;
-      ctx.fillText("$1,000", W - PAD_R + 8, y(1000) + 3);
+      ctx.font = `500 11px ${MONO}`;
+      ctx.fillText("$1,000", W - PAD_R + 8, y(1000) + 4);
 
       // Asset lines: draw in, then converge onto the basket line and fade.
       data.assets.forEach((a, k) => {
-        ctx.globalAlpha = 0.95 - pBraid * 0.82;
+        ctx.globalAlpha = 0.95 - pBraid * 0.75;
         ctx.strokeStyle = ASSET_COLORS[k % ASSET_COLORS.length];
         ctx.lineWidth = 1.4;
         path(a.values, Math.floor(head), pBraid);
@@ -123,17 +125,21 @@ export function HeroChart({ data, onProgress }: { data: HeroSeries; onProgress?:
         const ex = x(N - 1);
         const ey = y(data.basket[N - 1]);
         const pulse = reduce ? 0 : (Math.sin(now / 380) + 1) / 2;
-        ctx.fillStyle = C.accent;
-        ctx.globalAlpha = 0.25 * (1 - pulse);
+        ctx.fillStyle = C.dot;
+        ctx.globalAlpha = 0.35 * (1 - pulse);
         ctx.beginPath();
         ctx.arc(ex, ey, 6 + pulse * 14, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
         ctx.beginPath();
-        ctx.arc(ex, ey, 4.5, 0, Math.PI * 2);
+        ctx.arc(ex, ey, 5, 0, Math.PI * 2);
         ctx.fill();
-        ctx.font = `700 13px ${MONO}`;
-        ctx.fillText(money(data.basket[N - 1]), ex + 12, ey + 4);
+        ctx.strokeStyle = C.accent;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = C.text;
+        ctx.font = `600 14px ${MONO}`;
+        ctx.fillText(money(data.basket[N - 1]), ex + 12, ey + 5);
       }
 
       // Hover readout.
@@ -149,21 +155,21 @@ export function HeroChart({ data, onProgress }: { data: HeroSeries; onProgress?:
         ctx.stroke();
         ctx.globalAlpha = 1;
         const hy = y(data.basket[i]);
-        ctx.fillStyle = C.accent;
+        ctx.fillStyle = C.dot;
         ctx.beginPath();
         ctx.arc(hx, hy, 4, 0, Math.PI * 2);
         ctx.fill();
         const label = `${month(data.dates[i])}  ${money(data.basket[i])}`;
         ctx.font = `600 12px ${MONO}`;
-        const tw = ctx.measureText(label).width + 16;
+        const tw = ctx.measureText(label).width + 20;
         const bx = Math.min(Math.max(hx - tw / 2, 0), W - tw);
-        const by = Math.max(hy - 40, 4);
-        ctx.fillStyle = C.bg;
-        ctx.strokeStyle = C.accent;
-        ctx.fillRect(bx, by, tw, 24);
-        ctx.strokeRect(bx + 0.5, by + 0.5, tw - 1, 23);
+        const by = Math.max(hy - 42, 4);
         ctx.fillStyle = C.text;
-        ctx.fillText(label, bx + 8, by + 16);
+        ctx.beginPath();
+        ctx.roundRect(bx, by, tw, 26, 8);
+        ctx.fill();
+        ctx.fillStyle = C.bg;
+        ctx.fillText(label, bx + 10, by + 17);
       }
 
       // Tell the page where the counter is.

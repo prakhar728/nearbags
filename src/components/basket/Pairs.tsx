@@ -16,7 +16,7 @@ const rhoStr = (r: number) => `${r < 0 ? "−" : ""}${Math.abs(r).toFixed(2)}`;
 /** Diverging fill: accent-ish warm for positive (move together), cool for negative (offset). */
 function cellColor(rho: number) {
   const a = Math.min(1, Math.abs(rho));
-  return rho >= 0 ? `rgba(232, 255, 89, ${0.08 + a * 0.62})` : `rgba(122, 167, 255, ${0.08 + a * 0.62})`;
+  return rho >= 0 ? `rgba(0, 192, 118, ${0.08 + a * 0.62})` : `rgba(48, 128, 255, ${0.08 + a * 0.62})`;
 }
 
 export function Pairs({ a, compact = false }: { a: AnalyticsView; compact?: boolean }) {
@@ -34,7 +34,7 @@ export function Pairs({ a, compact = false }: { a: AnalyticsView; compact?: bool
           <p className="mt-2 text-sm text-muted">—</p>
         ) : (
           <>
-            <p className="big-num mt-3 text-4xl text-accent">{Math.round(Math.max(0, div) * 100)}%</p>
+            <p className="big-num mt-3 text-4xl text-accent-fg">{Math.round(Math.max(0, div) * 100)}%</p>
             <p className="mt-1 text-xs leading-relaxed text-muted">
               {div > 0.01 ? `Mixing cut swings by ${Math.round(div * 100)}% versus holding each asset on its own.` : "Mixing barely cut swings: these assets move as one."}
             </p>
@@ -86,7 +86,7 @@ function Heatmap({ ids, rho }: { ids: string[]; rho: (a: string, b: string) => n
   const pad = 52;
   const size = pad + ids.length * cell;
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Correlation heatmap" className="font-mono">
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Correlation heatmap" className="num">
       {ids.map((id, i) => (
         <g key={id}>
           <text x={pad - 8} y={pad + i * cell + cell / 2} textAnchor="end" dominantBaseline="middle" fontSize="10" fill="var(--muted)">

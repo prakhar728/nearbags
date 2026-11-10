@@ -21,9 +21,9 @@ export function StickyBuy({ targetId, minBuyUsd }: { targetId: string; minBuyUsd
         type="button"
         tabIndex={show ? 0 : -1}
         onClick={() => document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-        className={`btn btn-primary w-full max-w-sm shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] ${show ? "pointer-events-auto" : ""}`}
+        className={`btn btn-primary w-full max-w-sm shadow-[var(--shadow-lg)] ${show ? "pointer-events-auto" : ""}`}
       >
-        BUY THIS BAG <span className="num font-normal opacity-70">· from ${minBuyUsd}</span>
+        Buy this bag <span className="num font-normal opacity-70">· from ${minBuyUsd}</span>
       </button>
     </div>
   );

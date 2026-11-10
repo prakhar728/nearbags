@@ -73,7 +73,7 @@ export default async function DocPage({ params }: Props) {
           {prev ? (
             <Link href={`/docs/${prev.slug}`} className="card card-hover group grid gap-1 p-5">
               <span className="label">Previous</span>
-              <span className="font-medium text-text transition-colors group-hover:text-accent">{prev.title}</span>
+              <span className="font-medium text-text transition-colors group-hover:text-accent-fg">{prev.title}</span>
             </Link>
           ) : (
             <span />
@@ -81,7 +81,7 @@ export default async function DocPage({ params }: Props) {
           {next && (
             <Link href={`/docs/${next.slug}`} className="card card-hover group grid gap-1 p-5 text-right">
               <span className="label">Next</span>
-              <span className="font-medium text-text transition-colors group-hover:text-accent">{next.title}</span>
+              <span className="font-medium text-text transition-colors group-hover:text-accent-fg">{next.title}</span>
             </Link>
           )}
         </nav>

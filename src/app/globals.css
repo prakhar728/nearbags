@@ -1,21 +1,76 @@
 @import "tailwindcss";
 @import "./ui.css";
 
-/* Terminal noir (spec §9). Dark only for now; light mode later. One accent: acid yellow. */
-:root {
-  --bg: #0a0a0a;
-  --surface: #121212;
-  --surface-2: #181818;
-  --border: #222222;
-  --border-strong: #333333;
-  --text: #ededed;
-  --muted: #8a8a8a;
-  --faint: #5a5a5a;
-  --accent: #e8ff59;
-  --accent-ink: #0a0a0a;
-  --gain: #3ddc84;
-  --loss: #ff5c5c;
+/* Light, near.com-style theme: white page, neutral greys, near-black ink for primary actions, and one bright green
+   used sparingly for highlights (status dots, active marks, gradient bands). Green as text uses a darker shade so it
+   passes contrast on white. `.theme-dark` re-points the same tokens for dark surfaces (sidebar, dark bands, footer). */
+:root,
+.theme-light {
+  --bg: #ffffff;
+  --surface: #fafafa; /* gray-50: panels, table heads, active rows */
+  --surface-2: #f5f5f5; /* gray-100: tracks, wells */
+  --border: #e5e5e5; /* gray-200: card outlines */
+  --border-strong: #d4d4d4; /* gray-300: inputs, secondary buttons */
+  --text: #171717; /* gray-900 */
+  --muted: #737373; /* gray-500: secondary copy (4.7:1 on white) */
+  --faint: #8a8a8a; /* tertiary: placeholders, hints */
+  --accent: #00ec97; /* bright green, fills only */
+  --accent-ink: #000000; /* text on the green fill */
+  --accent-fg: #00804f; /* green as text or a line on white (5:1) */
+  --gain: #00804f;
+  --loss: #e70044;
+  --ink: #171717; /* primary button */
+  --ink-fg: #ffffff;
+  --ink-hover: #333333;
+
+  /* Layers and hairlines (black at low alpha, so they sit on white and on grey panels alike). */
+  --layer-1: rgba(0, 0, 0, 0.02);
+  --layer-2: rgba(0, 0, 0, 0.04);
+  --layer-3: rgba(0, 0, 0, 0.07);
+  --line: rgba(0, 0, 0, 0.1);
+  --line-strong: rgba(0, 0, 0, 0.17);
+  --accent-soft: rgba(0, 192, 118, 0.14);
+  --accent-line: rgba(0, 150, 96, 0.45);
+  --gain-soft: rgba(0, 192, 118, 0.14);
+  --loss-soft: rgba(255, 35, 87, 0.1);
+  --elev: #ffffff; /* raised surfaces: cards, menus, sheets */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px -8px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.04), 0 24px 48px -16px rgba(0, 0, 0, 0.22);
+  color-scheme: light;
+}
+.theme-light {
+  color: var(--text);
+}
+
+/* Dark surfaces inside the light page (near.com's gray-800 bands). Children read the same token names. */
+.theme-dark {
+  --bg: #262626;
+  --surface: #2e2e2e;
+  --surface-2: #333333;
+  --border: rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --text: #ffffff;
+  --muted: #a1a1a1;
+  --faint: #8c8c8c;
+  --accent-fg: #00ec97;
+  --gain: #00ec97;
+  --loss: #ff667f;
+  --ink: #ffffff;
+  --ink-fg: #171717;
+  --ink-hover: #e5e5e5;
+  --layer-1: rgba(255, 255, 255, 0.03);
+  --layer-2: rgba(255, 255, 255, 0.06);
+  --layer-3: rgba(255, 255, 255, 0.1);
+  --line: rgba(255, 255, 255, 0.11);
+  --line-strong: rgba(255, 255, 255, 0.2);
+  --accent-soft: rgba(0, 236, 151, 0.14);
+  --accent-line: rgba(0, 236, 151, 0.45);
+  --gain-soft: rgba(0, 236, 151, 0.14);
+  --loss-soft: rgba(255, 102, 127, 0.14);
+  --elev: #2e2e2e;
   color-scheme: dark;
+  color: var(--text);
 }
 
 @theme inline {
@@ -29,9 +84,12 @@
   --color-faint: var(--faint);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-fg: var(--accent-fg);
+  --color-ink: var(--ink);
+  --color-ink-fg: var(--ink-fg);
   --color-gain: var(--gain);
   --color-loss: var(--loss);
-  --font-sans: var(--font-inter);
+  --font-sans: var(--font-figtree);
   --font-mono: var(--font-jetbrains);
 }
 
@@ -42,13 +100,12 @@ body {
 }
 
 body {
-  font-family: var(--font-inter), system-ui, sans-serif;
-  font-feature-settings: "ss01", "cv11";
+  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Numbers line up in tables and stat rows. */
+/* Numbers line up in tables and stat rows. Same face as the text, like near.com. */
 .num {
-  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
@@ -58,6 +115,6 @@ body {
 }
 
 :focus-visible {
-  outline: 1px solid var(--accent);
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }

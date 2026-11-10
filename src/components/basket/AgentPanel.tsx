@@ -77,7 +77,7 @@ export function AgentPanel({ basketId, creatorId, limits }: Props) {
         </div>
         {isCreator && (
           <button type="button" onClick={runNow} disabled={busy} className="btn btn-secondary btn-sm shrink-0">
-            {busy ? "RUNNING…" : "RUN NOW"}
+            {busy ? "Running…" : "Run now"}
           </button>
         )}
       </div>
@@ -111,7 +111,7 @@ export function AgentPanel({ basketId, creatorId, limits }: Props) {
                   <span className="num text-faint">
                     {when(r.at)} · {r.trigger === "cron" ? "daily run" : r.trigger === "creator" ? "run by creator" : "run by admin"}
                   </span>
-                  <span className={`num ${r.status === "failed" ? "text-loss" : r.status === "done" ? "text-gain" : "text-accent"}`}>{STATUS[r.status]}</span>
+                  <span className={`num ${r.status === "failed" ? "text-loss" : r.status === "done" ? "text-gain" : "text-accent-fg"}`}>{STATUS[r.status]}</span>
                 </div>
                 {r.reason && <p className="mt-2 text-sm text-text">{r.reason}</p>}
                 {r.error && <p className="mt-2 text-sm text-loss">{r.error}</p>}

@@ -43,17 +43,18 @@ export function LineChart({
 
   useEffect(() => {
     if (!el.current) return;
-    const muted = cssVar("--muted", "#8a8a8a");
-    const border = cssVar("--border", "#222222");
-    const faint = cssVar("--faint", "#5a5a5a");
-    const mono = getComputedStyle(document.body).getPropertyValue("--font-jetbrains").trim() || "ui-monospace, monospace";
+    const muted = cssVar("--muted", "#737373");
+    const border = cssVar("--border", "#e5e5e5");
+    const faint = cssVar("--faint", "#8a8a8a");
+    const ink = cssVar("--text", "#171717");
+    const sans = getComputedStyle(document.body).getPropertyValue("--font-figtree").trim() || "ui-sans-serif, system-ui, sans-serif";
     const c = createChart(el.current, {
       autoSize: true,
-      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: muted, fontFamily: mono, fontSize: 11, attributionLogo: true },
+      layout: { background: { type: ColorType.Solid, color: "transparent" }, textColor: muted, fontFamily: sans, fontSize: 12, attributionLogo: true },
       grid: { vertLines: { visible: false }, horzLines: { color: border } },
       rightPriceScale: { borderColor: border },
       timeScale: { borderColor: border, fixLeftEdge: true, fixRightEdge: true },
-      crosshair: { mode: CrosshairMode.Magnet, vertLine: { color: faint, labelBackgroundColor: border }, horzLine: { color: faint, labelBackgroundColor: border } },
+      crosshair: { mode: CrosshairMode.Magnet, vertLine: { color: faint, labelBackgroundColor: ink }, horzLine: { color: faint, labelBackgroundColor: ink } },
       localization: { priceFormatter: (v: number) => fmt.current(v) },
       handleScroll: false,
       handleScale: false,
