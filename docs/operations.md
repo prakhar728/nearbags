@@ -72,6 +72,21 @@ pnpm dev
 
 Point `.env.local` at the production database to run a script against production.
 
+## Meme coin (Rhea) checks
+
+Read-only, any time: `pnpm tsx --env-file=.env.local --conditions=react-server scripts/probes/rhea-check.ts 20` prints each meme coin's price sources, HOOT's contract check, both-way availability and a dry $20 preflight of a 50/50 bag.
+
+Live test, about $2, signed by you (the script never sends without `--send`):
+
+1. `T="pnpm tsx --env-file=.env.local --conditions=react-server scripts/probes/rhea-live-test.ts"`, then `$T init`. It makes a throwaway test account (key in `.rhea-test-key.json`, gitignored) and prints the command to fund it with 2 USDC.
+2. Fund it, then `$T status`: USDC 2.
+3. `$T buy HOOT 1`: dry run (quote, allowlist, simulate). Then `$T buy HOOT 1 --send`. Expect `settlement: success` and HOOT in `status`. Open the tx: the `mt_mint` of HOOT goes to the test account.
+4. `$T buy NEARLY 0.9 --send`, the same for NEARLY.
+5. `$T sell HOOT --send` and `$T sell NEARLY --send`: USDC comes back, about 2% less than went in per round trip.
+6. `$T withdraw <you.near> --send`: the USDC goes back to your wallet. Delete `.rhea-test-key.json` once `status` shows zero.
+
+Then once through the app (minimum $20): buy the local NEAR Memes bag, sell 100%, and check Portfolio and History.
+
 ## When something breaks
 
 | Symptom | Check | Fix |

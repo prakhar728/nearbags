@@ -1,6 +1,6 @@
 # How it works
 
-A **bag** is a list of assets with weights, made by a creator. Buying a bag buys every asset in it at its weight, in one order. Assets are tokenized US stocks and ETFs (Ondo), crypto and USDC.
+A **bag** is a list of assets with weights, made by a creator. Buying a bag buys every asset in it at its weight, in one order. Assets are tokenized US stocks and ETFs (Ondo), crypto, USDC and two NEAR meme coins (HOOT and NEARLY).
 
 ## Terms
 
@@ -35,7 +35,17 @@ A partial sell is greyed out when one of its legs would fall under that asset's 
 | Action | What it does |
 |---|---|
 | Reset | Sells what has grown above its target weight and buys what has fallen below it. |
-| Withdraw | Sends the actual tokens to your own addresses, for example Tesla tokens to BNB Chain. You then hold them outside Stonkbag. |
+| Withdraw | Sends the actual tokens to your own addresses, for example Tesla tokens to BNB Chain. You then hold them outside Stonkbag. Meme coins go to a NEAR account that has held that token before. |
+
+## Meme coins
+
+HOOT and NEARLY are NEAR launchpad coins. NEAR Intents' swap network doesn't trade them, so their legs swap on **Rhea**, a NEAR exchange, straight from your position account: you sign one swap, Rhea fills it from its pool and sends the coins back to the same account. Nothing else changes: same keys, same account, same steps.
+
+- **High risk.** Each pool holds about $100k. Prices can move 5–10% in minutes and halve in weeks.
+- **About 1–1.5% per swap**, mostly the pool's 1% fee.
+- **Crypto and cash only.** A bag can mix meme coins with crypto and USDC, not with stocks or ETFs. Stocks pause outside US market hours while meme coins trade all the time, so a mixed buy could stall half done.
+- **No AI agent.** Agent-managed bags can't hold meme coins yet.
+- **HOOT can be upgraded by its team.** If it ever adds a transfer fee or changes its code, buying pauses here. Selling stays open.
 
 ## Creating a bag
 
@@ -57,7 +67,7 @@ A creator can close a bag to new buyers. Existing holders can still sell and wit
 ## Common questions
 
 **Why was my buy blocked at night or at the weekend?**
-Stock tokens trade thinly outside US market hours. If a quote is too far from the market price, the app blocks that leg rather than fill it badly.
+Stock tokens trade thinly outside US market hours. If a quote is too far from the market price, the app blocks that leg rather than fill it badly. Meme coins have the same check against their pool's price.
 
 **Which wallets work?**
 NEAR: HOT, Meteor, NEAR Mobile, Intear, OKX, Ledger, MyNearWallet and Nightly, through HOT Connect. EVM: a browser wallet, or your wallet app's built-in browser on a phone.

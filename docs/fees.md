@@ -5,6 +5,7 @@
 | Creator fee | The bag's creator | Buys only | 0–1%, set by the creator |
 | Platform fee | Stonkbag | Buys only | 0.25% |
 | Swap cost | The market makers who fill each swap | Every swap | The gap between the quote and the market price. Capped at 1% per leg. |
+| Meme coin swap cost | Rhea's pool (its 1% fee) and price impact | Every HOOT or NEARLY swap | About 1–1.5% at $10–$250, more on bigger swaps. Capped at 2% below the quote. |
 | NEAR gas | Stonkbag's gas account | Every on-chain step | Free to you |
 | Network fee | The chain you pay from | Your deposit | Whatever your wallet shows |
 | NEAR storage | NEAR | Paying from a NEAR wallet | 0.00125 NEAR, once per deposit |
@@ -25,6 +26,8 @@ A $50 buy and full sell of Degen Mix (Tesla, Circle, SOL, NEAR; 0.5% creator fee
 | **Round-trip cost** | **$0.95 (1.9%)** |
 
 Swap costs are higher for small orders and outside US market hours.
+
+A meme coin round trip costs more: on 2026-11-11 a $10 buy and sell of HOOT or NEARLY came back as about $9.80 (2%), before creator and platform fees.
 
 ## Where fees go
 
