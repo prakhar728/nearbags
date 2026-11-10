@@ -2,6 +2,7 @@
 // Buy panel for a basket page (spec §5.4). The basket page only mounts it:
 //   <BuyPanel basket={{ id, slug, name, feeBps, minBuyUsd, status, assets }} />
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useConfig } from "wagmi";
@@ -59,6 +60,13 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [legErrs, setLegErrs] = useState<Record<number, string>>({});
+  const router = useRouter();
+  const doneStatus = view?.order.status;
+  // A finished buy can change what the server renders (a creator's first buy takes the basket live, holdings and
+  // TVL move), so re-render the page around the panel.
+  useEffect(() => {
+    if (doneStatus === "complete" || doneStatus === "partial") router.refresh();
+  }, [doneStatus, router]);
   const keyRef = useRef<BasketKey | null>(null);
   const pickedToken = useRef(false); // the buyer chose a pay token; stop re-defaulting it
   const runRef = useRef<AbortController | null>(null);
