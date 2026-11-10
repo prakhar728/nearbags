@@ -126,9 +126,14 @@ export function AgentPanel({ basketId, creatorId, limits }: Props) {
                     </a>
                   )}
                   {r.swapProofs.length > 0 && (
-                    <a href={r.swapProofs[r.swapProofs.length - 1]} target="_blank" rel="noopener noreferrer" className="underline decoration-[var(--accent-line)] underline-offset-2 hover:text-text">
-                      Swap signing proof{r.swapProofs.length > 1 ? ` (latest of ${r.swapProofs.length})` : ""}
-                    </a>
+                    <span className="flex flex-wrap gap-x-2">
+                      <span>Swap signing proofs:</span>
+                      {r.swapProofs.map((u, i) => (
+                        <a key={u} href={u} target="_blank" rel="noopener noreferrer" className="underline decoration-[var(--accent-line)] underline-offset-2 hover:text-text">
+                          {i + 1}
+                        </a>
+                      ))}
+                    </span>
                   )}
                   {r.model && r.model !== "none" && <span className="num">model {r.model}</span>}
                 </div>

@@ -24,7 +24,7 @@ use std::time::Duration;
 #[link_section = "outlayer.manifest"]
 static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest.json").len()] = *include_bytes!("../manifest.json");
 
-const BUILD: &str = "strategist-2";
+const BUILD: &str = "strategist-3";
 const MAX_STRATEGY_CHARS: usize = 4_000;
 const MAX_REASON_CHARS: usize = 200;
 
@@ -170,11 +170,18 @@ fn parse_answer(text: &str, assets: &[Asset]) -> Result<(Vec<f64>, String), Stri
     let w = v.get("weights").and_then(Value::as_object).ok_or("the model answer had no weights")?;
     let mut out = Vec::with_capacity(assets.len());
     for a in assets {
-        // Missing or junk entries become NaN, which the policy treats as "keep the current weight".
-        out.push(w.get(&a.id).and_then(Value::as_f64).map_or(f64::NAN, |pct| pct * 100.0));
+        out.push(w.get(&a.id).and_then(Value::as_f64).filter(|p| p.is_finite() && *p >= 0.0).map_or(f64::NAN, |pct| pct * 100.0));
     }
     if out.iter().all(|x| x.is_nan()) {
         return Err("the model named none of the basket's assets".into());
+    }
+    // If the weights it did give already add up to about 100%, a missing asset means 0% ("sell the rest").
+    // Otherwise a missing or junk entry stays NaN, which the policy reads as "keep the current weight".
+    let named: f64 = out.iter().filter(|x| !x.is_nan()).sum();
+    if (9_000.0..=11_000.0).contains(&named) {
+        for x in out.iter_mut().filter(|x| x.is_nan()) {
+            *x = 0.0;
+        }
     }
     let reason = v.get("reason").and_then(Value::as_str).unwrap_or("").trim().to_string();
     Ok((out, if reason.is_empty() { "No reason given.".into() } else { reason }))
@@ -200,6 +207,12 @@ mod tests {
         let t = strip_thinking("<think>maybe {\"weights\": {\"SOL\": 1}}</think>\n{\"weights\": {\"SOL\": 55, \"NEAR\": 45}, \"reason\": \"r\"}");
         let (w, _) = parse_answer(t, &assets()).unwrap();
         assert_eq!(w, vec![5_500.0, 4_500.0]);
+    }
+
+    #[test]
+    fn missing_means_zero_when_the_rest_adds_up() {
+        let (w, _) = parse_answer("{\"weights\": {\"SOL\": 100}}", &assets()).unwrap();
+        assert_eq!(w, vec![10_000.0, 0.0]);
     }
 
     #[test]

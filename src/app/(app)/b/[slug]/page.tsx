@@ -19,6 +19,7 @@ import { StickyBuy } from "@/components/trade/StickyBuy";
 import { ShareBasket } from "@/components/share/ShareBasket";
 import { getAnalyticsView, getLiveReturn } from "@/lib/analytics/cached";
 import { getAsset } from "@/lib/assets";
+import { untradeable } from "@/lib/trade/availability";
 import { getBasketPage, liveMetrics, type BasketEdit } from "@/lib/basket-pages";
 import { daysSince } from "@/lib/cards";
 import { FIELD_LABEL, HORIZON_LABEL } from "@/lib/basket-text";
@@ -168,7 +169,29 @@ function Header({ b }: { b: BasketView }) {
       {b.status === "pending" && <p className="callout">Not live yet. It goes live once the creator buys at least ${b.minBuyUsd} of it.</p>}
       {b.status === "closed" && <p className="callout">Closed to new buyers. Holders can still sell and withdraw.</p>}
       {b.status === "hidden" && <p className="callout callout-warn">Hidden by an admin: off Explore, no new buys. Holders can still sell and withdraw.</p>}
+      {(b.status === "live" || b.status === "pending" || b.status === "closed") && (
+        <Suspense fallback={null}>
+          <TradingNotice b={b} />
+        </Suspense>
+      )}
     </div>
+  );
+}
+
+/** Shown only while 1Click refuses to quote one of the basket's assets (checked live, cached 10 minutes). */
+async function TradingNotice({ b }: { b: BasketView }) {
+  await connection();
+  const bad = await untradeable(b.assets.map((a) => a.assetId)).catch(() => []);
+  if (!bad.length) return null;
+  const list = bad.length === 1 ? bad[0] : `${bad.slice(0, -1).join(", ")} and ${bad[bad.length - 1]}`;
+  const stocks = bad.every((id) => ["stock", "etf"].includes(getAsset(id).kind));
+  return (
+    <p className="callout callout-warn" role="status">
+      <span className="font-medium text-text">Trading paused for {list}.</span>{" "}
+      {stocks ? "NEAR Intents isn't quoting tokenized stocks right now. " : "NEAR Intents isn't quoting these right now. "}
+      Until it does, this basket can&rsquo;t be bought{b.agent ? " or rebalanced by its agent" : ""}, and selling {bad.length === 1 ? "that asset" : "those assets"} will
+      wait. Holdings stay safe in each holder&rsquo;s own account. This notice goes away by itself once quotes return.
+    </p>
   );
 }
 
