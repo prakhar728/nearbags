@@ -533,6 +533,47 @@ select.input optgroup {
   text-align: right;
 }
 
+/* Docs tables hold sentences, not numbers: body font, top-aligned, first column as the row's name. */
+.doc-tbl {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.doc-tbl td {
+  vertical-align: top;
+  color: color-mix(in srgb, var(--text) 78%, transparent);
+}
+.doc-tbl td:first-child {
+  color: var(--text);
+  font-weight: 500;
+}
+@media (min-width: 640px) {
+  .doc-tbl td:first-child {
+    white-space: nowrap;
+  }
+}
+.doc-diagram {
+  overflow-x: auto;
+  padding: 20px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--layer-1);
+}
+/* Mermaid names its text boxes .label too; keep the app's mono-caps label style out of them. */
+.doc-diagram .label {
+  font-family: inherit;
+  font-size: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  color: inherit;
+}
+.doc-diagram svg {
+  display: block;
+  min-width: 520px;
+  height: auto;
+  margin: 0 auto;
+}
+
 /* ---------- stats ---------- */
 .stat-grid {
   display: grid;

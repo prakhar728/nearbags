@@ -31,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <nav className="flex flex-wrap gap-1">
             <Link href="/explore" className="app-nav-link">EXPLORE</Link>
             <Link href="/thesis" className="app-nav-link">THESIS</Link>
+            <Link href="/docs" className="app-nav-link">DOCS</Link>
             <a href="https://github.com/prakhar728/stonkbag" target="_blank" rel="noopener" className="app-nav-link">GITHUB</a>
             <Link href="/terms" className="app-nav-link">TERMS</Link>
             <Link href="/risk" className="app-nav-link">RISKS</Link>

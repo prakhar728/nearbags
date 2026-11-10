@@ -3,7 +3,7 @@
 One Next.js app on Vercel, one Postgres database (Neon), and two NEAR Intents services. There is no custom smart contract.
 
 ```mermaid
-flowchart LR
+flowchart TB
   W[Wallet<br/>NEAR or EVM] -- sign in, backup key --> B[Browser<br/>basket key in IndexedDB]
   B -- signed swaps --> S[Next.js API]
   S -- quotes, submit --> O[1Click API]

@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // /thesis reads this file with fs inside "use cache"; ship it with the function so a revalidation can still read it.
-  outputFileTracingIncludes: { "/thesis": ["./data/thesis/thesis.json"] },
+  outputFileTracingIncludes: { "/thesis": ["./data/thesis/thesis.json"], "/docs/[slug]": ["./docs/**/*"] },
   turbopack: {
     rules: {
       "*.css": {

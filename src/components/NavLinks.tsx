@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/create", label: "CREATE", short: "Create", match: ["/create"] },
   { href: "/portfolio", label: "PORTFOLIO", short: "Bags", match: ["/portfolio"] },
   { href: "/thesis", label: "THESIS", short: "Thesis", match: ["/thesis"] },
+  { href: "/docs", label: "DOCS", short: "Docs", match: ["/docs"], desktopOnly: true },
 ];
 
 const isOn = (path: string, match: string[]) => match.some((m) => path === m || path.startsWith(`${m}/`));
@@ -39,7 +40,7 @@ export function MobileTabs() {
       aria-label="Sections"
       className="fixed inset-x-3 bottom-[max(12px,env(safe-area-inset-bottom))] z-50 grid grid-cols-4 gap-1 rounded-full border border-[var(--line-strong)] bg-[#111]/85 p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.9)] backdrop-blur-xl md:hidden"
     >
-      {LINKS.map((l) => {
+      {LINKS.filter((l) => !l.desktopOnly).map((l) => {
         const on = isOn(path, l.match);
         return (
           <Link
