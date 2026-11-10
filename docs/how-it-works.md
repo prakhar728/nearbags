@@ -60,7 +60,10 @@ A creator can close a bag to new buyers. Existing holders can still sell and wit
 Stock tokens trade thinly outside US market hours. If a quote is too far from the market price, the app blocks that leg rather than fill it badly.
 
 **Which wallets work?**
-NEAR: Meteor, HOT, Intear. EVM: any browser wallet, or WalletConnect.
+NEAR: HOT, Meteor, NEAR Mobile, Intear. EVM: a browser wallet, or your wallet app's built-in browser on a phone.
+
+**Can I install it on my phone?**
+Yes. On Android, tap the install button in the header. On iPhone, open it in Safari, tap Share, then Add to Home Screen. In the installed app, HOT and NEAR Mobile sign most reliably. Meteor and Intear open a browser window that may not return to the app.
 
 **Can anyone buy?**
 Sanctioned regions are blocked. Where Ondo stocks are not allowed (US, Canada and others), only crypto-only bags can be bought. Some regions (EEA, UK, Switzerland, Singapore and others) need a professional-investor confirmation.

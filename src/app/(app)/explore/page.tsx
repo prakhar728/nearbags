@@ -102,7 +102,7 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
             </Link>
           ))}
         </nav>
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-5">
           <FilterGroup label="Type">
             {KINDS.map((k) => (
               <Chip key={k.id} href={href(q, { kind: k.id })} on={q.kind === k.id}>
@@ -161,9 +161,9 @@ function Empty({ q, total }: { q: Q; total: number }) {
 
 function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <span className="label">{label}</span>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
+    <div className="scroll-row items-center">
+      <span className="label mr-1">{label}</span>
+      {children}
     </div>
   );
 }

@@ -107,9 +107,34 @@ function Block({ b }: { b: DocBlock }) {
         </L>
       );
     }
-    case "table":
+    case "table": {
+      const stack = b.head && b.head.length >= 3; // wide tables become cards on phones
       return (
-        <div className="tbl-wrap">
+        <>
+          {stack && (
+            <ul className="grid gap-2 sm:hidden">
+              {b.rows.map((r, i) => (
+                <li key={i} className="card grid gap-2 p-4 text-[14.5px] leading-snug">
+                  <div className="font-medium text-text">
+                    <Inl nodes={r[0]} />
+                  </div>
+                  <dl className="grid gap-1.5">
+                    {r.slice(1).map((c, j) => (
+                      <div key={j} className="grid grid-cols-[88px_minmax(0,1fr)] gap-3">
+                        <dt className="label pt-[3px]">
+                          <Inl nodes={b.head![j + 1]} />
+                        </dt>
+                        <dd className="text-text/80">
+                          <Inl nodes={c} />
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          )}
+        <div className={`tbl-wrap ${stack ? "max-sm:hidden" : ""}`}>
           <table className="tbl doc-tbl">
             {b.head && (
               <thead>
@@ -135,7 +160,9 @@ function Block({ b }: { b: DocBlock }) {
             </tbody>
           </table>
         </div>
+        </>
       );
+    }
     case "code":
       return <pre className="num overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-black/40 p-4 text-[12.5px] leading-relaxed text-text/90">{b.text}</pre>;
     case "diagram":

@@ -14,6 +14,7 @@ import { Card, Section as UISection } from "@/components/ui/Primitives";
 import { Markdown } from "@/components/Markdown";
 import { Loading, SkeletonText } from "@/components/ui/Skeleton";
 import { BuyPanel } from "@/components/trade/BuyPanel";
+import { StickyBuy } from "@/components/trade/StickyBuy";
 import { ShareBasket } from "@/components/share/ShareBasket";
 import { getAnalyticsView, getLiveReturn } from "@/lib/analytics/cached";
 import { getAsset } from "@/lib/assets";
@@ -45,13 +46,14 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
     <div className="space-y-14">
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
         <Header b={b} />
-        <div className="rise space-y-3 lg:sticky lg:top-24 lg:self-start" style={{ "--i": 2 } as React.CSSProperties}>
+        <div id="buy" className="rise scroll-mt-20 space-y-3 lg:sticky lg:top-24 lg:self-start" style={{ "--i": 2 } as React.CSSProperties}>
           <BuyPanel basket={{ id: b.id, slug: b.slug, name: b.name, feeBps: b.feeBps, minBuyUsd: b.minBuyUsd, status: b.status, assets: weightsOf(b) }} />
           <p className="fine px-1">
             Min buy ${b.minBuyUsd} · creator fee {feePct(b.feeBps)} + platform fee on buys · selling is free.
           </p>
         </div>
       </div>
+      {(b.status === "live" || b.status === "pending") && <StickyBuy targetId="buy" minBuyUsd={b.minBuyUsd} />}
 
       <CreatorTools
         basket={{

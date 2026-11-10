@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Anybody, Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -11,6 +11,18 @@ const anybody = Anybody({ variable: "--font-anybody", subsets: ["latin"], axes: 
 export const metadata: Metadata = {
   title: "Stonkbag",
   description: "Creator-made baskets of tokenized stocks and crypto. Buy the whole bag from any chain, keep your own keys.",
+  applicationName: "Stonkbag",
+  // Installed on iPhone: full screen, content runs under the status bar (the header pads for it).
+  appleWebApp: { capable: true, title: "Stonkbag", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // lets the layout use env(safe-area-inset-*) around the notch and home bar
+  themeColor: "#0a0a0a",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

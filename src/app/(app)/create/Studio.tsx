@@ -137,7 +137,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
         </p>
       )}
 
-      <ol className="flex flex-wrap gap-2">
+      <ol className="flex gap-2 md:flex-wrap">
         {STEPS.map((s, i) => (
           <li key={s}>
             <button
@@ -145,12 +145,13 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               disabled={!reachable(i)}
               onClick={() => setStep(i)}
               aria-current={i === step ? "step" : undefined}
-              className={`chip h-10 gap-2 pl-1.5 pr-4 uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-40 ${i === step ? "chip-on" : i < step ? "text-text" : ""}`}
+              className={`chip h-10 gap-2 pl-1.5 uppercase ${i === step ? "pr-4" : "pr-1.5 md:pr-4"} tracking-wider disabled:cursor-not-allowed disabled:opacity-40 ${i === step ? "chip-on" : i < step ? "text-text" : ""}`}
             >
               <span className={`grid h-7 w-7 place-items-center rounded-full text-[11px] ${i === step ? "bg-accent text-accent-ink" : i < step ? "bg-white/10 text-text" : "border border-[var(--line-strong)]"}`}>
                 {i < step ? "✓" : i + 1}
               </span>
-              {s}
+              {/* Phones: only the current step is named, so all four fit on one line. */}
+              <span className={i === step ? "" : "max-md:sr-only"}>{s}</span>
             </button>
           </li>
         ))}
