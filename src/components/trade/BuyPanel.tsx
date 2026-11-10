@@ -428,8 +428,10 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
     <div className="well grid gap-2 p-4">
       <Row k="Creator fee" v={usd(Number(pre.fees.creatorFee) / 1e6)} />
       <Row k="Platform fee" v={usd(Number(pre.fees.platformFee) / 1e6)} />
-      <Row k="Est. swap cost" v={usd(swapCost)} />
-      <Row k="You hold ≈" v={usd(pre.estValueUsd)} strong />
+      {/* With a blocked leg the estimate would count that leg as lost, which reads like losing the money. Nothing is charged. */}
+      <Row k="Est. swap cost" v={pre.ok ? usd(swapCost) : "—"} />
+      <Row k="You hold ≈" v={pre.ok ? usd(pre.estValueUsd) : "—"} strong />
+      {!pre.ok && <p className="text-xs text-muted">This basket can&rsquo;t be bought until every asset can be quoted. Nothing has been charged.</p>}
       <div className="mt-1 grid gap-1.5 border-t border-[var(--line)] pt-3">
         {pre.legs.map((l) => (
           <div key={l.assetId} className="num flex justify-between text-[11px] text-muted">
