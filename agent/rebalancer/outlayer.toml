@@ -1,0 +1,17 @@
+network = "mainnet"
+
+[project]
+name = "rebalancer"
+owner = "ai-creator.near"
+
+[build]
+target = "wasm32-wasip2"
+source = "github"
+
+[deploy]
+
+[run]
+max_instructions = 1000000000
+max_memory_mb = 128
+max_execution_seconds = 60
+secrets_profile = "default"

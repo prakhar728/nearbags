@@ -1,0 +1,12 @@
+{
+  "display": {
+    "name": "Stonkbag rebalancer (spike)"
+  },
+  "operations": ["whoami", "sign_transfer"],
+  "capabilities": {
+    "network": []
+  },
+  "signing_keys": [
+    {"path": "agent", "type": "ed25519", "bind": "wasm"}
+  ]
+}
