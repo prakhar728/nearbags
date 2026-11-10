@@ -39,6 +39,15 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(0);
+  // Moving between steps brings the step chips (and the new step under them) back into view.
+  const stepsRef = useRef<HTMLOListElement>(null);
+  const shownStep = useRef(step);
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    stepsRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [step]);
   const [picks, setPicks] = useState<Choice[]>([]);
   const [manual, setManual] = useState(false);
   const [t, setT] = useState({ name: "", tagline: "", thesis: "", risks: "", exitSignal: "", deepDive: "" });
@@ -141,7 +150,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
         </p>
       )}
 
-      <ol className="flex gap-2 md:flex-wrap">
+      <ol ref={stepsRef} className="flex scroll-mt-24 gap-2 md:flex-wrap">
         {STEPS.map((s, i) => (
           <li key={s}>
             <button
