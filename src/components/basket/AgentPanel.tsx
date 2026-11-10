@@ -18,6 +18,7 @@ interface Run {
   decideProof: string | null;
   swapProofs: string[];
   holders: number;
+  skipped: string[];
   error: string | null;
 }
 
@@ -114,6 +115,9 @@ export function AgentPanel({ basketId, creatorId, limits }: Props) {
                 {r.reason && <p className="mt-2 text-sm text-text">{r.reason}</p>}
                 {r.error && <p className="mt-2 text-sm text-loss">{r.error}</p>}
                 {r.before && r.after && <WeightChanges before={r.before} after={r.after} />}
+                {r.status === "done" && r.holders === 0 && r.skipped.length > 0 && (
+                  <p className="mt-2 text-xs text-muted">No swaps this run: {r.skipped.join(" ").replace(/\.$/, "")}.</p>
+                )}
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
                   {r.holders > 0 && <span>{r.holders} holder{r.holders === 1 ? "" : "s"} rebalanced</span>}
                   {r.decideProof && (

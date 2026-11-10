@@ -16,7 +16,7 @@ import { HttpError } from "@/lib/auth/session";
 import { livePrice } from "@/lib/prices/live";
 import { createResetOrder, prepareLeg, refreshOrder, submitLeg } from "@/lib/trade/orders";
 import type { SignedRawEd25519 } from "@/lib/intents/payload";
-import { attestationUrl, runModule, signerModule, strategistModule } from "./outlayer";
+import { proofUrl, runModule, signerModule, strategistModule } from "./outlayer";
 export { DEFAULT_LIMITS, sanitizeAgentConfig } from "./config";
 
 export const MAX_LEG_USD = 100; // the signer's own hard cap is $250; this is tighter for now
@@ -227,9 +227,11 @@ export async function agentRunsFor(basketId: number, limit = 10) {
     after: r.weightsAfter,
     reason: r.reason,
     model: r.model,
-    decideProof: r.decideTx ? attestationUrl(r.decideTx) : null,
-    swapProofs: (r.signTxs ?? []).slice(-12).map(attestationUrl),
+    decideProof: r.decideTx ? proofUrl(r.decideTx) : null,
+    swapProofs: (r.signTxs ?? []).slice(-12).map(proofUrl),
     holders: (r.orders ?? []).filter((o) => o.orderId).length,
+    // Why holders weren't rebalanced (e.g. every swap below its minimum size), deduplicated.
+    skipped: [...new Set((r.orders ?? []).filter((o) => !o.orderId && o.note).map((o) => o.note!))],
     error: r.error,
   }));
 }

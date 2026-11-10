@@ -25,7 +25,10 @@ function moduleFromEnv(urlVar: string, hashVar: string): Module | null {
   return url && hash && /^[0-9a-f]{64}$/.test(hash) ? { url, hash } : null;
 }
 
+/** Raw attestation JSON for a run. */
 export const attestationUrl = (txHash: string) => `https://api.outlayer.ai/attestations/by-tx/${txHash}`;
+/** Our redirect to OutLayer's readable report for a run (what the basket page links to). */
+export const proofUrl = (txHash: string) => `/api/agent/proof/${txHash}`;
 
 let account: Account | null = null;
 function caller(): Account {
