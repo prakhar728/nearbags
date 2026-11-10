@@ -9,7 +9,8 @@ import { ASSETS, getAsset, USDC } from "@/lib/assets";
 import { estimatedMultiplier, livePrice } from "@/lib/prices/live";
 import { loadSeries } from "@/lib/prices/store";
 
-const DONE = ["complete", "partial"];
+// A buy counts (cash in, plus its USDC) from the moment its deposit arrived; its swaps already count as they settle.
+const FUNDED = ["funded", "fees_paid", "legs_running", "complete", "partial"];
 const PAYOUT_SEQ = 100; // same as orders.ts (not imported: orders.ts pulls in the Next router)
 const DAY = 86_400_000;
 const byIntents = new Map(ASSETS.map((a) => [a.intentsAssetId, a]));
@@ -75,7 +76,7 @@ export async function history(userId: number): Promise<History> {
   const evs: Ev[] = [];
   for (const o of orders) {
     const ls = legs.filter((l) => l.orderId === o.id && l.status === "success");
-    if (o.kind === "buy" && DONE.includes(o.status)) {
+    if (o.kind === "buy" && FUNDED.includes(o.status) && o.grossUsdc) {
       const quote = o.fundingQuote as { quote?: { amountInUsd?: string } } | null;
       const paid = Number(quote?.quote?.amountInUsd ?? o.usdIn ?? 0);
       const t = o.createdAt.getTime();

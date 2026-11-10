@@ -11,6 +11,7 @@ import { listExploreBaskets } from "@/lib/basket-pages";
 import { basketKind, type BasketKind } from "@/lib/basket-kind";
 import { ageDays, cardData } from "@/lib/cards";
 import { feePct } from "@/lib/format";
+import { listOf, paused } from "@/lib/trade/availability";
 
 const TABS = [
   { id: "trending", label: "Trending" },
@@ -65,10 +66,29 @@ export default function Explore({ searchParams }: PageProps<"/">) {
         }
         description="Creator-made baskets of tokenized US stocks and crypto. Buy the whole bag in one go. Every position sits in its own NEAR Intents account that only you control."
       />
+      <Suspense fallback={null}>
+        <MarketNotice />
+      </Suspense>
       <Suspense fallback={<ExploreSkeleton />}>
         <ExploreBody searchParams={searchParams} />
       </Suspense>
     </div>
+  );
+}
+
+/** One line when NEAR Intents won't buy or sell an asset that a listed basket holds (live check, cached 10 min). */
+async function MarketNotice() {
+  await connection();
+  const ids = (await listExploreBaskets().catch(() => [])).flatMap((b) => b.assets.map((a) => a.assetId));
+  if (!ids.length) return null;
+  const p = await paused(ids).catch(() => ({ cantBuy: [] as string[], cantSell: [] as string[] }));
+  if (!p.cantBuy.length && !p.cantSell.length) return null;
+  const parts = [p.cantBuy.length ? `buying ${listOf(p.cantBuy)}` : "", p.cantSell.length ? `selling ${listOf(p.cantSell)}` : ""].filter(Boolean);
+  return (
+    <p className="callout callout-warn" role="status">
+      <span className="font-medium text-text">NEAR Intents has paused {parts.join(" and ")} for now.</span> Baskets holding them can&rsquo;t be bought
+      until it returns; everything else trades as usual, and holdings stay safe in their owners&rsquo; accounts.
+    </p>
   );
 }
 

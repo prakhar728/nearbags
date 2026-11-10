@@ -19,7 +19,7 @@ import { StickyBuy } from "@/components/trade/StickyBuy";
 import { ShareBasket } from "@/components/share/ShareBasket";
 import { getAnalyticsView, getLiveReturn } from "@/lib/analytics/cached";
 import { getAsset } from "@/lib/assets";
-import { untradeable } from "@/lib/trade/availability";
+import { listOf, paused } from "@/lib/trade/availability";
 import { getBasketPage, liveMetrics, type BasketEdit } from "@/lib/basket-pages";
 import { daysSince } from "@/lib/cards";
 import { FIELD_LABEL, HORIZON_LABEL } from "@/lib/basket-text";
@@ -181,20 +181,28 @@ function Header({ b }: { b: BasketView }) {
   );
 }
 
-/** Shown only while 1Click refuses to quote one of the basket's assets (checked live, cached 10 minutes). */
+/** Shown only while 1Click refuses to buy or sell one of the basket's assets (checked live, cached 10 minutes). */
 async function TradingNotice({ b }: { b: BasketView }) {
   await connection();
-  const bad = await untradeable(b.assets.map((a) => a.assetId)).catch(() => []);
-  if (!bad.length) return null;
-  const list = bad.length === 1 ? bad[0] : `${bad.slice(0, -1).join(", ")} and ${bad[bad.length - 1]}`;
-  const stocks = bad.every((id) => ["stock", "etf"].includes(getAsset(id).kind));
+  const p = await paused(b.assets.map((a) => a.assetId)).catch(() => ({ cantBuy: [] as string[], cantSell: [] as string[] }));
+  if (!p.cantBuy.length && !p.cantSell.length) return null;
+  const both = p.cantBuy.filter((id) => p.cantSell.includes(id));
+  const buyOnly = p.cantBuy.filter((id) => !both.includes(id));
+  const sellOnly = p.cantSell.filter((id) => !both.includes(id));
+  const parts = [
+    both.length ? `${listOf(both)} can't be traded at all` : "",
+    buyOnly.length ? `${listOf(buyOnly)} can't be bought` : "",
+    sellOnly.length ? `${listOf(sellOnly)} can't be sold` : "",
+  ].filter(Boolean);
   return (
-    <p className="callout callout-warn" role="status">
-      <span className="font-medium text-text">Trading paused for {list}.</span>{" "}
-      {stocks ? "NEAR Intents isn't quoting tokenized stocks right now. " : "NEAR Intents isn't quoting these right now. "}
-      Until it does, this basket can&rsquo;t be bought{b.agent ? " or rebalanced by its agent" : ""}, and selling {bad.length === 1 ? "that asset" : "those assets"} will
-      wait. Holdings stay safe in each holder&rsquo;s own account. This notice goes away by itself once quotes return.
-    </p>
+    <div className="callout callout-warn space-y-1.5" role="status">
+      <p className="font-medium text-text">Trading paused: {parts.join("; ")} on NEAR Intents right now.</p>
+      <p className="text-sm">
+        New buys of this basket are paused until every asset can be bought and sold again, so nobody ends up holding something they can&rsquo;t
+        sell.{p.cantSell.length ? " Holders can sell once it returns." : ""}{b.agent ? " The agent skips its runs meanwhile." : ""} Holdings stay safe in each
+        holder&rsquo;s own account. This notice clears by itself.
+      </p>
+    </div>
   );
 }
 

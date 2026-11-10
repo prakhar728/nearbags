@@ -23,6 +23,7 @@ import { relay } from "@/lib/relayer";
 import { fundedAmount } from "./funding";
 import { guard, usSession } from "./guard";
 import { planLegs, preflightBuy, SLIPPAGE_BPS, splitFees } from "./preflight";
+import { buyBlockReason, paused } from "./availability";
 
 type Order = typeof schema.orders.$inferSelect;
 type Leg = typeof schema.orderLegs.$inferSelect;
@@ -99,6 +100,8 @@ export async function createBuyOrder(
   if (settings.buysPaused) throw new HttpError(503, "Buying is paused for a moment. Selling still works.");
   const delisted = basket.assets.filter((a) => settings.delisted.includes(a.assetId)).map((a) => a.assetId);
   if (delisted.length) throw new HttpError(409, `${delisted.join(", ")} can't be bought right now. Holders can still sell.`);
+  const blocked = buyBlockReason(await paused(basket.assets.map((a) => a.assetId)));
+  if (blocked) throw new HttpError(409, blocked);
   const isCreator = basket.creator.id === s.userId;
   if (!(basket.status === "live" || (basket.status === "pending" && isCreator))) throw new HttpError(409, "This basket isn't open for buying.");
 
