@@ -392,7 +392,9 @@ export async function createResetOrder(s: Session, positionId: number) {
   const bals = await balancesOf(position.accountId, assets.map(({ a }) => a.intentsAssetId));
   const prices = await Promise.all(assets.map(({ a }) => livePrice(a.id).then((p) => p.price)));
   const values = assets.map((_, i) => (Number(bals[i]) / 10 ** assets[i].a.decimals) * prices[i]);
-  const total = values.reduce((x, y) => x + y, 0);
+  // Idle USDC (left by an earlier swap) counts toward the basket's value when USDC isn't one of its assets.
+  const idleUsdc = assets.some(({ a }) => a.id === "USDC") ? 0 : Number((await balancesOf(position.accountId, [USDC.intentsAssetId]))[0]) / 1e6;
+  const total = values.reduce((x, y) => x + y, 0) + idleUsdc;
   if (total < 1) throw new HttpError(409, "Nothing in this basket to rebalance.");
 
   const sells = assets
@@ -425,9 +427,11 @@ async function maybeCreateResetBuys(order: Order) {
   const bals = await balancesOf(position.accountId, assets.map(({ a }) => a.intentsAssetId));
   const prices = await Promise.all(assets.map(({ a }) => livePrice(a.id).then((p) => p.price)));
   const values = assets.map((_, i) => (Number(bals[i]) / 10 ** assets[i].a.decimals) * prices[i]);
-  const total = values.reduce((x, y) => x + y, 0);
   const usdcIdx = assets.findIndex(({ a }) => a.id === "USDC");
   const [usdcBal] = await balancesOf(position.accountId, [USDC.intentsAssetId]);
+  // The sells just turned part of the basket into USDC. When USDC isn't one of the basket's assets, that cash is
+  // still part of the basket's value, or every target comes out too small and the buys fall under their minimums.
+  const total = values.reduce((x, y) => x + y, 0) + (usdcIdx >= 0 ? 0 : Number(usdcBal) / 1e6);
   const usdcTarget = usdcIdx >= 0 ? (total * assets[usdcIdx].w.weightBps) / 10_000 : 0;
   let spendable = Math.max(0, Number(usdcBal) / 1e6 - usdcTarget);
   const deficits = assets
