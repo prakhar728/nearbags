@@ -17,6 +17,7 @@ import { relay, relayerAccountId } from "@/lib/relayer";
 import {
   checkSwapPayload,
   checkWithdrawPayload,
+  disagreementProblem,
   isNearAccountId,
   minOutput,
   quoteLeg,
@@ -94,7 +95,13 @@ export async function prepareRheaLeg(leg: Leg, ctx: { accountId: string; amountI
   let g: GuardResult | null = null;
   let midUsd: number | undefined;
   if (side) {
-    midUsd = (await livePrice(meme.id)).price;
+    const ref = await livePrice(meme.id);
+    midUsd = ref.price;
+    const jumped = side === "buy" ? disagreementProblem(meme.id, ref.disagreement) : null;
+    if (jumped) {
+      await setLeg(leg.id, { error: jumped, attempts: leg.attempts + 1 });
+      throw new HttpError(409, jumped);
+    }
     const usd = side === "buy" ? Number(ctx.amountIn) / 1e6 : Number(q.amountOut) / 1e6;
     const units = side === "buy" ? Number(q.amountOut) / 10 ** meme.decimals : Number(ctx.amountIn) / 10 ** meme.decimals;
     g = guard({ side, usd, units, referencePrice: midUsd, kind: meme.kind, session: usSession() });

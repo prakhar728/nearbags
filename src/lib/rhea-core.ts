@@ -25,6 +25,14 @@ export const RHEA_MIN_GAS = "150000000000000";
 export const RHEA_DEADLINE_MS = 120_000;
 /** Price guard for meme coins: the 1% pool fee is inside every quote, so warn at 2% and block at 5% from the mid. */
 export const MEME_GUARD = { warn: 0.02, block: 0.05 } as const;
+/** Buys wait while the pool's mid is this far from the price indexers last saw (it just jumped, or was pushed). */
+export const MEME_MAX_DISAGREEMENT = 0.1;
+
+/** Why a meme-coin buy should wait because the pool and the indexers disagree, or null. */
+export function disagreementProblem(assetId: string, disagreement: number | undefined): string | null {
+  if (disagreement == null || disagreement <= MEME_MAX_DISAGREEMENT) return null;
+  return `${assetId}'s pool price is ${(disagreement * 100).toFixed(0)}% away from its recent trades. That usually means a big trade just hit the pool. Try again in a few minutes.`;
+}
 
 const SWAP_KEYS = ["client_echo", "min_output_amount", "output_token", "pool_ids", "skip_unwrap_near"];
 

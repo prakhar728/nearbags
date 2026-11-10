@@ -8,6 +8,7 @@ import {
   checkWithdrawPayload,
   costVsMid,
   DCL_CONTRACT,
+  disagreementProblem,
   judgeSafety,
   memeMidUsd,
   minOutput,
@@ -161,6 +162,11 @@ describe("Rhea pricing", () => {
     const y = memeMidUsd({ token_x: "wrap.near", token_y: HOOT, current_point: -58654 }, HOOT, 18, 3.57);
     expect(y).toBeCloseTo(x, 8);
     expect(() => memeMidUsd({ token_x: "usdc.near", token_y: HOOT, current_point: 0 }, HOOT, 18, 3.57)).toThrow();
+  });
+  it("holds buys while the pool mid is >10% from the indexers", () => {
+    expect(disagreementProblem("HOOT", undefined)).toBeNull();
+    expect(disagreementProblem("HOOT", 0.011)).toBeNull();
+    expect(disagreementProblem("HOOT", 0.25)).toMatch(/25% away/);
   });
   it("measures cost against the mid", () => {
     expect(costVsMid({ usdIn: 10, unitsOut: 7805.12, midUsd: 1.258967e-3 })).toBeCloseTo(0.0174, 3);

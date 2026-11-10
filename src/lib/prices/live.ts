@@ -5,7 +5,7 @@
 //   - "indicative": 1Click's token price (already includes Ondo's shares-per-token multiplier)
 //   - "underlying": live share price (Nasdaq incl. pre/after-hours, Yahoo 1m bars) × our dividend-derived multiplier
 // The guard uses the indicative price and reports when the two views disagree by more than 3%.
-// Meme coins (Rhea): median of the DCL pool's mid × NEAR/USD (on-chain), DexScreener and GeckoTerminal for that pool.
+// Meme coins (Rhea): the DCL pool's mid × NEAR/USD (on-chain), checked against DexScreener and GeckoTerminal.
 import "server-only";
 import { and, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -24,7 +24,7 @@ export interface LivePrice {
   sources: Record<string, number>;
   underlyingPerShare?: number; // stocks: live share price
   multiplier?: number; // stocks: estimated shares per token
-  disagreement?: number; // stocks: |indicative / (underlying × multiplier) − 1|
+  disagreement?: number; // stocks: |indicative / (underlying × multiplier) − 1|; meme coins: |pool mid / indexers − 1|
   at: number;
 }
 
@@ -126,10 +126,13 @@ export async function livePrice(assetId: string): Promise<LivePrice> {
     lp = { assetId, price: 1, sources: { fixed: 1 }, at: Date.now() };
   } else if (a.kind === "meme") {
     const sources = await memeQuotes(a);
-    const vals = Object.values(sources);
-    if (!vals.length) throw new Error(`No live price for ${assetId}`);
-    // The on-chain mid is what swaps trade against; the indexers lag it. With only two sources, prefer the chain.
-    lp = { assetId, price: vals.length === 2 && sources.dcl_mid ? sources.dcl_mid : median(vals), sources, at: Date.now() };
+    // The pool is the market: swaps fill against its current point, so its mid (× NEAR/USD) is the price. The indexers
+    // (DexScreener, GeckoTerminal) lag it and use their own NEAR price; they are the fallback and a sanity check. A big
+    // gap means the pool just moved (or was pushed), and buys wait (see MEME_MAX_DISAGREEMENT).
+    const indexers = [sources.dexscreener, sources.geckoterminal].filter((x): x is number => x != null);
+    const price = sources.dcl_mid ?? (indexers.length ? median(indexers) : undefined);
+    if (!price) throw new Error(`No live price for ${assetId}`);
+    lp = { assetId, price, sources, disagreement: sources.dcl_mid && indexers.length ? Math.abs(sources.dcl_mid / median(indexers) - 1) : undefined, at: Date.now() };
   } else if (a.kind === "crypto") {
     const sources = await cryptoQuotes(a.refTicker);
     const vals = Object.values(sources);

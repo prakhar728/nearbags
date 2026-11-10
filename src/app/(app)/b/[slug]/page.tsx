@@ -19,7 +19,9 @@ import { StickyBuy } from "@/components/trade/StickyBuy";
 import { ShareBasket } from "@/components/share/ShareBasket";
 import { getAnalyticsView, getLiveReturn } from "@/lib/analytics/cached";
 import { getAsset } from "@/lib/assets";
-import { listOf, paused } from "@/lib/trade/availability";
+import { listOf, paused, venueOf, type Paused } from "@/lib/trade/availability";
+import { hasMeme } from "@/lib/basket-kind";
+import { MemeNotice } from "@/components/basket/MemeNotice";
 import { getBasketPage, liveMetrics, type BasketEdit } from "@/lib/basket-pages";
 import { daysSince } from "@/lib/cards";
 import { FIELD_LABEL, HORIZON_LABEL } from "@/lib/basket-text";
@@ -169,6 +171,7 @@ function Header({ b }: { b: BasketView }) {
           ))}
         </div>
       </div>
+      {hasMeme(b.assets) && <MemeNotice />}
       {b.status === "pending" && <p className="callout">Not live yet. It goes live once the creator buys at least ${b.minBuyUsd} of it.</p>}
       {b.status === "closed" && <p className="callout">Closed to new buyers. Holders can still sell and withdraw.</p>}
       {b.status === "hidden" && <p className="callout callout-warn">Hidden by an admin: off Explore, no new buys. Holders can still sell and withdraw.</p>}
@@ -181,10 +184,10 @@ function Header({ b }: { b: BasketView }) {
   );
 }
 
-/** Shown only while 1Click refuses to buy or sell one of the basket's assets (checked live, cached 10 minutes). */
+/** Shown only while 1Click (or Rhea, for meme coins) won't buy or sell one of the basket's assets (checked live, cached 10 minutes). */
 async function TradingNotice({ b }: { b: BasketView }) {
   await connection();
-  const p = await paused(b.assets.map((a) => a.assetId)).catch(() => ({ cantBuy: [] as string[], cantSell: [] as string[] }));
+  const p: Paused = await paused(b.assets.map((a) => a.assetId)).catch(() => ({ cantBuy: [] as string[], cantSell: [] as string[] }));
   if (!p.cantBuy.length && !p.cantSell.length) return null;
   const both = p.cantBuy.filter((id) => p.cantSell.includes(id));
   const buyOnly = p.cantBuy.filter((id) => !both.includes(id));
@@ -196,7 +199,10 @@ async function TradingNotice({ b }: { b: BasketView }) {
   ].filter(Boolean);
   return (
     <div className="callout callout-warn space-y-1.5" role="status">
-      <p className="font-medium text-text">Trading paused: {parts.join("; ")} on NEAR Intents right now.</p>
+      <p className="font-medium text-text">Trading paused: {parts.join("; ")} on {venueOf([...p.cantBuy, ...p.cantSell])} right now.</p>
+      {Object.values(p.why ?? {}).map((w) => (
+        <p key={w} className="text-sm text-text">{w}</p>
+      ))}
       <p className="text-sm">
         New buys of this basket are paused until every asset can be bought and sold again, so nobody ends up holding something they can&rsquo;t
         sell.{p.cantSell.length ? " Holders can sell once it returns." : ""}{b.agent ? " The agent skips its runs meanwhile." : ""} Holdings stay safe in each

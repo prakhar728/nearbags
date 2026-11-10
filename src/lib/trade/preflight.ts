@@ -4,7 +4,7 @@ import "server-only";
 import { getAsset, USDC } from "@/lib/assets";
 import { oneclick, OneClickError } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
-import { quoteLeg, RheaNoLiquidity, tokenSafety } from "@/lib/rhea";
+import { disagreementProblem, quoteLeg, RheaNoLiquidity, tokenSafety } from "@/lib/rhea";
 import { guard, usSession, type GuardResult } from "./guard";
 
 export const SLIPPAGE_BPS = 100; // Q11: 1% max per leg
@@ -128,6 +128,8 @@ async function checkRheaBuyLeg(leg: LegPlan, session: ReturnType<typeof usSessio
     const safety = await tokenSafety(asset.id);
     if (!safety.ok) return { ...leg, venue: "rhea", ok: false, reason: `Buying ${asset.id} is paused: ${safety.reason}` };
     const [q, ref] = await Promise.all([quoteLeg("USDC", asset.id, leg.usdcIn), livePrice(asset.id)]);
+    const jumped = disagreementProblem(asset.id, ref.disagreement);
+    if (jumped) return { ...leg, venue: "rhea", ok: false, reason: jumped, priceDisagreement: ref.disagreement };
     const usd = Number(leg.usdcIn) / 1e6;
     const units = Number(q.amountOut) / 10 ** asset.decimals;
     const g = guard({ side: "buy", usd, units, referencePrice: ref.price, kind: asset.kind, session });
@@ -140,6 +142,7 @@ async function checkRheaBuyLeg(leg: LegPlan, session: ReturnType<typeof usSessio
       amountOutFormatted: units.toLocaleString("en-US", { maximumFractionDigits: 2 }),
       amountOutUsd: units * ref.price,
       guard: g,
+      priceDisagreement: ref.disagreement,
     };
   } catch (e) {
     const msg = e instanceof RheaNoLiquidity ? e.message : `${asset.id} couldn't be quoted on Rhea: ${(e as Error).message.slice(0, 160)}`;
