@@ -5,7 +5,10 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { agentKey } from "@/lib/agent/run";
 import { attestationUrl } from "@/lib/agent/outlayer";
 
-const view = (k: Awaited<ReturnType<typeof agentKey>>) => (k ? { publicKey: k.publicKey, accountId: k.accountId, build: k.hash, proof: attestationUrl(k.txHash) } : null);
+// `caller` is the relayer account the agent's OutLayer runs come from. It is public on-chain (it signs every run), and
+// the agent key and the model-key access list both depend on it.
+const view = (k: Awaited<ReturnType<typeof agentKey>>) =>
+  k ? { publicKey: k.publicKey, accountId: k.accountId, build: k.hash, proof: attestationUrl(k.txHash), caller: process.env.RELAYER_ACCOUNT_ID ?? null } : null;
 
 export async function GET() {
   return handle(async () => Response.json({ key: view(await agentKey()) }));
