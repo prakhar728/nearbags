@@ -2,7 +2,7 @@
 import { Logo } from "@/components/Logo";
 import { RetryButton } from "./RetryButton";
 
-export const metadata = { title: "Offline · Stonkbag" };
+export const metadata = { title: "Offline · nearbags" };
 
 export default function Offline() {
   return (

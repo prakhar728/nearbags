@@ -19,6 +19,8 @@ function isLocalDb(): boolean {
 }
 
 async function main() {
+  // Keep "stonkbag-house" / handle "stonkbag": they match the existing house row in production (old app name).
+  // Renaming the handle is a data change for a human to make, not this script.
   const [house] = await db()
     .insert(schema.users)
     .values({ walletChain: "near", walletAddress: "stonkbag-house", handle: "stonkbag", bio: "House baskets.", isAdmin: true })

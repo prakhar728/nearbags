@@ -187,7 +187,7 @@ async function pullStream(kind: StreamKind, key: string, start: number, end: num
   return { rows, complete };
 }
 
-// ── Stonkbag's own baskets: live on-chain TVL (src/lib/stats.ts) plus the daily snapshot history ──────────────────────
+// ── nearbags' own baskets: live on-chain TVL (src/lib/stats.ts) plus the daily snapshot history ──────────────────────
 async function loadStonkbag(): Promise<{ v: StonkbagTvl | null; note: string | null }> {
   if (!process.env.DATABASE_URL) return { v: null, note: "DATABASE_URL was not set when the data was built." };
   try {
@@ -212,7 +212,7 @@ async function loadStonkbag(): Promise<{ v: StonkbagTvl | null; note: string | n
     const history = [...byDay.entries()].map(([date, m]) => ({ date, tvlUsd: Math.round([...m.values()].reduce((a, b) => a + b, 0) * 100) / 100 }));
     return { v: { at: new Date().toISOString(), tvlUsd: tvl, baskets: live.length, holders, history }, note: null };
   } catch (e) {
-    return { v: null, note: `Could not read Stonkbag TVL: ${(e as Error).message.slice(0, 200)}` };
+    return { v: null, note: `Could not read nearbags TVL: ${(e as Error).message.slice(0, 200)}` };
   }
 }
 

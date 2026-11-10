@@ -8,7 +8,7 @@ import { pct, usd, pctSig } from "@/lib/format";
 import { ONDO_ASSETS, requestTemplate, type StreamKind } from "@/lib/thesis/explorer";
 import type { ThesisData } from "@/lib/thesis/types";
 
-export const metadata = { title: "Thesis · Stonkbag" };
+export const metadata = { title: "Thesis · nearbags" };
 
 const CLAIM = "People will buy US stocks through NEAR Intents, but only when an app packages it. The demand fades when the push stops.";
 
@@ -49,8 +49,8 @@ const CHARTS: ChartDef[] = [
   { id: "assets", title: "Top assets", pending: "Ondo volume per token. A stock-to-stock swap counts for both tokens.", request: ondoRequest, rule: RULES },
   {
     id: "tvl",
-    title: "Stonkbag basket TVL",
-    pending: "Value held in Stonkbag baskets, from chain, and its daily history.",
+    title: "nearbags basket TVL",
+    pending: "Value held in nearbags baskets, from chain, and its daily history.",
     request: 'NEAR RPC view call on intents.near, per basket position account:\n  mt_batch_balance_of { account_id, token_ids }\npriced at reference prices (src/lib/stats.ts); history from the daily snapshots table (/api/cron/snapshots).',
     rule: "TVL = sum over live and closed baskets of each position's token balances × reference price.",
   },
@@ -68,7 +68,7 @@ export default async function ThesisPage() {
           {CLAIM}
         </h1>
         <p className="rise max-w-3xl text-[15px] leading-relaxed text-muted" style={{ "--i": 2 } as React.CSSProperties}>
-          Each chart below comes from the NEAR Intents Explorer API and Stonkbag&apos;s own on-chain balances, rebuilt with{" "}
+          Each chart below comes from the NEAR Intents Explorer API and nearbags&apos; own on-chain balances, rebuilt with{" "}
           <code className="rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[0.9em] text-text">pnpm thesis</code>. We started from &ldquo;tokenized US stocks are becoming a real use of NEAR Intents&rdquo;; the
           data below rejected that, so the claim changed. The full argument and the evidence against it are in THESIS.md in the repo.
         </p>
@@ -199,8 +199,8 @@ function Charts({ d }: { d: ThesisData }) {
         def={def("tvl")}
         sentence={
           d.stonkbag
-            ? `Stonkbag baskets held ${usd(d.stonkbag.tvlUsd)} across ${d.stonkbag.baskets} baskets and ${d.stonkbag.holders} holders when the data was built.`
-            : (d.stonkbagNote ?? "Stonkbag TVL was not included in this build.")
+            ? `nearbags baskets held ${usd(d.stonkbag.tvlUsd)} across ${d.stonkbag.baskets} baskets and ${d.stonkbag.holders} holders when the data was built.`
+            : (d.stonkbagNote ?? "nearbags TVL was not included in this build.")
         }
       >
         {tvlHistory.length > 1 && (

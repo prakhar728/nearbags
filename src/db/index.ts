@@ -17,12 +17,12 @@ function makeDb() {
 }
 
 type Db = ReturnType<typeof makeDb>;
-const g = globalThis as unknown as { __stonkbagDb?: Db };
+const g = globalThis as unknown as { __nearbagsDb?: Db };
 
 // Lazily created and reused across hot reloads in dev.
 export function db(): Db {
-  g.__stonkbagDb ??= makeDb();
-  return g.__stonkbagDb;
+  g.__nearbagsDb ??= makeDb();
+  return g.__nearbagsDb;
 }
 
 export { schema };

@@ -1,6 +1,6 @@
 # Operations
 
-Production runs on Vercel (project `stonkbag`) with a Neon Postgres database.
+Production runs on Vercel (project `stonkbag`, named before the app became nearbags) with a Neon Postgres database.
 
 ## Settings
 
@@ -24,6 +24,7 @@ printf %s "$VALUE" | vercel env add NAME production
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect | From cloud.reown.com |
 | `EXPLORER_JWT` | `pnpm thesis` only | NEAR Intents Explorer key |
 | `FINNHUB_API_KEY`, `NEAR_RPC_URL` | Optional | Backup prices, custom RPC |
+| `NEXT_PUBLIC_SITE_URL` | Share links and cards | The public address, e.g. `https://nearbags.com`. Without it, Vercel's production URL. |
 
 ## Scheduled jobs
 

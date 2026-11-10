@@ -1,6 +1,7 @@
 // Share images (1200×630, next/og). Satori rules: every element with more than one child is display:flex, inline
 // styles only. Colours match the app: near-black, the landing's yellow, green/red for gains/losses.
 import "server-only";
+import { IconArt } from "@/lib/pwa/icon";
 import type { PnlSnapshot } from "./token";
 
 export const SIZE = { width: 1200, height: 630 };
@@ -12,7 +13,12 @@ const MUTED = "#8a8a8a";
 const ACCENT = "#00ec97";
 const GAIN = "#00ec97";
 const LOSS = "#ff4d7d";
-const HOST = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://stonkbag-iota.vercel.app").replace(/^https?:\/\//, "");
+// The address printed on cards (text only, never a link). Set NEXT_PUBLIC_SITE_URL=https://nearbags.com once the
+// domain is live; until then Vercel's production URL, then the brand name as plain text.
+const HOST = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://nearbags.com")
+).replace(/^https?:\/\//, "");
 
 const pctText = (x: number, digits = 1) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(digits)}%`;
 const usdText = (x: number) => `${x >= 0 ? "+" : "−"}$${Math.abs(x).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -42,7 +48,10 @@ function Header({ right }: { right: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, letterSpacing: 6, color: MUTED }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <span style={{ color: TEXT, fontFamily: "Familjen Grotesk", fontWeight: 700, fontSize: "1.25em", letterSpacing: -1 }}>stonkbag</span>
+        <div style={{ display: "flex", borderRadius: 10, boxShadow: `0 0 0 1px ${LINE}` }}>
+          <IconArt size={44} rounded />
+        </div>
+        <span style={{ color: TEXT, fontFamily: "Familjen Grotesk", fontWeight: 700, fontSize: 34, letterSpacing: -1.36 }}>nearbags</span>
       </div>
       <span style={{ letterSpacing: 2 }}>{right}</span>
     </div>

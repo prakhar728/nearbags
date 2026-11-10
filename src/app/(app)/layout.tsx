@@ -41,7 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <footer className="border-t border-[var(--line)] pb-24 md:pb-0">
           <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-6">
             <div className="space-y-2">
-              <div className="app-logo text-[17px] text-muted">stonkbag</div>
+              <div className="app-logo text-[17px] text-muted">nearbags</div>
               <p className="fine max-w-xl">
                 Historical numbers, not forecasts. Tokenized stocks give price exposure only. Not available to US persons or restricted regions.
               </p>

@@ -3,7 +3,8 @@ import { z } from "zod";
 
 export const HANDLE_RE = /^[a-z0-9_]{3,20}$/;
 export const BIO_MAX = 160;
-const RESERVED = new Set(["admin", "stonkbag", "house", "api", "create", "portfolio", "support", "help"]);
+// "stonkbag" stays reserved (the house account's handle in the database); "nearbags" is reserved for the new name.
+const RESERVED = new Set(["admin", "stonkbag", "nearbags", "house", "api", "create", "portfolio", "support", "help"]);
 
 /** Accepts x.com / twitter.com profile URLs (or a bare @name) and returns https://x.com/name, else null. */
 export function normalizeXUrl(raw: string): string | null {

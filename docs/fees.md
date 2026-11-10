@@ -3,14 +3,14 @@
 | Cost | Paid to | On | Amount |
 |---|---|---|---|
 | Creator fee | The bag's creator | Buys only | 0–1%, set by the creator |
-| Platform fee | Stonkbag | Buys only | 0.25% |
+| Platform fee | nearbags | Buys only | 0.25% |
 | Swap cost | The market makers who fill each swap | Every swap | The gap between the quote and the market price. Capped at 1% per leg. |
 | Meme coin swap cost | Rhea's pool (its 1% fee) and price impact | Every HOOT or NEARLY swap | About 1–1.5% at $10–$250, more on bigger swaps. Capped at 2% below the quote. |
-| NEAR gas | Stonkbag's gas account | Every on-chain step | Free to you |
+| NEAR gas | nearbags' gas account | Every on-chain step | Free to you |
 | Network fee | The chain you pay from | Your deposit | Whatever your wallet shows |
 | NEAR storage | NEAR | Paying from a NEAR wallet | 0.00125 NEAR, once per deposit |
 
-Selling has no Stonkbag fees. You only pay the swap cost.
+Selling has no nearbags fees. You only pay the swap cost.
 
 ## A real example
 

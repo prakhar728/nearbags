@@ -1,11 +1,11 @@
-// Web app manifest: lets phones install Stonkbag to the home screen and open it full screen, like an app.
+// Web app manifest: lets phones install nearbags to the home screen and open it full screen, like an app.
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Stonkbag",
-    short_name: "Stonkbag",
+    name: "nearbags",
+    short_name: "nearbags",
     description: "Creator-made baskets of tokenized US stocks and crypto. Buy the whole bag from any chain, keep your own keys.",
     start_url: "/explore?source=app",
     scope: "/",

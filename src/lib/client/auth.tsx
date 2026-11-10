@@ -124,6 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUnlock = useCallback(async (): Promise<Uint8Array> => {
     if (!user) throw new Error("Sign in first.");
     if (user.chain === "near") {
+      // Keep recipient "stonkbag-keys": NEP-413 signs it, so renaming it would derive different (empty) basket accounts.
       const s = await nearSignMessage(user.address, { message: UNLOCK_MESSAGE_V1, recipient: "stonkbag-keys", nonce: Uint8Array.from(UNLOCK_NONCE_V1) });
       return b64ToBytes(s.signature);
     }
@@ -135,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user.keyMode === "device") return "device";
     if (user.keyMode === "derived") {
       if (!(await hasSeed(user.address))) {
-        setBusy("Sign once to unlock your basket keys on this device…");
+        setBusy("Sign once to unlock your basket keys on this device (the message says Stonkbag, our old name)…");
         try {
           await restoreDerived(user.address, signUnlock);
         } finally {
@@ -145,7 +146,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return "derived";
     }
     const near1 = user.chain === "near";
-    setBusy(near1 ? "Sign the key message in your wallet. This sets up your basket keys…" : "Sign the key message twice. This sets up your basket keys…");
+    // The key message still names Stonkbag (our old name; it can't change, see UNLOCK_MESSAGE_V1), so say so up front.
+    setBusy(
+      near1
+        ? "Sign the key message in your wallet (it says Stonkbag, our old name). This sets up your basket keys…"
+        : "Sign the key message twice (it says Stonkbag, our old name). This sets up your basket keys…",
+    );
     try {
       const mode = await setupKeys(user.address, signUnlock, { deterministic: near1 });
       await api("/api/auth/me", { method: "PATCH", body: JSON.stringify({ keyMode: mode }) });

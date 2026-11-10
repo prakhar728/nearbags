@@ -1,4 +1,4 @@
-// Stonkbag service worker. Kept deliberately small:
+// nearbags service worker. Kept deliberately small:
 // - pages always come from the network (prices and balances must be fresh); with no network, show /offline;
 // - Next's hashed build files (/_next/static) never change, so they are served from cache after the first load;
 // - API calls, wallet traffic and everything else pass straight through, never cached.

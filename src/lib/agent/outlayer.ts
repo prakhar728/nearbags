@@ -46,7 +46,7 @@ async function view<T>(method: string, args: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
-      id: "stonkbag",
+      id: "nearbags",
       method: "query",
       params: { request_type: "call_function", finality: "final", account_id: CONTRACT, method_name: method, args_base64: Buffer.from(JSON.stringify(args)).toString("base64") },
     }),

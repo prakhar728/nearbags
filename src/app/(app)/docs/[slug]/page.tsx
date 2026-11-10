@@ -13,7 +13,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const meta = DOCS.find((d) => d.slug === slug);
-  return meta ? { title: `${meta.title} · Stonkbag docs`, description: meta.blurb } : {};
+  return meta ? { title: `${meta.title} · nearbags docs`, description: meta.blurb } : {};
 }
 
 // Await params outside Suspense so an unknown page gets a real 404.

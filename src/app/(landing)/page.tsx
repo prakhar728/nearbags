@@ -4,7 +4,7 @@ import { getLandingData } from "@/lib/landing";
 import "./landing.css";
 
 export const metadata = {
-  title: "Stonkbag · Bag it.",
+  title: "nearbags · Bag it.",
   description: "Creator-made baskets of US stocks and crypto. Buy the whole bag from any chain. Your keys.",
 };
 

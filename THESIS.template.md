@@ -9,7 +9,7 @@ Data built {{generated_at}}, covering {{data_since}} to {{data_until}}. Charts: 
 
 People will buy US stocks through NEAR Intents, but the demand only shows up when an app packages it, and it fades when the app stops pushing. The rails work. What is missing is a reason to come back.
 
-So the opportunity is distribution: products that turn "swap into a stock token" into something people hold and return to. Stonkbag's bet is creator baskets: a theme you can buy in one step, from any chain, with a reason to check it again.
+So the opportunity is distribution: products that turn "swap into a stock token" into something people hold and return to. nearbags' bet is creator baskets: a theme you can buy in one step, from any chain, with a reason to check it again.
 
 ## What we first claimed, and why we dropped it
 
@@ -37,13 +37,13 @@ As stated, the original claim is false today.
 - **US persons are blocked.** Ondo Global Markets tokens are not offered to US persons, which rules out the largest pool of people who already want US stocks.
 - **Bridged liquidity.** The tokens live on BNB Chain and reach Intents through a bridge. Small swaps can fail to fill: stock legs have a minimum size, which in our own tests made partial sells of a small basket impossible.
 - **Weekend prices are guesses.** Weekend swaps ({{weekend_swap_share}} of swap count) price a stock whose market is closed. Spreads are wider and Monday's open can gap away from them.
-- **Our own numbers prove nothing yet.** Stonkbag routed {{stonkbag_swaps}} Ondo swaps, all of them our own tests. It holds {{stonkbag_tvl}} across {{stonkbag_baskets}} live baskets and {{stonkbag_holders}} holders.
+- **Our own numbers prove nothing yet.** nearbags routed {{stonkbag_swaps}} Ondo swaps, all of them our own tests. It holds {{stonkbag_tvl}} across {{stonkbag_baskets}} live baskets and {{stonkbag_holders}} holders.
 - **What the data does not see.** The Explorer API covers 1Click swaps only. Direct Intents trades that skip 1Click are not counted, in the numerator or the denominator.
 
 ## What would change our mind
 
 - A second app launches stock trading on Intents and gets the same spike-then-fade, despite a product built for repeat use. That would say the problem is demand, not packaging.
-- Stonkbag baskets get bought once and never topped up or rebalanced: buyers who don't come back.
+- nearbags baskets get bought once and never topped up or rebalanced: buyers who don't come back.
 - Stock-token volume grows steadily without any app pushing it. That would make distribution less of a bottleneck than we think.
 
 ## Method
@@ -53,7 +53,7 @@ As stated, the original claim is false today.
 - Share of 1Click volume: an unfiltered pull (`minUsdPrice=0`) of the last complete weeks. Ondo volume in that pull divided by all volume in it. Weeks still settling (ended less than 2 days ago) are refetched each run and left out of the share line.
 - App: the row's `referral` field, the tag the routing app passes to 1Click. Empty tags are counted as "(none)" and never as the top app.
 - USD size: `amountInUsd` from the API (`amountOutUsd` when that is zero). Trader: `refundTo`, else the first sender, else the recipient. Rows deduplicated by deposit address and memo.
-- Stonkbag TVL: every live basket's position balances on `intents.near`, priced at reference prices (`src/lib/stats.ts`).
+- nearbags TVL: every live basket's position balances on `intents.near`, priced at reference prices (`src/lib/stats.ts`).
 
 ## How to reproduce
 

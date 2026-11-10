@@ -1,17 +1,17 @@
 # Safety and custody
 
-**Stonkbag cannot move your money.** Each position is a NEAR Intents account that only two keys control: your browser's basket key and your wallet.
+**nearbags cannot move your money.** Each position is a NEAR Intents account that only two keys control: your browser's basket key and your wallet.
 
 ## Keys
 
 | Key | Where it lives | What it does |
 |---|---|---|
 | Basket key | Your browser, encrypted | Signs the swaps for your position |
-| Your wallet | Your wallet app | Backup. Added to every position before you pay. Can move the funds at any time, with or without Stonkbag. |
+| Your wallet | Your wallet app | Backup. Added to every position before you pay. Can move the funds at any time, with or without nearbags. |
 
 - **Same browser:** nothing to do.
 - **New browser:** sign in, and your wallet signs once to authorise a new basket key.
-- **Stonkbag goes offline:** your wallet's key is on every position account in `intents.near`, so it can still sign withdrawals directly.
+- **nearbags goes offline:** your wallet's key is on every position account in `intents.near`, so it can still sign withdrawals directly.
 
 ## What the server can and can't do
 

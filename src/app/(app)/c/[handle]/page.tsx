@@ -18,7 +18,7 @@ export const instant = false;
 export async function generateMetadata({ params }: PageProps<"/c/[handle]">): Promise<Metadata> {
   const { handle } = await params;
   const p = await getCreatorProfile(decodeURIComponent(handle));
-  return { title: p ? `${p.handle ? "@" + p.handle : shortAddr(p.address)} · Stonkbag` : "Not found · Stonkbag", description: p?.bio ?? undefined };
+  return { title: p ? `${p.handle ? "@" + p.handle : shortAddr(p.address)} · nearbags` : "Not found · nearbags", description: p?.bio ?? undefined };
 }
 
 export default async function ProfilePage({ params }: PageProps<"/c/[handle]">) {

@@ -9,6 +9,7 @@
 // IndexedDB: script on this page can use it, but nobody can export it.
 import { deriveBasketKey, keyFromSecret, randomBasketKey, seedFromSignature, type BasketKey } from "@/lib/intents/keys";
 
+// Keep "stonkbag-keys": renaming the IndexedDB database would hide keys already saved on users' devices.
 const DB_NAME = "stonkbag-keys";
 const STORE = "kv";
 

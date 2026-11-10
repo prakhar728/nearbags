@@ -33,7 +33,7 @@ import { assetColor } from "@/lib/palette";
 export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Promise<Metadata> {
   const { slug } = await params;
   const data = await getBasketPage(slug);
-  return data ? { title: `${data.basket.name} · Stonkbag`, description: data.basket.tagline } : { title: "Not found · Stonkbag" };
+  return data ? { title: `${data.basket.name} · nearbags`, description: data.basket.tagline } : { title: "Not found · nearbags" };
 }
 
 // The page awaits params outside Suspense so an unknown slug gets a real 404 status (not a streamed 200).

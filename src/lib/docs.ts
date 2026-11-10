@@ -10,7 +10,7 @@ import { parseInline, type Inline } from "@/lib/markdown";
 export const DOCS = [
   { slug: "how-it-works", title: "How it works", audience: "Everyone", blurb: "What a bag is, and how buying, selling and creating work" },
   { slug: "fees", title: "Fees", audience: "Everyone", blurb: "What a buy and a sell cost, with a real example" },
-  { slug: "safety", title: "Safety and custody", audience: "Everyone", blurb: "Who holds the money, and what happens if Stonkbag goes away" },
+  { slug: "safety", title: "Safety and custody", audience: "Everyone", blurb: "Who holds the money, and what happens if nearbags goes away" },
   { slug: "agent", title: "AI agent baskets", audience: "Everyone", blurb: "Pick a rule or write a strategy; how it rebalances, its limits, and how to check it" },
   { slug: "data", title: "Prices and numbers", audience: "Everyone", blurb: "Where every number comes from, and what is live" },
   { slug: "architecture", title: "Architecture", audience: "Engineers", blurb: "Components, the order flow, database and API" },
@@ -35,7 +35,7 @@ export interface Doc {
 }
 
 /** Links between docs become site paths. INTERNAL marks them so the renderer uses next/link. */
-export const INTERNAL = "https://stonkbag.internal";
+export const INTERNAL = "https://nearbags.internal";
 const SLUGS = new Set<string>(DOCS.map((d) => d.slug));
 function resolveLinks(md: string) {
   return md.replace(/\]\(([^)\s]+)\)/g, (all, href: string) => {

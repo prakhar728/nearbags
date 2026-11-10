@@ -134,7 +134,7 @@ export const oneclick = {
   quote: (req: QuoteRequest, deadlineMinutes = 20) =>
     call<QuoteResponse>("POST", "/quote", {
       swapType: "EXACT_INPUT",
-      referral: "stonkbag",
+      referral: "stonkbag", // Keep "stonkbag": the 1Click partner referral id; change only once 1Click confirms a new one.
       deadline: defaultDeadline(deadlineMinutes),
       ...req,
     }),

@@ -2,12 +2,12 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/Primitives";
 import { DOCS } from "@/lib/docs";
 
-export const metadata = { title: "Docs · Stonkbag", description: "How Stonkbag works: buying, selling, fees, custody, data and architecture." };
+export const metadata = { title: "Docs · nearbags", description: "How nearbags works: buying, selling, fees, custody, data and architecture." };
 
 export default function DocsIndex() {
   return (
     <div className="grid gap-10">
-      <PageHeader kicker="Docs" title="How Stonkbag works" />
+      <PageHeader kicker="Docs" title="How nearbags works" />
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {DOCS.map((d, i) => (
           <li key={d.slug} className="rise" style={{ "--i": i + 2 } as React.CSSProperties}>

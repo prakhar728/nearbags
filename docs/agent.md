@@ -113,4 +113,4 @@ The proofs show which code ran, not that the strategy is good. The strategist an
 
 **Which rule should I pick?** If unsure, Equal Weight or Fixed Mix. They trade least and have the strongest evidence behind them. The others aim to cut losses or follow trends, and they trade more, so swap costs eat more of the result.
 
-**Who pays for the runs?** Stonkbag pays the OutLayer runs and the NEAR gas. Swaps cost what any swap costs. There is no extra fee for agent baskets yet.
+**Who pays for the runs?** nearbags pays the OutLayer runs and the NEAR gas. Swaps cost what any swap costs. There is no extra fee for agent baskets yet.

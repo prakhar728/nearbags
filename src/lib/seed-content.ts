@@ -1,4 +1,4 @@
-// Draft theses for the launch baskets (spec §11). Numbers come from Stonkbag's own backtests on 2026-11-09
+// Draft theses for the launch baskets (spec §11). Numbers come from nearbags' own backtests on 2026-11-09
 // (total return, dividends reinvested net of 30% withholding). Prakhar edits these in his own voice before launch.
 // Limits (spec §5.3): tagline 120, thesis 1500, why 200 each, risks 600, exit signal 300.
 export interface SeedText {

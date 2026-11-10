@@ -1,8 +1,8 @@
-# Stonkbag
+# nearbags
 
 Creator-made baskets of tokenized US stocks and crypto, bought in one step from any token on any chain through NEAR Intents. Every basket position lives in its own NEAR Intents account that only the buyer's keys can move.
 
-- Live demo: https://stonkbag-iota.vercel.app
+- Live demo: https://stonkbag-iota.vercel.app (the app was called Stonkbag until 2026-11-11; the address changes when the nearbags domain is connected)
 - Built at NEAR HACKATHON (2026-11-01 to 2026-11-14). Tracks: `defi` (Unstoppable DeFi) and `thesis` (Investment Thesis).
 - New project, started in the hackathon window. No earlier product on any chain.
 - Docs: [how it works](docs/how-it-works.md), [fees](docs/fees.md), [safety](docs/safety.md), [prices and numbers](docs/data.md), [architecture](docs/architecture.md), [operations](docs/operations.md).
@@ -11,7 +11,7 @@ Creator-made baskets of tokenized US stocks and crypto, bought in one step from 
 
 Buying a theme ("AI picks and shovels", "gold and bitcoin") means many separate trades, on different venues, often on different chains. Tokenized US stocks now exist (Ondo Global Markets), but buying five of them plus some BTC still means bridging, swapping each one, and tracking the result by hand. People who are good at picking themes have no simple way to publish one that others can buy.
 
-## What Stonkbag does
+## What nearbags does
 
 1. A creator picks up to 10 assets (19 Ondo stocks and ETFs, 9 crypto assets, USDC), sets weights and a fee of 0–1%, and writes a short thesis. The studio shows a backtest while they build.
 2. A buyer pays with whatever they hold (for example USDC on Base, ETH on Arbitrum, SOL). 1Click turns it into USDC inside a NEAR Intents account made for that position, then buys every asset at its weight.
@@ -32,7 +32,7 @@ No custom contract: everything runs on `intents.near` and 1Click.
 ## Keys and custody
 
 - **Basket key.** Made in the browser. Either derived from one wallet signature (HKDF of the signature, so any device can rebuild it) or random per basket (when the wallet's signatures aren't deterministic). It is stored in IndexedDB, encrypted with a non-extractable AES key. The server never sees it.
-- **Recovery key.** Before the first deposit, the basket key adds the buyer's wallet key to the account (`add_public_key`). The wallet can always move the funds, even if Stonkbag disappears.
+- **Recovery key.** Before the first deposit, the basket key adds the buyer's wallet key to the account (`add_public_key`). The wallet can always move the funds, even if nearbags disappears.
 - **New device.** If a browser doesn't hold the basket key, the wallet signs one `add_public_key` for a fresh browser key. The relay route only allows that exact intent, for the user's own account, signed by the user's own wallet key.
 
 ## Try it (do X → see Y)
@@ -80,7 +80,7 @@ NEP-413: OK (both keys added)
 
 ## Investment thesis track
 
-The claim: people will buy US stocks through NEAR Intents, but only when an app packages it, and the demand fades when the push stops. That makes distribution, not rails, the gap Stonkbag fills.
+The claim: people will buy US stocks through NEAR Intents, but only when an app packages it, and the demand fades when the push stops. That makes distribution, not rails, the gap nearbags fills.
 
 We started from "tokenized US stocks are becoming a real use of NEAR Intents". Explorer API data rejected it: Ondo stock volume through 1Click peaked in one week, almost all routed by a single app, and then fell more than 90%. `THESIS.md` and `/thesis` show the numbers, the evidence against the new claim, and what would change our mind. `pnpm thesis` rebuilds every number from raw API data.
 

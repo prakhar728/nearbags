@@ -25,6 +25,7 @@ function key() {
   return new TextEncoder().encode(s);
 }
 
+// Keep typ "stonkbag-pnl": share links already signed with it must keep verifying after the rename to nearbags.
 export async function signSnapshot(s: PnlSnapshot): Promise<string> {
   return new SignJWT({ ...s }).setProtectedHeader({ alg: "HS256", typ: "stonkbag-pnl" }).setIssuedAt().sign(key());
 }

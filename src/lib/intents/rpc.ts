@@ -10,7 +10,7 @@ async function viewCall<T>(method: string, args: unknown, contract = "intents.ne
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
-      id: "stonkbag",
+      id: "nearbags",
       method: "query",
       params: {
         request_type: "call_function",
@@ -37,7 +37,7 @@ export async function rpcRaw<T>(method: string, params: unknown): Promise<T> {
   const res = await fetch(rpcUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: "stonkbag", method, params }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: "nearbags", method, params }),
     signal: AbortSignal.timeout(20_000),
   });
   const j = await res.json();

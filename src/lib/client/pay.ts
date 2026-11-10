@@ -39,7 +39,7 @@ async function rpc<T>(params: Record<string, unknown>): Promise<T> {
   const res = await fetch(rpcUrl(), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: "stonkbag", method: "query", params: { finality: "final", ...params } }),
+    body: JSON.stringify({ jsonrpc: "2.0", id: "nearbags", method: "query", params: { finality: "final", ...params } }),
     signal: AbortSignal.timeout(20_000),
   });
   const j = await res.json();
@@ -89,6 +89,6 @@ export async function payFromNear(from: string, t: PayToken, to: string, amount:
     actions.push(call("storage_deposit", { account_id: from, registration_only: true }, 30n * TGAS, STORAGE_DEPOSIT));
     actions.push(call("near_deposit", {}, 10n * TGAS, wrap));
   }
-  actions.push(call("ft_transfer", { receiver_id: to, amount, memo: "stonkbag deposit" }, 30n * TGAS, 1n));
+  actions.push(call("ft_transfer", { receiver_id: to, amount, memo: "nearbags deposit" }, 30n * TGAS, 1n));
   await nearSendTransactions(from, [{ receiverId: contractId, actions }]);
 }

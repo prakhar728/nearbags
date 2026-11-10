@@ -148,7 +148,7 @@
   }
 }
 
-/* The wordmark: lowercase "stonkbag" in Familjen Grotesk; everything around it is Figtree. */
+/* The wordmark: lowercase "nearbags" in Familjen Grotesk 700; everything around it is Figtree. */
 .app-logo {
   display: inline-flex;
   align-items: center;
@@ -157,17 +157,23 @@
   font-weight: 700;
   font-size: 21px;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   color: var(--text);
 }
-.app-logo-mark {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
+/* The mark (src/components/Logo.tsx): a dark tile, the bag drawn in SVG, NEAR's logo laid over it as the label. */
+.bag-mark {
+  position: relative;
+  display: block;
   flex-shrink: 0;
-  border-radius: 9px;
+  overflow: hidden;
   background: #171717;
+}
+.bag-mark > svg {
+  display: block;
+}
+.bag-mark > img {
+  position: absolute;
+  max-width: none;
 }
 .theme-dark .app-logo-mark {
   background: #0f0f0f;

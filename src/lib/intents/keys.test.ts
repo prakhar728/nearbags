@@ -12,6 +12,8 @@ import {
   seedFromSignature,
   verifyEd25519,
   bytesToHex,
+  UNLOCK_MESSAGE_V1,
+  UNLOCK_NONCE_V1,
 } from "./keys";
 import { buildPayload, parsePayload, signIntents, signRaw } from "./payload";
 
@@ -64,5 +66,25 @@ describe("basket keys", () => {
     const str = secp256k1KeyStr(pub);
     expect(str.startsWith("secp256k1:")).toBe(true);
     expect(parsePublicKey(str).bytes.length).toBe(64);
+  });
+});
+
+// The app was renamed from Stonkbag to nearbags. These values derive every existing user's basket accounts, so
+// they must never follow the rename: a change here would point users at empty accounts and strand their funds.
+describe("frozen unlock constants (pre-rename values)", () => {
+  it("keeps the unlock message byte for byte", () => {
+    expect(UNLOCK_MESSAGE_V1).toBe(
+      "Stonkbag key unlock\nOnly sign this on Stonkbag. This signature unlocks your basket keys.\nVersion: 1",
+    );
+  });
+
+  it("keeps the unlock nonce = sha256(\"stonkbag/unlock/v1\")", () => {
+    expect(bytesToHex(UNLOCK_NONCE_V1)).toBe("3c0fbd16bebf239a7e5830e51cdec7c25b3ef1908deafd2d695c9e2df3ce9c07");
+  });
+
+  it("keeps the HKDF salt \"stonkbag\" and the basket:<id> info (derived accounts unchanged)", () => {
+    const seed = seedFromSignature(new Uint8Array(64).map((_, i) => i * 7));
+    expect(deriveBasketKey(seed, 1).accountId).toBe("fbb9fb6ff32e1b8b77ce47c0fb09bc4fdff0b0f657970f4249e0dcb231db7d27");
+    expect(deriveBasketKey(seed, 42).accountId).toBe("1edc7d250db59dedc7a350d9b2d8e4e1def9ef9cb5bee290b038ffc28935ea40");
   });
 });

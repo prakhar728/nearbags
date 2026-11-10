@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { promptInstall, usePwa } from "@/lib/client/pwa";
 
+// Keep the "sb:" prefix (old name): renaming it would bring back banners people already dismissed.
 const DISMISS_KEY = "sb:install-banner-dismissed";
 
 function ShareGlyph() {
@@ -24,10 +25,10 @@ function IosSteps({ open, onClose }: { open: boolean; onClose: () => void }) {
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} onClose={onClose} onClick={(e) => e.target === ref.current && onClose()} className="sheet" aria-label="Install Stonkbag">
+    <dialog ref={ref} onClose={onClose} onClick={(e) => e.target === ref.current && onClose()} className="sheet" aria-label="Install nearbags">
       <div className="grid gap-5 p-6 pb-[max(24px,env(safe-area-inset-bottom))]">
         <div className="mx-auto h-1 w-10 rounded-full bg-[var(--line-strong)]" aria-hidden />
-        <h2 className="font-sans text-lg font-semibold text-text">Add Stonkbag to your home screen</h2>
+        <h2 className="font-sans text-lg font-semibold text-text">Add nearbags to your home screen</h2>
         <ol className="grid gap-3 text-[15px] leading-relaxed text-muted">
           <li className="flex gap-3">
             <span className="num grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--layer-3)] text-xs text-text">1</span>
@@ -44,7 +45,7 @@ function IosSteps({ open, onClose }: { open: boolean; onClose: () => void }) {
           <li className="flex gap-3">
             <span className="num grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--layer-3)] text-xs text-text">3</span>
             <span>
-              Tap <span className="text-text">Add</span>. Stonkbag opens full screen from its icon.
+              Tap <span className="text-text">Add</span>. nearbags opens full screen from its icon.
             </span>
           </li>
         </ol>

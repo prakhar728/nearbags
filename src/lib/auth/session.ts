@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
 import { jwtVerify, SignJWT } from "jose";
 
+// Keep "sb_session" (from the old name, Stonkbag): renaming it would sign everyone out.
 const COOKIE = "sb_session";
 const MAX_AGE = 7 * 24 * 3600;
 

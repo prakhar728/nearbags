@@ -31,7 +31,7 @@ const acc = who.result!.account_id;
 const deadline = new Date(Date.now() + 30 * 60_000).toISOString();
 const post = (path: string, body: unknown) =>
   fetch(`https://1click.chaindefuser.com/v0/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
-const q = await post("quote", { dry: false, swapType: "EXACT_INPUT", slippageTolerance: 100, originAsset: USDC, depositType: "INTENTS", destinationAsset: WNEAR, amount: "2000000", recipient: acc, recipientType: "INTENTS", refundTo: acc, refundType: "INTENTS", deadline, referral: "stonkbag" });
+const q = await post("quote", { dry: false, swapType: "EXACT_INPUT", slippageTolerance: 100, originAsset: USDC, depositType: "INTENTS", destinationAsset: WNEAR, amount: "2000000", recipient: acc, recipientType: "INTENTS", refundTo: acc, refundType: "INTENTS", deadline, referral: "stonkbag" }); // Keep "stonkbag": 1Click referral id, see src/lib/oneclick.ts
 const da = q.quote.depositAddress as string;
 const gen = await post("generate-intent", { type: "swap_transfer", standard: "raw_ed25519", signerId: acc, depositAddress: da });
 const s = await runModule<{ signed: SignedRawEd25519; usd: number }>(signer, { op: "sign_leg", account_id: acc, deposit_address: da, payload: gen.intent.payload, assets: [USDC, WNEAR], max_usd: 20 }, { seconds: 30 });

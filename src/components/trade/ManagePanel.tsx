@@ -86,7 +86,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
       )}
       {chains && (
         <div className="well grid gap-3 p-4">
-          <p className="fine">Tokens leave Stonkbag tracking and land in your own wallets. Ondo stock tokens go to BNB Chain. Meme coins go to a NEAR account that has opened that token before.</p>
+          <p className="fine">Tokens leave nearbags tracking and land in your own wallets. Ondo stock tokens go to BNB Chain. Meme coins go to a NEAR account that has opened that token before.</p>
           {Object.entries(chains).map(([c, ids]) => (
             <label key={c} className="field">
               <span className="label">

@@ -58,7 +58,7 @@ export function ShareBasket({ slug, name, tagline, className = "" }: { slug: str
             {copied ? "Link copied" : "Copy link"}
           </button>
           {canNative && (
-            <button role="menuitem" type="button" onClick={() => navigator.share({ title: `${name} · Stonkbag`, text: tagline, url }).catch(() => {})} className="rounded-xl px-3 py-2.5 text-left text-sm hover:bg-[var(--layer-2)]">
+            <button role="menuitem" type="button" onClick={() => navigator.share({ title: `${name} · nearbags`, text: tagline, url }).catch(() => {})} className="rounded-xl px-3 py-2.5 text-left text-sm hover:bg-[var(--layer-2)]">
               More…
             </button>
           )}

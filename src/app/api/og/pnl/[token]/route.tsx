@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ toke
   const fonts = await shareFonts().catch(() => undefined);
   const res = new ImageResponse(<PnlCard s={s} />, { ...SIZE, fonts, headers: { "Cache-Control": "public, max-age=31536000, immutable" } });
   if (new URL(request.url).searchParams.has("download")) {
-    res.headers.set("Content-Disposition", `attachment; filename="stonkbag-${s.slug}-pnl.png"`);
+    res.headers.set("Content-Disposition", `attachment; filename="nearbags-${s.slug}-pnl.png"`);
   }
   return res;
 }

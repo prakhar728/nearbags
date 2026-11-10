@@ -75,7 +75,7 @@ export function ConnectButton({ variant = "landing" }: { variant?: "landing" | "
               <p className="mt-2 px-1 text-[13px] font-medium text-muted">EVM</p>
               {!evmConnectors.length && (
                 <p className="text-xs leading-relaxed text-muted">
-                  No EVM wallet in this browser. On a phone, open Stonkbag in your wallet app&apos;s browser (MetaMask, Coinbase Wallet, Rabby).
+                  No EVM wallet in this browser. On a phone, open nearbags in your wallet app&apos;s browser (MetaMask, Coinbase Wallet, Rabby).
                 </p>
               )}
               {evmConnectors.map((c) => (

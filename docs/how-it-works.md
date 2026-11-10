@@ -10,7 +10,7 @@ A **bag** is a list of assets with weights, made by a creator. Buying a bag buys
 | Creator | The person who made the bag. Earns their fee on every buy. |
 | Position | Your holding in one bag. It sits in its own NEAR Intents account, separate from every other bag you own. |
 | Leg | One swap inside an order, for example USDC → Tesla. A buy into a 4-asset bag has 4 legs. |
-| Basket key | A key kept in your browser that signs your position's swaps. Stonkbag's server never sees it. |
+| Basket key | A key kept in your browser that signs your position's swaps. nearbags' server never sees it. |
 
 ## Buying
 
@@ -35,7 +35,7 @@ A partial sell is greyed out when one of its legs would fall under that asset's 
 | Action | What it does |
 |---|---|
 | Reset | Sells what has grown above its target weight and buys what has fallen below it. |
-| Withdraw | Sends the actual tokens to your own addresses, for example Tesla tokens to BNB Chain. You then hold them outside Stonkbag. Meme coins go to a NEAR account that has held that token before. |
+| Withdraw | Sends the actual tokens to your own addresses, for example Tesla tokens to BNB Chain. You then hold them outside nearbags. Meme coins go to a NEAR account that has held that token before. |
 
 ## Meme coins
 

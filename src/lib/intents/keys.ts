@@ -15,6 +15,8 @@ export interface BasketKey {
 }
 
 /** The fixed message whose signature unlocks derived keys. Changing it changes every derived account. */
+// Keep "Stonkbag" (the app's old name): this exact text seeds every existing user's basket accounts. Renaming it to
+// nearbags would derive new, empty accounts and strand funds. Pinned by keys.test.ts.
 export const UNLOCK_MESSAGE_V1 = [
   "Stonkbag key unlock",
   "Only sign this on Stonkbag. This signature unlocks your basket keys.",
@@ -22,6 +24,7 @@ export const UNLOCK_MESSAGE_V1 = [
 ].join("\n");
 
 /** NEP-413 needs a 32-byte nonce; a fixed one keeps the unlock signature deterministic. */
+// Keep "stonkbag/unlock/v1": part of the signed payload, same reason as UNLOCK_MESSAGE_V1.
 export const UNLOCK_NONCE_V1 = sha256(new TextEncoder().encode("stonkbag/unlock/v1"));
 
 export function keyFromSecret(secretKey: Uint8Array): BasketKey {
@@ -47,6 +50,7 @@ export function seedFromSignature(signature: Uint8Array): Uint8Array {
 
 /** Deterministic basket key for (wallet seed, basket). Same inputs → same account, on any device. */
 export function deriveBasketKey(seed: Uint8Array, basketId: number | string): BasketKey {
+  // Keep the "stonkbag" salt and `basket:${id}` info: they define existing basket accounts (see keys.test.ts).
   const okm = hkdf(sha256, seed, new TextEncoder().encode("stonkbag"), new TextEncoder().encode(`basket:${basketId}`), 32);
   return keyFromSecret(okm);
 }

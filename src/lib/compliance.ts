@@ -31,7 +31,7 @@ export function eligibility(p: { country: string | null; region: string | null; 
   const c = p.country?.toUpperCase() ?? null;
   const stocks = hasStocks(p.assetIds);
   if (c && (SANCTIONED.has(c) || (c === "UA" && p.region && SANCTIONED_UA_REGIONS.has(p.region)))) {
-    return { status: "blocked", needs: [], reason: "Stonkbag isn't available in your region.", country: c };
+    return { status: "blocked", needs: [], reason: "nearbags isn't available in your region.", country: c };
   }
   if (stocks && c && STOCKS_PROHIBITED.has(c)) {
     return { status: "blocked", needs: [], reason: "Tokenized stocks aren't available in your country. Crypto-only baskets are.", country: c };
@@ -45,7 +45,7 @@ export function eligibility(p: { country: string | null; region: string | null; 
 
 export const ATTESTATION_TEXT: Record<Attestation, string> = {
   risk:
-    "I understand: tokenized stocks give price exposure only, with no shareholder rights; Ondo is the issuer and its risk is mine; prices can move off-hours and on weekends; backtests are history, not promises; I hold my own keys and Stonkbag can't recover lost funds.",
+    "I understand: tokenized stocks give price exposure only, with no shareholder rights; Ondo is the issuer and its risk is mine; prices can move off-hours and on weekends; backtests are history, not promises; I hold my own keys and nearbags can't recover lost funds.",
   not_us_person: "I am not a US person and I'm not buying for one.",
   professional: "I am a professional or qualified investor under the rules of the country I live in.",
 };

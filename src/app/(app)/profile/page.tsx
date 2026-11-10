@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/ui/Primitives";
 import type { Metadata } from "next";
 import { ProfileForm } from "./ProfileForm";
 
-export const metadata: Metadata = { title: "Your profile · Stonkbag" };
+export const metadata: Metadata = { title: "Your profile · nearbags" };
 
 export default function ProfileEditPage() {
   return (

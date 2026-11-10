@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/ui/Primitives";
 import { ATTESTATION_TEXT } from "@/lib/compliance";
 
-export const metadata = { title: "Risks · Stonkbag" };
+export const metadata = { title: "Risks · nearbags" };
 
 const RISKS: [string, string][] = [
   ["Price exposure only", "Ondo stock tokens track a share's price and reinvested dividends. You get no voting rights and no direct claim on the company."],

@@ -261,6 +261,7 @@ export function aggregate(input: AggregateInput): AggregateOutput {
     top_app_volume_share: topApp ? frac(topApp.volumeUsd, vol) : null,
     top_app_first_week: topApp?.firstWeek ?? null,
     top_app_last_week: topApp?.lastWeek ?? null,
+    // Keep "stonkbag": the app id the NEAR Intents Explorer reports for our swaps (our 1Click referral, see oneclick.ts).
     stonkbag_swaps: apps.get("stonkbag")?.swaps ?? 0,
     stonkbag_tvl: input.stonkbag ? r2(input.stonkbag.tvlUsd) : null,
     stonkbag_baskets: input.stonkbag?.baskets ?? null,

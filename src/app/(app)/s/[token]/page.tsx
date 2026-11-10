@@ -6,15 +6,15 @@ import { readSnapshot } from "@/lib/share/token";
 
 export const instant = false;
 
-const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
+const SITE = process.env.NEXT_PUBLIC_SITE_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000");
 const pctText = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(1)}%`;
 const usdText = (x: number) => `${x >= 0 ? "+" : "−"}$${Math.abs(x).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
   const { token } = await params;
   const s = await readSnapshot(token);
-  if (!s) return { title: "Not found · Stonkbag" };
-  const title = `${pctText(s.pct)} on ${s.name} · Stonkbag`;
+  if (!s) return { title: "Not found · nearbags" };
+  const title = `${pctText(s.pct)} on ${s.name} · nearbags`;
   const description = `${s.by ?? "Someone"} ${s.state === "open" ? "is holding" : "held"} the ${s.name} bag (${s.assets.join(", ")}). Buy the whole basket in one go, from any token on any chain.`;
   const image = { url: `${SITE}/api/og/pnl/${token}`, width: 1200, height: 630, alt: title };
   return { title, description, openGraph: { title, description, images: [image], type: "website" }, twitter: { card: "summary_large_image", title, description, images: [image.url] } };
@@ -33,7 +33,7 @@ export default async function SharedPnl({ params }: { params: Promise<{ token: s
         <div aria-hidden className="green-fade pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-60" />
         <div className="relative grid gap-3">
           <span className="label">
-            {s.by ?? "A Stonkbag holder"} · {s.state === "open" ? "holding" : "closed"}
+            {s.by ?? "A nearbags holder"} · {s.state === "open" ? "holding" : "closed"}
           </span>
           <h1 className="display text-[clamp(36px,6vw,64px)]">{s.name}</h1>
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
@@ -56,7 +56,7 @@ export default async function SharedPnl({ params }: { params: Promise<{ token: s
 
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-md text-sm leading-relaxed text-muted">
-          Stonkbag baskets mix tokenized US stocks and crypto. Pay with any token on any chain and get the whole bag in one buy, in an account only your keys control.
+          nearbags baskets mix tokenized US stocks and crypto. Pay with any token on any chain and get the whole bag in one buy, in an account only your keys control.
         </p>
         <Link href={`/b/${s.slug}`} className="btn btn-primary">
           See the {s.name} bag →

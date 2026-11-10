@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/ui/Primitives";
 import { PortfolioView } from "./PortfolioView";
 
-export const metadata = { title: "Portfolio · Stonkbag" };
+export const metadata = { title: "Portfolio · nearbags" };
 
 export default function PortfolioPage() {
   return (

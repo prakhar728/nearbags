@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync, unlinkSync } from "node:fs";
 const only = new Set(process.argv.slice(2));
 const wanted = (id) => !only.size || only.has(id);
 
-const UA = { "User-Agent": "stonkbag-logo-fetch/1.0", Accept: "application/json" };
+const UA = { "User-Agent": "nearbags-logo-fetch/1.0", Accept: "application/json" };
 const src = readFileSync("src/lib/assets.ts", "utf8");
 const ondo = [...src.matchAll(/ondo\("(\w+)", "[^"]*", "\w+", "(0x[0-9a-fA-F]+)"/g)].map((m) => ({ id: m[1], assetId: `nep141:bnb-${m[2].toLowerCase()}.omdep.near` }));
 const CRYPTO = { BTC: "bitcoin", ETH: "ethereum", SOL: "solana", NEAR: "near", ZEC: "zcash", XRP: "ripple", DOGE: "dogecoin", SUI: "sui", BNB: "binancecoin", USDC: "usd-coin" };

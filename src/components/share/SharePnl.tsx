@@ -87,7 +87,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
 
           <div className="grid gap-2 sm:grid-cols-3">
             <a
-              href={made ? xIntent(`My ${basketName} bag on Stonkbag`, url) : undefined}
+              href={made ? xIntent(`My ${basketName} bag on nearbags`, url) : undefined}
               target="_blank"
               rel="noopener noreferrer"
               aria-disabled={!made}
