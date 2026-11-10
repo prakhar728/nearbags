@@ -7,6 +7,7 @@ import "server-only";
 import { and, asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { ASSETS, getAsset, USDC, withdrawTarget } from "@/lib/assets";
+import { isNearAccountId, RheaNoLiquidity } from "@/lib/rhea";
 import { minBuyUsd, RULES } from "@/lib/basket-rules";
 import { creatorFeeAccount, getBasketById, PLATFORM_FEE_BPS, type BasketView } from "@/lib/baskets";
 import { revalidateBasket } from "@/lib/basket-pages";
@@ -25,6 +26,7 @@ import { fundedAmount } from "./funding";
 import { guard, usSession } from "./guard";
 import { planLegs, preflightBuy, SLIPPAGE_BPS, splitFees } from "./preflight";
 import { buyBlockReason, paused } from "./availability";
+import { isRheaLeg, prepareRheaLeg, quoteRheaSell, rheaQuoteOf, settleRheaLeg, submitRheaLeg } from "./rhea-legs";
 
 type Order = typeof schema.orders.$inferSelect;
 type Leg = typeof schema.orderLegs.$inferSelect;
@@ -234,6 +236,13 @@ export async function prepareLeg(s: Session, orderId: number, seq: number) {
   const amountIn = BigInt(bal) < BigInt(leg.amountIn) ? bal : leg.amountIn;
   if (BigInt(amountIn) === 0n) throw new HttpError(409, "Nothing left to swap for this leg.");
 
+  // Meme coins swap on Rhea (and leave Intents by a plain ft_withdraw): built here, signed in the browser, relayed by us.
+  if (isRheaLeg(leg)) {
+    const r = await prepareRheaLeg(leg, { accountId: position.accountId, amountIn, orderKind: order.kind });
+    if (order.status !== "legs_running") await setOrder(order.id, { status: "legs_running" });
+    return { seq, accountId: position.accountId, ...r };
+  }
+
   const isPayout = leg.seq === PAYOUT_SEQ;
   const recipient = leg.recipient ?? (isPayout ? order.payoutAddress : null);
   let q: QuoteResponse;
@@ -296,6 +305,7 @@ export async function submitLeg(s: Session, orderId: number, seq: number, signed
   if (leg.status !== "quoted" || !leg.payload) throw new HttpError(409, "Get a fresh quote for this swap first.");
   await assertSignedByAccount(signed, position.accountId);
   if (signed.payload !== leg.payload) throw new HttpError(403, "Signed payload doesn't match the quote.");
+  if (rheaQuoteOf(leg)) return submitRheaLeg(leg, signed, position.accountId);
   try {
     const r = await oneclick.submitIntent(signed);
     await setLeg(leg.id, { status: "submitted", intentHash: r.intentHash });
@@ -338,6 +348,15 @@ export async function createSellOrder(s: Session, p: { positionId: number; pct: 
   const session = usSession();
   const problems: string[] = [];
   for (const l of legs) {
+    if (l.asset.venue === "rhea") {
+      try {
+        const { guard: g } = await quoteRheaSell(l.asset.id, l.amountIn);
+        if (g.verdict === "block") problems.push(`${l.asset.id} would sell ${(g.deviation * 100).toFixed(1)}% below its pool price right now (thin liquidity). Try a smaller percentage.`);
+      } catch (e) {
+        problems.push(e instanceof RheaNoLiquidity ? e.message : `${l.asset.id}: ${(e as Error).message.slice(0, 120)}`);
+      }
+      continue;
+    }
     try {
       const [q, ref] = await Promise.all([
         oneclick.quote({ dry: true, slippageTolerance: SLIPPAGE_BPS, originAsset: l.assetFrom, depositType: "INTENTS", destinationAsset: USDC.intentsAssetId, amount: l.amountIn, recipient: position.accountId, recipientType: "INTENTS", refundTo: position.accountId, refundType: "INTENTS" }),
@@ -471,6 +490,7 @@ export async function createWithdrawOrder(s: Session, p: { positionId: number; a
     const t = withdrawTarget(a);
     const to = p.addresses[t.chain]?.trim();
     if (!to) throw new HttpError(400, `Add your ${t.chain.toUpperCase()} address to receive ${a.id}.`);
+    if (a.venue === "rhea" && !isNearAccountId(to)) throw new HttpError(400, `${a.id} goes to a NEAR account: ${to} isn't one.`);
     rows.push({ orderId: 0, seq: rows.length, assetFrom: a.intentsAssetId, assetTo: t.assetId, amountIn: bals[i], recipient: to });
   }
   if (!rows.length) throw new HttpError(409, "Nothing to withdraw.");
@@ -542,6 +562,10 @@ export async function refreshOrder(s: Session, orderId: number) {
   }
 
   for (const leg of await legsOf(order.id)) {
+    if (leg.status === "submitted" && rheaQuoteOf(leg)) {
+      await settleRheaLeg(leg, position.accountId).catch((e) => console.error("rhea leg settle", e));
+      continue;
+    }
     if (leg.status !== "submitted" || !leg.depositAddress) continue;
     try {
       const st = await oneclick.status(leg.depositAddress);
@@ -640,6 +664,8 @@ export async function orderView(orderId: number) {
       attempts: l.attempts,
       isPayout: l.seq === PAYOUT_SEQ,
       recipient: l.recipient,
+      venue: isRheaLeg(l) ? ("rhea" as const) : ("oneclick" as const),
+      txHash: rheaQuoteOf(l)?.txHash ?? null,
       ready: legReady(l),
     })),
     fees: fees.map((f) => ({ kind: f.recipientKind, account: f.recipientAccount, amount: f.amount, status: f.status, txHash: f.txHash })),

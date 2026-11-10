@@ -11,7 +11,8 @@ import { Label, Pairs } from "@/components/basket/Pairs";
 import { PageHeader } from "@/components/ui/Primitives";
 import type { AnalyticsView } from "@/lib/analytics/view";
 import { ASSETS, getAsset, type AssetKind } from "@/lib/assets";
-import { minBuyUsd, RULES, validateWeights } from "@/lib/basket-rules";
+import { agentAssetProblem, minBuyUsd, RULES, validateWeights } from "@/lib/basket-rules";
+import { MemeNotice } from "@/components/basket/MemeNotice";
 import { HORIZON_LABEL, HORIZONS, LIMITS, markdownProblems, type Horizon } from "@/lib/basket-text";
 import { useAuth } from "@/lib/client/auth";
 import { feePct } from "@/lib/format";
@@ -28,6 +29,7 @@ const GROUPS: { kind: AssetKind; label: string }[] = [
   { kind: "etf", label: "ETFs" },
   { kind: "crypto", label: "Crypto" },
   { kind: "stable", label: "Cash" },
+  { kind: "meme", label: "Meme coins · on Rhea" },
 ];
 
 function evenSplit(ids: string[]): Choice[] {
@@ -73,6 +75,10 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
   const minBuy = weightErrors.length ? null : minBuyUsd(weights, feeBps + platformFeeBps);
   const hint = useMemo(() => (weightErrors.length ? null : minBuyHint(weights, feeBps + platformFeeBps)), [weights, weightErrors, feeBps, platformFeeBps]);
   const preview = usePreview(weightErrors.length ? null : weights);
+  const hasMemes = picks.some((p) => getAsset(p.assetId).kind === "meme");
+  // Agent baskets can't hold meme coins yet (the agent's signer only checks NEAR Intents swaps).
+  const agentBlocked = agentAssetProblem(picks.map((p) => p.assetId));
+  const agentActive = agentOn && !agentBlocked;
 
   const toggle = (id: string) => {
     const has = picks.some((p) => p.assetId === id);
@@ -124,7 +130,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
           feeBps,
           assets: picks.map((p) => ({ assetId: p.assetId, weightBps: Math.round(p.pct * 100), why: why[p.assetId] ?? "" })),
           house: user?.isAdmin ? house : undefined,
-          agent: agentOn
+          agent: agentActive
             ? {
                 ...(agentMode === "ai" ? { strategy } : { template: agentMode }),
                 limits: { maxWeightBps: Math.max(maxWeight * 100, minMaxWeightBps(picks.length)) },
@@ -188,6 +194,9 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                 {GROUPS.map((g) => (
                   <div key={g.kind}>
                     <Label>{g.label}</Label>
+                    {g.kind === "meme" && (
+                      <p className="mt-1 text-xs text-muted">High risk. Mix with crypto or cash, not stocks: stocks pause outside US market hours while memes trade 24/7 on Rhea, so a mixed buy could stall half done.</p>
+                    )}
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {ASSETS.filter((a) => a.kind === g.kind).map((a) => {
                         const on = picks.some((p) => p.assetId === a.id);
@@ -274,6 +283,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                 </ul>
               )}
 
+              {hasMemes && <MemeNotice />}
               <MinBuy minBuy={minBuy} hint={hint} />
               <Nav next={canGo[0] ? () => setStep(1) : undefined} />
             </>
@@ -356,7 +366,8 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               </p>
               <MinBuy minBuy={minBuy} hint={hint} />
               <AgentOption
-                on={agentOn}
+                blocked={agentBlocked}
+                on={agentActive}
                 setOn={setAgentOn}
                 mode={agentMode}
                 setMode={(m) => {
@@ -377,7 +388,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               <Nav
                 back={() => setStep(1)}
                 next={
-                  !agentOn || (agentMode === "ai" ? strategy.trim().length >= 20 : !templateProblem(agentMode, picks.map((p) => p.assetId)))
+                  !agentActive || (agentMode === "ai" ? strategy.trim().length >= 20 : !templateProblem(agentMode, picks.map((p) => p.assetId)))
                     ? () => setStep(3)
                     : undefined
                 }
@@ -414,6 +425,8 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                   </div>
                 </div>
               </div>
+
+              {hasMemes && <MemeNotice compact />}
 
               {user?.isAdmin && (
                 <label className="flex cursor-pointer items-start gap-3 text-sm">
@@ -578,6 +591,7 @@ function usePreview(weights: { assetId: string; weightBps: number }[] | null) {
 
 /** Opt the basket into the agent: a template or a private strategy for the AI, and a cap on any one asset's weight. */
 function AgentOption(p: {
+  blocked?: string | null;
   on: boolean;
   setOn: (v: boolean) => void;
   mode: "ai" | TemplateId;
@@ -593,7 +607,7 @@ function AgentOption(p: {
   return (
     <div className="well space-y-4 p-5">
       <label className="flex cursor-pointer items-start gap-3">
-        <input type="checkbox" checked={p.on} onChange={(e) => p.setOn(e.target.checked)} className="mt-1 h-4 w-4 accent-accent" />
+        <input type="checkbox" checked={p.on} disabled={Boolean(p.blocked)} onChange={(e) => p.setOn(e.target.checked)} className="mt-1 h-4 w-4 accent-accent disabled:opacity-40" />
         <span>
           <span className="font-medium text-text">Let an agent manage the weights</span>
           <span className="mt-1 block text-sm text-muted">
@@ -601,6 +615,7 @@ function AgentOption(p: {
             opted in. It runs in sealed hardware on OutLayer, and it can only swap between this basket&rsquo;s assets inside each holder&rsquo;s
             own account. Holders see each decision and its proof.
           </span>
+          {p.blocked && <span className="mt-2 block text-sm text-loss">{p.blocked}</span>}
         </span>
       </label>
       {p.on && (

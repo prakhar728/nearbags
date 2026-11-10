@@ -7,7 +7,11 @@ export const VERIFYING_CONTRACT = "intents.near";
 export type Intent =
   | { intent: "add_public_key"; public_key: string }
   | { intent: "remove_public_key"; public_key: string }
-  | { intent: "transfer"; receiver_id: string; tokens: Record<string, string>; memo?: string };
+  | { intent: "transfer"; receiver_id: string; tokens: Record<string, string>; memo?: string }
+  // intents.near FtWithdraw (defuse core): burns `amount` of nep141:<token> from the signer and sends the NEP-141 token
+  // to receiver_id, with ft_transfer_call when `msg` is set (else ft_transfer). min_gas is a decimal string of gas units.
+  // storage_deposit (paid from the signer's wNEAR, not refunded on failure) is deliberately not part of our type.
+  | { intent: "ft_withdraw"; token: string; receiver_id: string; amount: string; memo?: string; msg?: string; min_gas?: string };
 
 export interface SignedRawEd25519 {
   standard: "raw_ed25519";

@@ -10,6 +10,7 @@ import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getAsset, USDC } from "@/lib/assets";
 import { getBasketById } from "@/lib/baskets";
+import { agentAssetProblem } from "@/lib/basket-rules";
 import { revalidateBasket } from "@/lib/basket-pages";
 import type { Session } from "@/lib/auth/session";
 import { HttpError } from "@/lib/auth/session";
@@ -88,6 +89,9 @@ export async function runAgent(basketId: number, trigger: Run["trigger"]): Promi
   const strategist = strategistModule();
   if (!strategist) throw new HttpError(503, "The strategist isn't configured yet.");
   const basket = (await getBasketById(basketId))!;
+  // Agent baskets can't hold meme coins (creation refuses them); never act on one that somehow does.
+  const memeProblem = agentAssetProblem(basket.assets.map((a) => a.assetId));
+  if (memeProblem) throw new HttpError(409, memeProblem);
   // Don't move targets the agent couldn't trade toward; try again on the next run.
   const paused = await untradeable(basket.assets.map((a) => a.assetId));
   if (paused.length) throw new HttpError(409, `Trading is paused for ${paused.join(", ")} on NEAR Intents, so the agent will skip this run.`);

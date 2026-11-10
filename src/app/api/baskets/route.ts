@@ -3,7 +3,7 @@
 import { like, or, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { handle, HttpError, requireSession } from "@/lib/auth/session";
-import { minBuyUsd } from "@/lib/basket-rules";
+import { agentAssetProblem, minBuyUsd } from "@/lib/basket-rules";
 import { createProblems, slugify } from "@/lib/basket-text";
 import { revalidateBasket, revalidateProfiles } from "@/lib/basket-pages";
 import { PLATFORM_FEE_BPS } from "@/lib/baskets";
@@ -32,6 +32,8 @@ export async function POST(request: Request) {
     if (!data) return Response.json({ errors }, { status: 400 });
     // Agent-managed: the creator's strategy and limits. The strategy stays private to the creator and the agent.
     let agent = null;
+    const agentProblem = body?.agent ? agentAssetProblem(data.assets.map((a) => a.assetId)) : null;
+    if (agentProblem) return Response.json({ errors: [agentProblem] }, { status: 400 });
     try {
       agent = body?.agent ? sanitizeAgentConfig(body.agent, data.assets) : null;
     } catch (e) {

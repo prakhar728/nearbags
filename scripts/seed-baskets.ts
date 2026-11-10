@@ -9,6 +9,15 @@ import { SEED_BASKETS } from "../src/lib/seeds";
 import { SEED_TEXT } from "../src/lib/seed-content";
 
 
+/** Demo seeds (localOnly) go only into a database on this machine. */
+function isLocalDb(): boolean {
+  try {
+    return ["localhost", "127.0.0.1", "::1"].includes(new URL(process.env.DATABASE_URL ?? "").hostname);
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
   const [house] = await db()
     .insert(schema.users)
@@ -17,6 +26,10 @@ async function main() {
     .returning();
 
   for (const s of SEED_BASKETS) {
+    if (s.localOnly && !isLocalDb()) {
+      console.log(`${s.slug}: demo basket, skipped (database isn't local)`);
+      continue;
+    }
     const d = SEED_TEXT[s.slug];
     const [existing] = await db().select().from(schema.baskets).where(eq(schema.baskets.slug, s.slug));
     const text = { name: s.name, tagline: d.tagline, thesis: d.thesis, risks: d.risks, horizon: d.horizon, exitSignal: d.exitSignal };

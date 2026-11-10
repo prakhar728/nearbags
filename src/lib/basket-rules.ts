@@ -50,5 +50,26 @@ export function validateWeights(weights: WeightInput[], opts: { maxWeightBps?: n
   }
   const sum = weights.reduce((s, w) => s + w.weightBps, 0);
   if (sum !== 10_000) errs.push(`Weights add up to ${sum / 100}%, not 100%.`);
+  const mix = memeMixProblem(weights.map((w) => w.assetId));
+  if (mix) errs.push(mix);
   return errs;
+}
+
+/**
+ * Meme coins mix with crypto and cash, not with stocks or ETFs. They trade on Rhea around the clock, while tokenized
+ * stocks pause outside US market hours: a basket holding both could be half-bought (or half-sold) for a weekend.
+ * And a "safe" stock basket shouldn't quietly carry meme-coin risk.
+ */
+export function memeMixProblem(assetIds: string[]): string | null {
+  const known = assetIds.filter((id) => ASSETS.some((a) => a.id === id)).map(getAsset);
+  const memes = known.filter((a) => a.kind === "meme");
+  const stocks = known.filter((a) => a.kind === "stock" || a.kind === "etf");
+  if (!memes.length || !stocks.length) return null;
+  return "Meme coins can't share a basket with stocks or ETFs: they trade on a different venue and schedule, so a buy could stall half done. Pair them with crypto or USDC.";
+}
+
+/** Agent-managed baskets can't hold meme coins yet: the agent's signer only signs 1Click swaps. */
+export function agentAssetProblem(assetIds: string[]): string | null {
+  const memes = assetIds.filter((id) => ASSETS.some((a) => a.id === id && a.kind === "meme"));
+  return memes.length ? `The agent can't manage meme coins yet (${memes.join(", ")}): its signer only checks NEAR Intents swaps. Remove them or turn the agent off.` : null;
 }

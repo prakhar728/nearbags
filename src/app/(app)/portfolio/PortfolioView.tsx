@@ -12,6 +12,7 @@ import type { History } from "@/lib/trade/history";
 import type { PortfolioPosition } from "@/lib/trade/portfolio";
 import { ClosedBags, PnlChart, TradeHistory } from "./History";
 import { AssetTag } from "@/components/AssetLogo";
+import { venueOf } from "@/lib/trade/paused";
 
 const usd = (x: number) => `$${x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = (x: number) => `${x >= 0 ? "+" : "−"}${usd(Math.abs(x))}`;
@@ -198,7 +199,7 @@ export function PortfolioView() {
                         </div>
                         {r.paused.cantSell.length > 0 && (
                           <p className="callout callout-warn text-sm" role="status">
-                            <span className="font-medium text-text">Selling {r.paused.cantSell.join(", ")} is paused on NEAR Intents right now.</span> Nothing is
+                            <span className="font-medium text-text">Selling {r.paused.cantSell.join(", ")} is paused on {venueOf(r.paused.cantSell)} right now.</span> Nothing is
                             wrong with your bag: it stays in your own account, and you can sell once it returns. This clears by itself.
                           </p>
                         )}

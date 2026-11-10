@@ -97,4 +97,19 @@ export const SEED_TEXT: Record<string, SeedText> = {
       USDC: "Dry powder. Stays as cash in the basket account.",
     },
   },
+  "near-memes": {
+    tagline: "The two NEAR meme coins with real pools, half each. A small, loud bet.",
+    thesis: [
+      "HOOT and NEARLY are the two NEAR launchpad coins with deep, locked Rhea pools (about $100k each). Both launched in September 2026 and trade on Rhea around the clock.",
+      "Holding both spreads the bet across two launchpads: justhoot.fun (Meteor Wallet's) and nearly.trade. If NEAR's meme scene grows, both should feel it.",
+      "Size it like a lottery ticket. Each swap costs about 1–1.5%, so this is not something to trade in and out of.",
+    ].join("\n\n"),
+    risks: "Meme coins can go to zero. NEARLY is down about 80% from its September peak; HOOT about 40% from October. Pools are thin, so a big seller moves the price 5–10% in minutes. HOOT's contract can be upgraded and could add a transfer fee (buys pause here if it does). Only weeks of price history.",
+    horizon: "3m",
+    exitSignal: "I'd close it if daily volume on both pools falls under $5k for two weeks, or if HOOT's team turns on a transfer fee.",
+    why: {
+      HOOT: "justhoot.fun's own token. Upgradable contract, team holds about 35%. Pays some wNEAR to holders in Intents.",
+      NEARLY: "nearly.trade's platform token. Immutable contract, liquidity locked forever, team holds almost none.",
+    },
+  },
 };

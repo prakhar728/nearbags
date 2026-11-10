@@ -49,3 +49,5 @@ next-env.d.ts
 
 # research notes (local only)
 /research/
+# rhea live test key (scripts/probes/rhea-live-test.ts)
+.rhea-test-key.json

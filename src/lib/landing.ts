@@ -43,7 +43,8 @@ export async function getLandingData(): Promise<LandingData> {
   }
 
   // Tape: each asset's total return over 5 years (or since it listed).
-  const assets = ASSETS.filter((a) => a.kind !== "stable");
+  // Meme coins have weeks of history and their own risk notice: they stay off the landing tape.
+  const assets = ASSETS.filter((a) => a.kind !== "stable" && a.kind !== "meme");
   const series = await loadSeries(assets.map((a) => a.refTicker));
   const fiveYearsAgo = new Date(Date.now() - 5 * 365.25 * 86_400_000).toISOString().slice(0, 10);
   const tape = assets

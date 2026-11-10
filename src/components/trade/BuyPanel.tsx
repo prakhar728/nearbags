@@ -17,6 +17,7 @@ import type { BuyPreflight } from "@/lib/trade/preflight";
 import type { OrderView } from "@/lib/trade/orders";
 import type { WeightInput } from "@/lib/trade/types";
 import { AssetTag } from "@/components/AssetLogo";
+import { MemeNotice } from "@/components/basket/MemeNotice";
 
 export interface BuyPanelBasket {
   id: number;
@@ -451,15 +452,19 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
       {!pre.ok && <p className="text-xs text-muted">This basket can&rsquo;t be bought until every asset can be quoted. Nothing has been charged.</p>}
       <div className="mt-1 grid gap-1.5 border-t border-[var(--line)] pt-3">
         {pre.legs.map((l) => (
-          <div key={l.assetId} className="num flex justify-between text-[11px] text-muted">
-            <AssetTag id={l.assetId} size={14} />
+          <div key={l.assetId} className="num flex justify-between gap-2 text-[11px] text-muted">
+            <span className="flex items-center gap-1.5">
+              <AssetTag id={l.assetId} size={14} />
+              {l.venue === "rhea" && <span className="text-faint">via Rhea</span>}
+            </span>
             <span className={l.ok ? (l.guard?.verdict === "warn" ? "text-accent-fg" : "") : "text-loss"}>
               {l.ok ? (l.amountOutUsd != null ? usd(l.amountOutUsd) : "—") : "blocked"}
-              {l.guard && l.ok ? ` · ${(l.guard.deviation * 100).toFixed(1)}% vs market` : ""}
+              {l.guard && l.ok ? ` · ${(l.guard.deviation * 100).toFixed(1)}% vs ${l.venue === "rhea" ? "pool" : "market"}` : ""}
             </span>
           </div>
         ))}
       </div>
+      {pre.legs.some((l) => l.venue === "rhea") && <MemeNotice compact />}
       {pre.blockedBy.map((b) => (
         <p key={b} className="callout callout-warn text-xs text-loss">{b}</p>
       ))}
@@ -544,6 +549,12 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err, legErrs }: {
                   </span>
                 </div>
                 {stuck && <p className="text-[11px] leading-snug text-loss">{legErrs[l.seq]}</p>}
+                {!stuck && l.venue === "rhea" && (l.status === "refunded" || l.status === "failed") && l.error && <p className="text-[11px] leading-snug text-loss">{l.error}</p>}
+                {l.venue === "rhea" && l.txHash && (
+                  <a href={`https://nearblocks.io/txns/${l.txHash}`} target="_blank" rel="noreferrer" className="text-[11px] text-faint underline">
+                    Rhea swap tx
+                  </a>
+                )}
               </div>
             );
           })}

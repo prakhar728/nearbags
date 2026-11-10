@@ -3,7 +3,19 @@
 // Excluded on purpose: AGGon (5.6% cost), Ondo portfolio tokens (MAG7X, BRAIN, YLD*, BLK*: no reference history),
 // USDon (no liquidity), native BTC (nep141:btc.omft.near had no liquidity; nBTC is used instead).
 
-export type AssetKind = "stock" | "etf" | "crypto" | "stable";
+export type AssetKind = "stock" | "etf" | "crypto" | "stable" | "meme";
+
+/** Where an asset's swaps run. Everything trades through 1Click except meme coins, which swap on Rhea's DCL pools. */
+export type Venue = "oneclick" | "rhea";
+
+/** Rhea DCL route for a meme coin: the token contract, its main DCL pool against wNEAR, and where its price history lives. */
+export interface RheaRoute {
+  token: string; // NEP-141 contract id (no "nep141:" prefix)
+  pool: string; // DCL pool id "<token>|wrap.near|<fee>"
+  geckoPool: string; // GeckoTerminal pool address, for daily candles
+  pinnedCodeHash?: string; // upgradable contracts: the code we checked. A change pauses buys.
+  transferFeeView?: boolean; // the contract has get_config().transfer_fee_pips (justhoot launchpad tokens)
+}
 
 export interface Asset {
   id: string; // our stable id, e.g. "TSLA"
@@ -14,6 +26,8 @@ export interface Asset {
   refTicker: string; // reference price ticker (stocks: exchange ticker; crypto: base symbol)
   chainNote?: string; // where "withdraw as tokens" delivers
   minLegUsd: number; // smallest single swap solvers quoted (measured 2026-11-09 pre-market) + ~20% margin. Preflight is still the final check.
+  venue?: Venue; // default "oneclick"
+  rhea?: RheaRoute; // set for venue "rhea"
 }
 
 // "Withdraw as tokens" (spec §5.6): which 1Click asset and chain each holding leaves Intents as. Verified 2026-11-09
@@ -31,6 +45,8 @@ export const WITHDRAW: Record<string, { assetId: string; chain: string }> = {
   USDC: { assetId: "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1", chain: "near" },
 };
 export function withdrawTarget(a: Asset): { assetId: string; chain: string } {
+  // Meme coins aren't on 1Click: they leave Intents unchanged, straight to a NEAR account (an ft_withdraw intent).
+  if (a.venue === "rhea") return { assetId: a.intentsAssetId, chain: "near" };
   return WITHDRAW[a.id] ?? { assetId: a.intentsAssetId, chain: "bsc" };
 }
 
@@ -75,6 +91,47 @@ export const ASSETS: Asset[] = [
   { id: "DOGE", name: "Dogecoin", kind: "crypto", intentsAssetId: "nep141:doge.omft.near", decimals: 8, refTicker: "DOGE", chainNote: "Dogecoin", minLegUsd: 3 },
   { id: "SUI", name: "Sui", kind: "crypto", intentsAssetId: "nep141:sui.omft.near", decimals: 9, refTicker: "SUI", chainNote: "Sui", minLegUsd: 3 },
   { id: "BNB", name: "BNB", kind: "crypto", intentsAssetId: "nep245:v2_1.omni.hot.tg:56_11111111111111111111", decimals: 18, refTicker: "BNB", chainNote: "BNB Chain", minLegUsd: 3 },
+
+  // Meme coins on Rhea (research 2026-11-10/11). Neither is on 1Click; both have locked Rhea DCL pools against wNEAR
+  // with ~$100k+ liquidity. Swaps cost ~1–1.5% each way at $10–$250 (the pool fee is 1%). minLegUsd is our own floor:
+  // DCL quotes any size, but below ~$5 the gas and rounding aren't worth it.
+  {
+    id: "HOOT",
+    name: "Hoot",
+    kind: "meme",
+    venue: "rhea",
+    intentsAssetId: "nep141:hoot-8ecf65.launchpad.justhoot.near",
+    decimals: 18,
+    refTicker: "HOOT",
+    chainNote: "NEAR (Rhea)",
+    minLegUsd: 5,
+    rhea: {
+      token: "hoot-8ecf65.launchpad.justhoot.near",
+      pool: "hoot-8ecf65.launchpad.justhoot.near|wrap.near|10000",
+      geckoPool: "refv2-hoot-8ecf65.launchpad.justhoot.near:wrap.near:10000",
+      // Upgradable launchpad token with set_transfer_fee (0 today). Checked 2026-11-11 via view_account.
+      pinnedCodeHash: "2uPhSwUzMbV9MHHitiWUKTdPeRGYXHJungpoH5kDbL2d",
+      transferFeeView: true,
+    },
+  },
+  {
+    id: "NEARLY",
+    name: "NEARLY",
+    kind: "meme",
+    venue: "rhea",
+    intentsAssetId: "nep141:nearly-993927.nearlytrade.near",
+    decimals: 18,
+    refTicker: "NEARLY",
+    chainNote: "NEAR (Rhea)",
+    minLegUsd: 5,
+    rhea: {
+      token: "nearly-993927.nearlytrade.near",
+      pool: "nearly-993927.nearlytrade.near|wrap.near|10000",
+      geckoPool: "refv2-nearly-993927.nearlytrade.near:wrap.near:10000",
+      // Immutable global contract: no upgrade, owner or fee methods.
+    },
+  },
+
   { id: "USDC", name: "USD Coin", kind: "stable", intentsAssetId: "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1", decimals: 6, refTicker: "USDC", chainNote: "NEAR", minLegUsd: 0 },
 ];
 
@@ -88,3 +145,8 @@ export function getAsset(id: string): Asset {
   return a;
 }
 export const isMarketAsset = (a: Asset) => a.kind === "stock" || a.kind === "etf";
+export const isRhea = (a: Asset) => a.venue === "rhea";
+export const isMeme = (id: string) => byId.get(id)?.kind === "meme";
+
+const byIntents = new Map(ASSETS.map((a) => [a.intentsAssetId, a]));
+export const assetByIntentsId = (intentsAssetId: string): Asset | undefined => byIntents.get(intentsAssetId);

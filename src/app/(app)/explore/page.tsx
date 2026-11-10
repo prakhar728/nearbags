@@ -9,6 +9,7 @@ import { Empty as EmptyState, PageHeader } from "@/components/ui/Primitives";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { listExploreBaskets } from "@/lib/basket-pages";
 import { basketKind, type BasketKind } from "@/lib/basket-kind";
+import { venueOf } from "@/lib/trade/paused";
 import { ageDays, cardData } from "@/lib/cards";
 import { feePct } from "@/lib/format";
 import { listOf, paused } from "@/lib/trade/availability";
@@ -25,6 +26,7 @@ const KINDS: { id: BasketKind | "all"; label: string }[] = [
   { id: "stocks", label: "Stocks" },
   { id: "crypto", label: "Crypto" },
   { id: "mixed", label: "Mixed" },
+  { id: "meme", label: "Meme" },
 ];
 const FEES = [null, 0, 25, 50] as const;
 const MIN_AGE_DAYS = 7;
@@ -86,7 +88,7 @@ async function MarketNotice() {
   const parts = [p.cantBuy.length ? `buying ${listOf(p.cantBuy)}` : "", p.cantSell.length ? `selling ${listOf(p.cantSell)}` : ""].filter(Boolean);
   return (
     <p className="callout callout-warn" role="status">
-      <span className="font-medium text-text">NEAR Intents has paused {parts.join(" and ")} for now.</span> Baskets holding them can&rsquo;t be bought
+      <span className="font-medium text-text">{venueOf([...p.cantBuy, ...p.cantSell])} has paused {parts.join(" and ")} for now.</span> Baskets holding them can&rsquo;t be bought
       until it returns; everything else trades as usual, and holdings stay safe in their owners&rsquo; accounts.
     </p>
   );
