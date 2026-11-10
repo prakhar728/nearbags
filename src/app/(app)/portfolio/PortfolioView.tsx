@@ -21,6 +21,7 @@ export function PortfolioView() {
   const q = useQuery({
     queryKey: ["portfolio", user?.id],
     enabled: Boolean(user),
+    refetchInterval: 60_000, // live values tick while the page is open (paused in background tabs)
     queryFn: async (): Promise<PortfolioPosition[]> => {
       const r = await fetch("/api/portfolio", { cache: "no-store" });
       const j = await r.json();
@@ -31,6 +32,7 @@ export function PortfolioView() {
   const h = useQuery({
     queryKey: ["portfolio-history", user?.id],
     enabled: Boolean(user),
+    refetchInterval: 60_000, // live values tick while the page is open (paused in background tabs)
     queryFn: async (): Promise<History> => {
       const r = await fetch("/api/portfolio/history", { cache: "no-store" });
       const j = await r.json();
