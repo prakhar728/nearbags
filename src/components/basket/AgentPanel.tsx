@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/client/auth";
+import { AssetTag } from "@/components/AssetLogo";
 
 interface Run {
   id: number;
@@ -156,7 +157,7 @@ function WeightChanges({ before, after }: { before: Record<string, number>; afte
         const d = after[id] - (before[id] ?? 0);
         return (
           <span key={id} className="chip num">
-            <span className="text-text">{id}</span> {pct(before[id] ?? 0)} → {pct(after[id])}{" "}
+            <AssetTag id={id} className="text-text" /> {pct(before[id] ?? 0)} → {pct(after[id])}{" "}
             <span className={d > 0 ? "text-gain" : "text-loss"}>
               {d > 0 ? "+" : ""}
               {(d / 100).toFixed(1)}

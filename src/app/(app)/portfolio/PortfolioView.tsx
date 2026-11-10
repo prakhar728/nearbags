@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/client/auth";
 import type { History } from "@/lib/trade/history";
 import type { PortfolioPosition } from "@/lib/trade/portfolio";
 import { ClosedBags, PnlChart, TradeHistory } from "./History";
+import { AssetTag } from "@/components/AssetLogo";
 
 const usd = (x: number) => `$${x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = (x: number) => `${x >= 0 ? "+" : "−"}${usd(Math.abs(x))}`;
@@ -182,7 +183,9 @@ export function PortfolioView() {
                             <tbody>
                               {r.holdings.map((h) => (
                                 <tr key={h.assetId}>
-                                  <td className="text-text">{h.assetId}</td>
+                                  <td className="text-text">
+                                    <AssetTag id={h.assetId} />
+                                  </td>
                                   <td className="r">{h.units.toPrecision(5)}</td>
                                   <td className="r">{usd(h.valueUsd)}</td>
                                   <td className="r">

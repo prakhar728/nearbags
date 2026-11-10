@@ -14,6 +14,7 @@ import { minBuyUsd, RULES, validateWeights } from "@/lib/basket-rules";
 import { HORIZON_LABEL, HORIZONS, LIMITS, markdownProblems, type Horizon } from "@/lib/basket-text";
 import { useAuth } from "@/lib/client/auth";
 import { feePct } from "@/lib/format";
+import { AssetLogo, AssetTag } from "@/components/AssetLogo";
 
 interface Choice {
   assetId: string;
@@ -190,8 +191,9 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                             aria-pressed={on}
                             disabled={!on && picks.length >= RULES.maxAssets}
                             onClick={() => toggle(a.id)}
-                            className={`chip disabled:cursor-not-allowed disabled:opacity-30 ${on ? "!border-accent !bg-accent !text-accent-ink" : ""}`}
+                            className={`chip gap-1.5 pl-1.5 disabled:cursor-not-allowed disabled:opacity-30 ${on ? "!border-accent !bg-accent !text-accent-ink" : ""}`}
                           >
+                            <AssetLogo id={a.id} size={18} />
                             {a.id}
                           </button>
                         );
@@ -221,7 +223,10 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                       const bad = !Number.isInteger(p.pct) || p.pct < 5 || p.pct > 50;
                       return (
                         <div key={p.assetId} className="flex items-center gap-2 py-2.5">
-                          <span className="num w-14 text-sm">{p.assetId}</span>
+                          <span className="num flex w-20 items-center gap-2 text-sm">
+                            <AssetLogo id={p.assetId} size={20} />
+                            {p.assetId}
+                          </span>
                           <span className="hidden flex-1 truncate text-xs text-muted sm:block">{getAsset(p.assetId).name}</span>
                           <span className="flex-1 sm:hidden" />
                           <button type="button" aria-label={`Less ${p.assetId}`} onClick={() => setPct(p.assetId, Math.max(5, Math.round(p.pct) - 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-accent hover:text-accent active:scale-95">
@@ -357,7 +362,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                 <div className="flex flex-wrap gap-1.5">
                   {picks.map((p) => (
                     <span key={p.assetId} className="chip">
-                      <span className="text-text">{p.assetId}</span> {p.pct}%
+                      <AssetTag id={p.assetId} className="text-text" /> {p.pct}%
                     </span>
                   ))}
                 </div>

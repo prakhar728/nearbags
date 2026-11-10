@@ -25,6 +25,7 @@ import { daysSince } from "@/lib/cards";
 import { FIELD_LABEL, HORIZON_LABEL } from "@/lib/basket-text";
 import type { BasketView } from "@/lib/baskets";
 import { ago, creatorHref, creatorName, feePct, pct, tone, usd } from "@/lib/format";
+import { AssetLogo } from "@/components/AssetLogo";
 
 export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Promise<Metadata> {
   const { slug } = await params;
@@ -160,7 +161,8 @@ function Header({ b }: { b: BasketView }) {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {b.assets.map((a) => (
-            <span key={a.assetId} className="chip">
+            <span key={a.assetId} className="chip gap-1.5 pl-1.5">
+              <AssetLogo id={a.assetId} size={20} />
               <span className="text-text">{a.assetId}</span> {a.weightBps / 100}%
             </span>
           ))}
@@ -226,9 +228,7 @@ function Holdings({ b }: { b: BasketView }) {
         const asset = getAsset(a.assetId);
         return (
           <div key={a.assetId} className="card card-hover flex gap-4 p-4 sm:p-5">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[var(--r-md)] border border-[var(--line-strong)] bg-[var(--layer-2)] font-mono text-[11px] font-semibold">
-              {a.assetId.slice(0, 4)}
-            </div>
+            <AssetLogo id={a.assetId} size={48} className="ring-1 ring-[var(--line-strong)]" />
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex items-baseline justify-between gap-3">
                 <div className="truncate text-sm font-medium">
