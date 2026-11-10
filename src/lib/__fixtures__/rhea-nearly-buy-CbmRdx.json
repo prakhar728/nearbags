@@ -1,0 +1,34 @@
+[
+ {
+  "executor_id": "intents.near",
+  "logs": [
+   "EVENT_JSON:{\"standard\":\"dip4\",\"version\":\"0.4.3\",\"event\":\"ft_withdraw\",\"data\":[{\"intent_hash\":\"BoyXuPTS8WhJk2mQzVH8S5BmtFyw9CtndDyTkMX9s5E8\",\"account_id\":\"df613234bb2870caf74d456553d2b6c3fa67b9a0b9b9d2e630e94f47bc2b1b77\",\"token\":\"wrap.near\",\"receiver_id\":\"dclv2.ref-labs.near\",\"amount\":\"2346758146854037694518684\",\"msg\":\"{\\\"Swap\\\":{\\\"pool_ids\\\":[\\\"nearly-993927.nearlytrade.near|wrap.near|10000\\\"],\\\"output_token\\\":\\\"nearly-993927.nearlytrade.near\\\",\\\"min_output_amount\\\":\\\"12754884773775282302467\\\",\\\"skip_unwrap_near\\\":true,\\\"client_echo\\\":\\\"df613234bb2870caf74d456553d2b6c3fa67b9a0b9b9d2e630e94f47bc2b1b77\\\"}}\",\"min_gas\":\"150000000000000\"}]}",
+   "EVENT_JSON:{\"standard\":\"dip4\",\"version\":\"0.4.3\",\"event\":\"intents_executed\",\"data\":[{\"intent_hash\":\"BoyXuPTS8WhJk2mQzVH8S5BmtFyw9CtndDyTkMX9s5E8\",\"account_id\":\"df613234bb2870caf74d456553d2b6c3fa67b9a0b9b9d2e630e94f47bc2b1b77\",\"nonce\":\"Vij2xgAlKBKzgMZnGimC5hhzECivYXYtdiWdlyxDrRA=\"}]}",
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_burn\",\"data\":[{\"owner_id\":\"df613234bb2870caf74d456553d2b6c3fa67b9a0b9b9d2e630e94f47bc2b1b77\",\"token_ids\":[\"nep141:wrap.near\"],\"amounts\":[\"2346758146854037694518684\"],\"memo\":\"withdraw\"}]}"
+  ]
+ },
+ {
+  "executor_id": "wrap.near",
+  "logs": [
+   "Transfer 2346758146854037694518684 from intents.near to dclv2.ref-labs.near"
+  ]
+ },
+ {
+  "executor_id": "dclv2.ref-labs.near",
+  "logs": [
+   "EVENT_JSON:{\"data\":[{\"amount_in\":\"2346758146854037694518673\",\"amount_out\":\"13149365746160084847905\",\"pool_id\":\"nearly-993927.nearlytrade.near|wrap.near|10000\",\"protocol_fee\":\"4693516293708075389037\",\"referral_fee\":\"0\",\"referral_id\":null,\"swapper\":\"intents.near\",\"token_in\":\"wrap.near\",\"token_out\":\"nearly-993927.nearlytrade.near\",\"total_fee\":\"23467581468540376945187\"}],\"event\":\"swap\",\"standard\":\"dcl.ref\",\"version\":\"1.0.0\"}"
+  ]
+ },
+ {
+  "executor_id": "nearly-993927.nearlytrade.near",
+  "logs": [
+   "EVENT_JSON:{\"standard\":\"nep141\",\"version\":\"1.0.0\",\"event\":\"ft_transfer\",\"data\":[{\"old_owner_id\":\"dclv2.ref-labs.near\",\"new_owner_id\":\"intents.near\",\"amount\":\"13149365746160084847905\"}]}"
+  ]
+ },
+ {
+  "executor_id": "intents.near",
+  "logs": [
+   "EVENT_JSON:{\"standard\":\"nep245\",\"version\":\"1.0.0\",\"event\":\"mt_mint\",\"data\":[{\"owner_id\":\"df613234bb2870caf74d456553d2b6c3fa67b9a0b9b9d2e630e94f47bc2b1b77\",\"token_ids\":[\"nep141:nearly-993927.nearlytrade.near\"],\"amounts\":[\"13149365746160084847905\"],\"memo\":\"deposit\"}]}"
+  ]
+ }
+]

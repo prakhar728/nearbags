@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { guard, usSession } from "./guard";
+import { guard, thresholdsFor, usSession } from "./guard";
 
 // 2026-11-09 is a Monday. EST (UTC-5) since Nov 1.
 const et = (iso: string) => new Date(iso);
@@ -40,5 +40,15 @@ describe("guard", () => {
     expect(crypto.verdict).toBe("warn");
     const stockBig = guard({ side: "buy", usd: 100, units: 1 / 1.07, referencePrice: 100, kind: "stock", session: "overnight" });
     expect(stockBig.verdict).toBe("warn"); // 7% is block in-session, warn overnight
+  });
+});
+
+describe("meme coin guard", () => {
+  it("warns at 2% and blocks at 5% from the pool mid, any session", () => {
+    expect(thresholdsFor("meme", "weekend")).toEqual({ warn: 0.02, block: 0.05 });
+    // 1.8% over the mid (the 1% pool fee plus impact and drift) passes.
+    expect(guard({ side: "buy", usd: 10, units: 7805.12, referencePrice: 1.258967e-3, kind: "meme", session: "regular" }).verdict).toBe("ok");
+    expect(guard({ side: "buy", usd: 10, units: 9.7, referencePrice: 1, kind: "meme", session: "regular" }).verdict).toBe("warn");
+    expect(guard({ side: "sell", usd: 94, units: 100, referencePrice: 1, kind: "meme", session: "regular" }).verdict).toBe("block");
   });
 });

@@ -9,6 +9,7 @@ import { balancesOf } from "@/lib/intents/rpc";
 import { paused, type Paused } from "./availability";
 import { oneclick } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
+import { quoteLeg } from "@/lib/rhea";
 
 const EXIT_TTL = 120_000;
 const exitCache = new Map<string, { at: number; usd: number | null }>();
@@ -21,6 +22,12 @@ async function exitUsd(assetId: string, account: string, amount: string): Promis
   if (hit && Date.now() - hit.at < EXIT_TTL) return hit.usd;
   let v: number | null = null;
   try {
+    if (a.venue === "rhea") {
+      // Meme coins: Rhea's DCL quote for selling all of it to USDC (exact, on-chain).
+      v = Number((await quoteLeg(a.id, "USDC", amount)).amountOut) / 1e6;
+      exitCache.set(key, { at: Date.now(), usd: v });
+      return v;
+    }
     const q = await oneclick.quote({ dry: true, slippageTolerance: 100, originAsset: a.intentsAssetId, depositType: "INTENTS", destinationAsset: USDC.intentsAssetId, amount, recipient: account, recipientType: "INTENTS", refundTo: account, refundType: "INTENTS" });
     v = Number(q.quote.amountOut) / 1e6;
   } catch {

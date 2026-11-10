@@ -26,6 +26,8 @@ export class RelayerNotConfigured extends Error {
 export interface RelayResult {
   txHash: string;
   simulation: SimulationOutput;
+  /** Logs of every receipt (waited until FINAL, so the whole chain has run): how Rhea legs read their settlement. */
+  receipts: { executor_id: string; logs: string[] }[];
 }
 
 export async function relay(signed: SignedIntent[]): Promise<RelayResult> {
@@ -42,7 +44,13 @@ export async function relay(signed: SignedIntent[]): Promise<RelayResult> {
   if (status && typeof status === "object" && "Failure" in status) {
     throw new Error(`execute_intents failed: ${JSON.stringify(status.Failure).slice(0, 400)}`);
   }
-  return { txHash: res.transaction.hash, simulation };
+  const receipts = ((res as unknown as { receipts_outcome?: { outcome: { executor_id: string; logs: string[] } }[] }).receipts_outcome ?? []).map((r) => ({
+    executor_id: r.outcome.executor_id,
+    logs: r.outcome.logs ?? [],
+  }));
+  return { txHash: res.transaction.hash, simulation, receipts };
 }
+
+export const relayerAccountId = () => process.env.RELAYER_ACCOUNT_ID ?? null;
 
 export const relayerConfigured = () => Boolean(process.env.RELAYER_ACCOUNT_ID && process.env.RELAYER_PRIVATE_KEY);

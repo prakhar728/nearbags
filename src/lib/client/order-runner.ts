@@ -52,16 +52,22 @@ export async function driveOrder(orderId: number, key: BasketKey, { onUpdate, si
     }
     if (v.next === "run_legs") {
       const pending = v.legs.filter((l) => l.ready && (legErrors.get(l.seq) ?? 0) < 2);
-      await Promise.all(
-        pending.map((l) =>
-          runLeg(orderId, l.seq, key)
-            .then(() => onLegError?.(l.seq, null))
-            .catch((e) => {
-              legErrors.set(l.seq, (legErrors.get(l.seq) ?? 0) + 1);
-              onLegError?.(l.seq, (e as Error).message);
-            }),
-        ),
-      );
+      const one = (seq: number) =>
+        runLeg(orderId, seq, key)
+          .then(() => onLegError?.(seq, null))
+          .catch((e) => {
+            legErrors.set(seq, (legErrors.get(seq) ?? 0) + 1);
+            onLegError?.(seq, (e as Error).message);
+          });
+      // 1Click legs run side by side. Rhea legs are relayed by our own account and wait for the swap to finish, so
+      // they go one after another (no relayer nonce races, and each reads the balance the last one left).
+      const rhea = pending.filter((l) => l.venue === "rhea");
+      await Promise.all([
+        ...pending.filter((l) => l.venue !== "rhea").map((l) => one(l.seq)),
+        (async () => {
+          for (const l of rhea) await one(l.seq);
+        })(),
+      ]);
       if (pending.length) continue;
     }
     await sleep(pollMs);

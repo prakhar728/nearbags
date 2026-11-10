@@ -6,7 +6,7 @@ export interface Bar {
   date: string; // YYYY-MM-DD
   close: number;
 }
-export type SourceName = "yahoo" | "nasdaq" | "twelvedata" | "binance" | "coinbase" | "kraken" | "coingecko";
+export type SourceName = "yahoo" | "nasdaq" | "twelvedata" | "binance" | "coinbase" | "kraken" | "coingecko" | "geckoterminal";
 
 const BROWSER_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
@@ -196,11 +196,28 @@ export async function coingecko(sym: string): Promise<Bar[]> {
   return dedupe(r.prices.filter(([t]) => t % DAY === 0).map(([t, p]) => ({ date: utcDate(t - DAY), close: p })));
 }
 
+// ---------- Meme coins (Rhea DCL pools) ----------
+
+/**
+ * GeckoTerminal daily candles for a pool, in USD per base token. The pool's history starts at its launch (HOOT
+ * 2026-09-30, NEARLY 2026-09-22), so a meme coin has weeks of history, not years. Today's open candle is skipped.
+ */
+export async function geckoterminal(poolAddress: string, from: string): Promise<Bar[]> {
+  type R = { data?: { attributes?: { ohlcv_list?: [number, number, number, number, number, number][] } } };
+  const r = await getJson<R>(
+    `https://api.geckoterminal.com/api/v2/networks/near/pools/${encodeURIComponent(poolAddress)}/ohlcv/day?limit=1000&currency=usd&token=base`,
+    { headers: { Accept: "application/json", "User-Agent": BROWSER_UA } },
+  );
+  const rows = r.data?.attributes?.ohlcv_list ?? [];
+  return dedupe(rows.filter((c) => c[0] * 1000 + DAY <= Date.now()).map((c) => ({ date: utcDate(c[0] * 1000), close: c[4] }))).filter((b) => b.date >= from);
+}
+
 // ---------- Routing ----------
 
 export function sourcesFor(asset: Asset): SourceName[] {
   if (asset.kind === "stock" || asset.kind === "etf") return ["yahoo", "nasdaq", "twelvedata"];
   if (asset.kind === "crypto") return ["binance", "coinbase", "kraken", "coingecko"];
+  if (asset.kind === "meme" && asset.rhea) return ["geckoterminal"];
   return [];
 }
 
@@ -221,5 +238,8 @@ export async function fetchSource(source: SourceName, asset: Asset, from: string
       return kraken(t, from);
     case "coingecko":
       return coingecko(t);
+    case "geckoterminal":
+      if (!asset.rhea) throw new Error(`${asset.id} has no pool for GeckoTerminal`);
+      return geckoterminal(asset.rhea.geckoPool, from);
   }
 }

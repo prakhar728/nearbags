@@ -29,6 +29,22 @@ async function viewCall<T>(method: string, args: unknown, contract = "intents.ne
   return JSON.parse(new TextDecoder().decode(new Uint8Array(bytes))) as T;
 }
 
+/** A read-only view call on any contract (Rhea's DCL quote, a token's ft_metadata…). */
+export const viewFunction = <T>(contract: string, method: string, args: unknown = {}) => viewCall<T>(method, args, contract);
+
+/** Raw JSON-RPC (view_account, tx status…). Throws on an RPC error. */
+export async function rpcRaw<T>(method: string, params: unknown): Promise<T> {
+  const res = await fetch(rpcUrl(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: "stonkbag", method, params }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const j = await res.json();
+  if (j.error) throw new Error(`RPC ${method}: ${JSON.stringify(j.error).slice(0, 300)}`);
+  return j.result as T;
+}
+
 export const hasPublicKey = (accountId: string, publicKey: string) =>
   viewCall<boolean>("has_public_key", { account_id: accountId, public_key: publicKey });
 

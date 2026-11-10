@@ -4,6 +4,7 @@ import "server-only";
 import { getAsset, USDC } from "@/lib/assets";
 import { oneclick, OneClickError } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
+import { quoteLeg, RheaNoLiquidity, tokenSafety } from "@/lib/rhea";
 import { guard, usSession, type GuardResult } from "./guard";
 
 export const SLIPPAGE_BPS = 100; // Q11: 1% max per leg
@@ -28,6 +29,7 @@ export interface LegCheck extends LegPlan {
   amountOutUsd?: number;
   guard?: GuardResult;
   priceDisagreement?: number; // stocks: indicative vs underlying × multiplier
+  venue?: "oneclick" | "rhea";
 }
 
 export interface FeeSplit {
@@ -75,6 +77,7 @@ export async function checkBuyLegs(legs: LegPlan[], account = DRY_ACCOUNT): Prom
     if (asset.id === "USDC") {
       return { ...leg, ok: true, amountOut: leg.usdcIn, amountOutUsd: Number(leg.usdcIn) / 1e6 };
     }
+    if (asset.venue === "rhea") return checkRheaBuyLeg(leg, session);
     try {
       const [q, ref] = await Promise.all([
         oneclick.quote({
@@ -118,6 +121,32 @@ export async function checkBuyLegs(legs: LegPlan[], account = DRY_ACCOUNT): Prom
   });
 }
 
+/** A meme-coin leg: quote USDC → meme on Rhea's DCL contract (exact, on-chain) and guard it against the pool mid. */
+async function checkRheaBuyLeg(leg: LegPlan, session: ReturnType<typeof usSession>): Promise<LegCheck> {
+  const asset = getAsset(leg.assetId);
+  try {
+    const safety = await tokenSafety(asset.id);
+    if (!safety.ok) return { ...leg, venue: "rhea", ok: false, reason: `Buying ${asset.id} is paused: ${safety.reason}` };
+    const [q, ref] = await Promise.all([quoteLeg("USDC", asset.id, leg.usdcIn), livePrice(asset.id)]);
+    const usd = Number(leg.usdcIn) / 1e6;
+    const units = Number(q.amountOut) / 10 ** asset.decimals;
+    const g = guard({ side: "buy", usd, units, referencePrice: ref.price, kind: asset.kind, session });
+    return {
+      ...leg,
+      venue: "rhea",
+      ok: g.verdict !== "block",
+      reason: g.verdict === "block" ? `${asset.id} is quoting ${(g.deviation * 100).toFixed(1)}% above its pool price right now (thin liquidity).` : undefined,
+      amountOut: q.amountOut,
+      amountOutFormatted: units.toLocaleString("en-US", { maximumFractionDigits: 2 }),
+      amountOutUsd: units * ref.price,
+      guard: g,
+    };
+  } catch (e) {
+    const msg = e instanceof RheaNoLiquidity ? e.message : `${asset.id} couldn't be quoted on Rhea: ${(e as Error).message.slice(0, 160)}`;
+    return { ...leg, venue: "rhea", ok: false, reason: msg };
+  }
+}
+
 export interface BuyPreflight {
   ok: boolean;
   session: ReturnType<typeof usSession>;
@@ -140,7 +169,7 @@ export async function preflightBuy(params: {
   const blockedBy = legs.filter((l) => !l.ok).map((l) => l.reason ?? `${l.assetId} unavailable`);
   const warnings = legs
     .filter((l) => l.ok && l.guard?.verdict === "warn")
-    .map((l) => `${l.assetId} is ${(l.guard!.deviation * 100).toFixed(1)}% above the market price.`);
+    .map((l) => `${l.assetId} is ${(l.guard!.deviation * 100).toFixed(1)}% above the ${l.venue === "rhea" ? "pool" : "market"} price.`);
   return {
     ok: blockedBy.length === 0,
     session: usSession(),

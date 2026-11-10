@@ -3,7 +3,7 @@
 // Conventions
 // - Calendar = union of real price dates of the basket's assets. Any crypto in the basket makes it a daily calendar;
 //   stocks are forward-filled across weekends/holidays. Stock-only baskets use trading days.
-// - Annualization: 365 if the basket holds crypto, else 252.
+// - Annualization: 365 if the basket holds crypto or meme coins, else 252.
 // - Default mode is buy-and-hold from the window start (what holders actually get: baskets are frozen and never
 //   auto-rebalance). "monthly" resets to target weights on the first calendar date of each month, for comparison.
 // - USDC is a constant 1.0.
@@ -15,7 +15,7 @@ export interface Holding {
   assetId: string;
   ticker: string;
   weight: number; // fraction; all weights sum to 1
-  kind: "stock" | "etf" | "crypto" | "stable";
+  kind: "stock" | "etf" | "crypto" | "stable" | "meme";
 }
 
 export type Mode = "hold" | "monthly";
@@ -162,7 +162,7 @@ export function runBacktest(
 
   const mode = opts.mode ?? "hold";
   const maxYears = opts.maxYears ?? 5;
-  const ann: 252 | 365 = holdings.some((h) => h.kind === "crypto") ? 365 : 252;
+  const ann: 252 | 365 = holdings.some((h) => h.kind === "crypto" || h.kind === "meme") ? 365 : 252;
 
   const firsts = firstDates(holdings, series);
   const latestStart = firsts.reduce((a, b) => (b.since > a.since ? b : a), firsts[0] ?? { assetId: "", since: "1900-01-01" });

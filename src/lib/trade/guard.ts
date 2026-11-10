@@ -3,6 +3,8 @@
 // Thresholds: 1.5% warn / 5% block while US markets have a session (pre, regular, post).
 // Overnight and weekends Ondo quotes come from thinner liquidity and drift from the next open (Ondo docs, Off-Hours),
 // so the stock thresholds widen to 3% / 8%. Crypto always uses 1.5% / 5%.
+// Meme coins (Rhea DCL): the 1% pool fee is inside every quote, so 2% / 5% against the pool's mid price.
+import type { AssetKind } from "@/lib/assets";
 
 export type Session = "pre" | "regular" | "post" | "overnight" | "weekend";
 
@@ -31,7 +33,8 @@ export interface GuardResult {
   session: Session;
 }
 
-export function thresholdsFor(kind: "stock" | "etf" | "crypto" | "stable", session: Session) {
+export function thresholdsFor(kind: AssetKind, session: Session) {
+  if (kind === "meme") return { warn: 0.02, block: 0.05 };
   if ((kind === "stock" || kind === "etf") && (session === "overnight" || session === "weekend")) return { warn: 0.03, block: 0.08 };
   return { warn: 0.015, block: 0.05 };
 }
@@ -45,7 +48,7 @@ export function guard(params: {
   usd: number;
   units: number;
   referencePrice: number;
-  kind: "stock" | "etf" | "crypto" | "stable";
+  kind: AssetKind;
   session: Session;
 }): GuardResult {
   const { side, usd, units, referencePrice, kind, session } = params;
