@@ -20,6 +20,7 @@ import { proofUrl, runModule, signerModule, strategistModule } from "./outlayer"
 import { getTemplate } from "./templates";
 import { DAY, marketData } from "./market";
 export { DEFAULT_LIMITS, minMaxWeightBps, sanitizeAgentConfig } from "./config";
+import { sameButNonce } from "./config";
 
 export const MAX_LEG_USD = 100; // the signer's own hard cap is $250; this is tighter for now
 const RUN_BUDGET_MS = 200_000; // stay inside one serverless invocation; unfinished orders continue on the next pump
@@ -201,7 +202,14 @@ export async function pumpRun(runId: number, deadline: number) {
             await db().update(schema.orderLegs).set({ status: "failed", error: `Agent refused to sign: ${r.error}`.slice(0, 300) }).where(eq(schema.orderLegs.id, row.id));
             continue;
           }
-          await submitLeg(s, orderId, leg.seq, r.result.signed);
+          // The signer puts one of today's nonces in the payload (its daily swap limit); everything else must match.
+          const signed = r.result.signed;
+          if (!sameButNonce(signed.payload, prep.payload)) {
+            await db().update(schema.orderLegs).set({ status: "failed", error: "Agent signed a different payload" }).where(eq(schema.orderLegs.id, row.id));
+            continue;
+          }
+          await db().update(schema.orderLegs).set({ payload: signed.payload }).where(eq(schema.orderLegs.id, row.id));
+          await submitLeg(s, orderId, leg.seq, signed);
         } catch (e) {
           console.error("agent leg", orderId, leg.seq, e);
         }

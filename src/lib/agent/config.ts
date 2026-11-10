@@ -41,3 +41,16 @@ export function sanitizeAgentConfig(input: unknown, assets: { assetId: string; w
     },
   };
 }
+
+/** True when two intent payloads are the same apart from their nonce. */
+export function sameButNonce(a: string, b: string): boolean {
+  try {
+    const x = JSON.parse(a);
+    const y = JSON.parse(b);
+    delete x.nonce;
+    delete y.nonce;
+    return JSON.stringify(x) === JSON.stringify(y);
+  } catch {
+    return false;
+  }
+}

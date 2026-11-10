@@ -12,6 +12,7 @@ serde_json = "1"
 bs58 = "0.5"
 base64 = "0.22"
 hex = "0.4"
+sha2 = "0.10"
 wasi-http-client = "0.2"
 
 [profile.release]

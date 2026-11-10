@@ -76,9 +76,15 @@ The swap is a 1Click quote, which the signer looks up at 1Click itself. It signs
 - the token and amount match what the transfer sends;
 - both assets are in this basket;
 - the quote hasn't been used yet;
-- slippage is at most 3%, and the swap is worth at most $100.
+- slippage is at most 3%, and the swap is worth at most $100;
+- the quote pays at most 0.3% in app fees, all recipients together (1Click itself takes 0.2%);
+- by 1Click's own dollar prices, the swap gives back at least 97% of what it takes, whatever our server says the market is.
 
-The rules are in `agent/rebalancer/src/check.rs`, with unit tests for each refusal.
+It also limits how often it trades: at most 24 agent swaps per account per day. The limit needs no database. Each day an account gets 24 nonces worked out from the account and the date, the signer only signs with one that NEAR Intents hasn't seen, and NEAR Intents never accepts a nonce twice.
+
+The signer can also sign a swap on Rhea, for meme coins. It checks that the swap goes to Rhea's DCL contract through a fixed list of pools, that the output comes straight back to your account, that one side is USDC, and that the minimum it accepts is within 3% of a fresh quote it reads from the chain itself. Adding a pool to that list takes a new build, which means a new key.
+
+The rules are in `agent/rebalancer/src/` (`check.rs`, `rhea.rs`, `daily.rs`), with unit tests for each refusal.
 
 ## Limits on the weights
 

@@ -9,6 +9,8 @@ pub const MIN_OUT_BPS: u128 = 9_700;
 /// Payloads must expire within this long (1Click's generate-intent uses 3 days).
 pub const MAX_DEADLINE_SECS: u64 = 4 * 24 * 3600;
 pub const MAX_ASSETS: usize = 11; // up to 10 basket assets plus USDC
+/// Most a quote may pay out in app fees, all recipients together (bps). 1Click itself takes 20.
+pub const MAX_APP_FEE_BPS: u64 = 30;
 
 #[derive(Deserialize)]
 pub struct LegInput {
@@ -46,6 +48,9 @@ pub struct QuoteRequest {
     pub refund_type: String,
     pub recipient: String,
     pub recipient_type: String,
+    /// Fees the quote pays out. 1Click adds its own 20 bps; the total is capped (MAX_APP_FEE_BPS).
+    #[serde(default)]
+    pub app_fees: Option<Value>,
 }
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +60,8 @@ pub struct Quote {
     pub amount_out: String,
     pub min_amount_out: String,
     pub amount_in_usd: String,
+    #[serde(default)]
+    pub amount_out_usd: Option<String>,
 }
 
 #[derive(Serialize, Debug, PartialEq)]
@@ -100,21 +107,16 @@ pub fn parse_iso(s: &str) -> Option<u64> {
     u64::try_from(days * 86_400 + hh * 3600 + mm * 60 + ss).ok()
 }
 
-/// All the rules. Returns what was checked, for the run's output; any failure is a refusal with the reason.
-pub fn check_leg(leg: &LegInput, st: &QuoteStatus, now: u64) -> Result<Checked, String> {
-    // Who and where.
-    if !is_hex64(&leg.account_id) {
+/// The payload's envelope: for intents.near, signed by the basket account, a sane deadline and nonce, and exactly one
+/// intent, whose object is returned. Shared by 1Click and Rhea legs.
+pub fn envelope(account_id: &str, assets: &[String], payload: &str, now: u64) -> Result<serde_json::Map<String, Value>, String> {
+    if !is_hex64(account_id) {
         return Err("account_id must be a basket account (64-character hex)".into());
     }
-    if !is_hex64(&leg.deposit_address) || leg.deposit_address == leg.account_id {
-        return Err("deposit_address must be a 1Click deposit account".into());
-    }
-    if leg.assets.is_empty() || leg.assets.len() > MAX_ASSETS || !leg.assets.iter().all(|a| is_asset_id(a)) {
+    if assets.is_empty() || assets.len() > MAX_ASSETS || !assets.iter().all(|a| is_asset_id(a)) {
         return Err(format!("assets must be 1 to {MAX_ASSETS} NEAR Intents asset ids"));
     }
-
-    // The payload: exactly the shape 1Click's generate-intent makes, and nothing more.
-    let p: Value = serde_json::from_str(&leg.payload).map_err(|_| "payload is not JSON")?;
+    let p: Value = serde_json::from_str(payload).map_err(|_| "payload is not JSON")?;
     let o = p.as_object().ok_or("payload is not an object")?;
     for k in o.keys() {
         if !["verifying_contract", "signer_id", "deadline", "nonce", "intents"].contains(&k.as_str()) {
@@ -124,7 +126,7 @@ pub fn check_leg(leg: &LegInput, st: &QuoteStatus, now: u64) -> Result<Checked, 
     if o.get("verifying_contract").and_then(Value::as_str) != Some("intents.near") {
         return Err("payload is not for intents.near".into());
     }
-    if o.get("signer_id").and_then(Value::as_str) != Some(leg.account_id.as_str()) {
+    if o.get("signer_id").and_then(Value::as_str) != Some(account_id) {
         return Err("payload signer is not the basket account".into());
     }
     let deadline = o.get("deadline").and_then(Value::as_str).and_then(parse_iso).ok_or("payload deadline is missing or malformed")?;
@@ -138,7 +140,16 @@ pub fn check_leg(leg: &LegInput, st: &QuoteStatus, now: u64) -> Result<Checked, 
     let [intent] = intents.as_slice() else {
         return Err("payload must hold exactly one intent".into());
     };
-    let io = intent.as_object().ok_or("intent is not an object")?;
+    intent.as_object().cloned().ok_or_else(|| "intent is not an object".to_string())
+}
+
+/// All the rules for a 1Click leg. Returns what was checked, for the run's output; any failure is a refusal with the reason.
+pub fn check_leg(leg: &LegInput, st: &QuoteStatus, now: u64) -> Result<Checked, String> {
+    if !is_hex64(&leg.deposit_address) || leg.deposit_address == leg.account_id {
+        return Err("deposit_address must be a 1Click deposit account".into());
+    }
+    // The payload: exactly the shape 1Click's generate-intent makes, and nothing more.
+    let io = envelope(&leg.account_id, &leg.assets, &leg.payload, now)?;
     for k in io.keys() {
         if !["intent", "receiver_id", "tokens"].contains(&k.as_str()) {
             return Err(format!("intent has an unexpected field {k:?}"));
@@ -159,7 +170,14 @@ pub fn check_leg(leg: &LegInput, st: &QuoteStatus, now: u64) -> Result<Checked, 
     // The quote behind the deposit address, as 1Click reports it.
     let r = &st.quote_response.request;
     let q = &st.quote_response.quote;
-    let fails: [(bool, &str); 12] = [
+    let fee_bps: Option<u64> = match &r.app_fees {
+        None | Some(Value::Null) => Some(0),
+        Some(Value::Array(a)) => a.iter().map(|f| f.get("fee").and_then(Value::as_u64)).sum(),
+        _ => None,
+    };
+    let no_fees = fee_bps.is_some_and(|b| b <= MAX_APP_FEE_BPS);
+    let fails: [(bool, &str); 13] = [
+        (no_fees, "the quote pays more than 0.3% in app fees"),
         (st.status == "PENDING_DEPOSIT", "the quote is not waiting for its deposit"),
         (!r.dry, "the quote is a dry run"),
         (r.swap_type == "EXACT_INPUT", "the quote is not an exact-input swap"),
@@ -186,6 +204,12 @@ pub fn check_leg(leg: &LegInput, st: &QuoteStatus, now: u64) -> Result<Checked, 
     if !(usd.is_finite() && usd >= 0.0 && usd <= cap) {
         return Err(format!("the leg is worth ${usd:.2}, over the ${cap:.0} cap"));
     }
+    // Reference price: 1Click's own dollar values for both sides. A swap that hands over more than 3% of its value is
+    // refused, whatever the server says the market is.
+    let out_usd: f64 = q.amount_out_usd.as_deref().and_then(|v| v.parse().ok()).ok_or("the quote has no dollar value for its output")?;
+    if usd >= 1.0 && !(out_usd.is_finite() && out_usd * 10_000.0 >= usd * MIN_OUT_BPS as f64) {
+        return Err(format!("the swap gives ${out_usd:.2} for ${usd:.2}, more than 3% below its value"));
+    }
     Ok(Checked { sell: r.origin_asset.clone(), buy: r.destination_asset.clone(), amount_in: amount.to_string(), min_amount_out: q.min_amount_out.clone(), usd })
 }
 
@@ -211,7 +235,7 @@ mod tests {
             "quoteResponse": {
                 "quoteRequest": { "dry": false, "swapType": "EXACT_INPUT", "originAsset": USDC, "depositType": "INTENTS", "destinationAsset": WNEAR,
                     "amount": "2000000", "refundTo": ACC, "refundType": "INTENTS", "recipient": ACC, "recipientType": "INTENTS" },
-                "quote": { "depositAddress": DEP, "amountIn": "2000000", "amountOut": "548421938929726010448171", "minAmountOut": "542937719540428750343689", "amountInUsd": "1.999068000000" }
+                "quote": { "depositAddress": DEP, "amountIn": "2000000", "amountOut": "548421938929726010448171", "minAmountOut": "542937719540428750343689", "amountInUsd": "1.999068000000", "amountOutUsd": "1.98" }
             }
         }))
         .unwrap()
@@ -300,6 +324,30 @@ mod tests {
         refused(leg(), s, "dry run");
         let e = check_leg(&leg(), &status(), NOW + 10 * 86_400).unwrap_err();
         assert!(e.contains("deadline"));
+    }
+
+    #[test]
+    fn refuses_app_fees_and_bad_prices() {
+        let mut s = status();
+        // 1Click's own fee, as it appears on every real quote.
+        let ours = serde_json::json!({ "recipient": "5880ad2b362620fadf759cbceb1cd5737ce8c6ed7fb8e9942881e6731f9247dd", "fee": 20, "limitOrderId": null });
+        s.quote_response.request.app_fees = Some(serde_json::json!([ours]));
+        assert!(check_leg(&leg(), &s, NOW).is_ok());
+        let mut s = status();
+        s.quote_response.request.app_fees = Some(serde_json::json!([ours, { "recipient": "attacker.near", "fee": 100 }]));
+        refused(leg(), s, "app fees");
+        let mut s = status();
+        s.quote_response.request.app_fees = Some(serde_json::json!([{ "recipient": "x", "fee": "lots" }]));
+        refused(leg(), s, "app fees");
+        let mut s = status();
+        s.quote_response.request.app_fees = Some(serde_json::json!([]));
+        assert!(check_leg(&leg(), &s, NOW).is_ok());
+        let mut s = status();
+        s.quote_response.quote.amount_out_usd = Some("1.80".into());
+        refused(leg(), s, "below its value");
+        let mut s = status();
+        s.quote_response.quote.amount_out_usd = None;
+        refused(leg(), s, "no dollar value");
     }
 
     #[test]
