@@ -9,4 +9,4 @@
 | [Architecture](architecture.md) | Engineers | Components, the order flow, database and API |
 | [Operations](operations.md) | Whoever runs it | Settings, scheduled jobs, admin controls, fixing common problems |
 
-Live app: https://stonkbag-iota.vercel.app
+Live app: https://nearbags.com

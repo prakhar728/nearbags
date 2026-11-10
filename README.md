@@ -2,7 +2,7 @@
 
 Creator-made baskets of tokenized US stocks and crypto, bought in one step from any token on any chain through NEAR Intents. Every basket position lives in its own NEAR Intents account that only the buyer's keys can move.
 
-- Live demo: https://stonkbag-iota.vercel.app (the app was called Stonkbag until 2026-11-11; the address changes when the nearbags domain is connected)
+- Live: https://nearbags.com (called Stonkbag until 2026-11-11; https://stonkbag-iota.vercel.app still works)
 - Built at NEAR HACKATHON (2026-11-01 to 2026-11-14). Tracks: `defi` (Unstoppable DeFi) and `thesis` (Investment Thesis).
 - New project, started in the hackathon window. No earlier product on any chain.
 - Docs: [how it works](docs/how-it-works.md), [fees](docs/fees.md), [safety](docs/safety.md), [prices and numbers](docs/data.md), [architecture](docs/architecture.md), [operations](docs/operations.md).
@@ -39,7 +39,7 @@ No custom contract: everything runs on `intents.near` and 1Click.
 
 On the live demo (no wallet needed for 1–5):
 
-1. Open https://stonkbag-iota.vercel.app → the hero chart draws five real price lines and merges them into one basket line. Hover it to read the value on any date.
+1. Open https://nearbags.com → the hero chart draws five real price lines and merges them into one basket line. Hover it to read the value on any date.
 2. Click **BROWSE BAGS** → `/explore` lists the seed baskets, with backtested return, minimum buy and fee.
 3. Open **Degen Mix** (`/b/degen-mix`) → price-history chart against SPY and BTC, drawdown, per-asset contribution, correlation grid, thesis, risks and exit signal.
 4. Switch the backtest window (1Y / 3Y / 5Y / MAX) and tick the monthly-rebalance box → the chart and stats switch to that window, and a dashed line shows the rebalanced version.

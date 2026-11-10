@@ -36,7 +36,7 @@ printf %s "$VALUE" | vercel env add NAME production
 Both answer 401 unless the request carries `Authorization: Bearer $CRON_SECRET`. Run one by hand:
 
 ```sh
-curl -H "Authorization: Bearer $CRON_SECRET" https://stonkbag-iota.vercel.app/api/cron/snapshots
+curl -H "Authorization: Bearer $CRON_SECRET" https://nearbags.com/api/cron/snapshots
 ```
 
 ## Admin
