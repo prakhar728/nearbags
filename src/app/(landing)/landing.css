@@ -24,9 +24,6 @@
   }
 }
 @media (min-width: 1280px) {
-  .lp-frame {
-    border-inline: 1px solid var(--frame-line);
-  }
   .theme-dark .lp-frame,
   .lp-frame.theme-dark {
     --frame-line: rgba(255, 255, 255, 0.11);
