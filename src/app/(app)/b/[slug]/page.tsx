@@ -74,7 +74,7 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
         }}
       />
 
-      {b.agent && <AgentPanel basketId={b.id} creatorId={b.creator.id} limits={b.agent.limits} />}
+      {b.agent && <AgentPanel basketId={b.id} creatorId={b.creator.id} limits={b.agent.limits} template={b.agent.template} />}
 
       <Suspense fallback={<BacktestSkeleton assets={b.assets.length} />}>
         <Analytics b={b} />

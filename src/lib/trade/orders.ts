@@ -17,6 +17,7 @@ import { HttpError } from "@/lib/auth/session";
 import { parsePublicKey, bytesToHex } from "@/lib/intents/keys";
 import { parsePayload, type Intent, type SignedRawEd25519 } from "@/lib/intents/payload";
 import { balancesOf, hasPublicKey } from "@/lib/intents/rpc";
+import { outsideBands } from "@/lib/agent/templates";
 import { isFinal, oneclick, OneClickError, type QuoteResponse, type TokenInfo } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 import { relay } from "@/lib/relayer";
@@ -388,7 +389,8 @@ const isLegFinal = (st: Leg["status"]) => st === "success" || st === "refunded" 
 
 export const RESET_BUY_SEQ = 200;
 
-export async function createResetOrder(s: Session, positionId: number) {
+/** `onlyIfOutsideBands`: template baskets trade a holder only once some asset drifts past its band. */
+export async function createResetOrder(s: Session, positionId: number, opts: { onlyIfOutsideBands?: boolean } = {}) {
   const position = await ownedIdlePosition(s, positionId);
   const basket = (await getBasketById(position.basketId))!;
   const assets = basket.assets.map((w) => ({ w, a: getAsset(w.assetId) }));
@@ -399,6 +401,10 @@ export async function createResetOrder(s: Session, positionId: number) {
   const idleUsdc = assets.some(({ a }) => a.id === "USDC") ? 0 : Number((await balancesOf(position.accountId, [USDC.intentsAssetId]))[0]) / 1e6;
   const total = values.reduce((x, y) => x + y, 0) + idleUsdc;
   if (total < 1) throw new HttpError(409, "Nothing in this basket to rebalance.");
+  if (opts.onlyIfOutsideBands) {
+    const rows = assets.map(({ w, a }, i) => ({ weightBps: (values[i] / total) * 10_000, targetBps: w.weightBps, minLegUsd: a.minLegUsd }));
+    if (!outsideBands(rows, total)) throw new HttpError(409, "Every asset is inside its band, so no trade was needed.");
+  }
 
   const sells = assets
     .map(({ w, a }, i) => ({ a, excessUsd: values[i] - (total * w.weightBps) / 10_000, i }))

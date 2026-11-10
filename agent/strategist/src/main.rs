@@ -8,11 +8,17 @@
 //! Secrets (environment, from the run's secrets_ref): LLM_API_KEY, LLM_BASE_URL (an OpenAI-compatible /v1 base),
 //! LLM_MODEL.
 //!
+//! A basket may instead use a rule-based template (src/templates.rs): then no model is asked, and the template's
+//! weights go through the same limits.
+//!
 //! Input (stdin, JSON):
 //!   {"op": "decide", "strategy": "<creator prompt>",
-//!    "assets": [{"id": "SOL", "name": "Solana", "price": 160.2, "change_1d": -1.2, "change_7d": 4.5, "current_bps": 5000}, …],
-//!    "limits": {"min_weight_bps": 500, "max_weight_bps": 6000, "max_change_bps": 1500, "max_turnover_bps": 2000}}
+//!    "assets": [{"id": "SOL", "name": "Solana", "kind": "crypto", "price": 160.2, "change_1d": -1.2, "change_7d": 4.5,
+//!                "closes": [<daily closes on a calendar-day grid, oldest first>], "current_bps": 5000}, …],
+//!    "limits": {"min_weight_bps": 500, "max_weight_bps": 6000, "max_change_bps": 1500, "max_turnover_bps": 2000},
+//!    "template": {"id": "trend", "base_bps": [5000, …], "due": true}}   (optional)
 mod policy;
+mod templates;
 
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -24,9 +30,10 @@ use std::time::Duration;
 #[link_section = "outlayer.manifest"]
 static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest.json").len()] = *include_bytes!("../manifest.json");
 
-const BUILD: &str = "strategist-3";
+const BUILD: &str = "strategist-4";
 const MAX_STRATEGY_CHARS: usize = 4_000;
 const MAX_REASON_CHARS: usize = 200;
+const MAX_CLOSES: usize = 400;
 
 #[derive(Deserialize)]
 struct Asset {
@@ -38,7 +45,23 @@ struct Asset {
     change_1d: Option<f64>,
     #[serde(default)]
     change_7d: Option<f64>,
+    #[serde(default)]
+    kind: String,
+    #[serde(default)]
+    closes: Vec<f64>,
     current_bps: u32,
+}
+
+#[derive(Deserialize)]
+struct TemplateIn {
+    id: String,
+    base_bps: Vec<u32>,
+    #[serde(default = "yes")]
+    due: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Deserialize)]
@@ -51,9 +74,12 @@ struct LimitsIn {
 
 #[derive(Deserialize)]
 struct Decide {
+    #[serde(default)]
     strategy: String,
     assets: Vec<Asset>,
     limits: LimitsIn,
+    #[serde(default)]
+    template: Option<TemplateIn>,
 }
 
 fn main() {
@@ -85,9 +111,27 @@ fn decide(d: Decide) -> Result<Value, String> {
     };
     let current: Vec<u32> = d.assets.iter().map(|a| a.current_bps).collect();
 
-    let (proposed, reason, model) = match ask_model(&d) {
-        Ok((p, r, m)) => (p, r, m),
-        Err(why) => (current.iter().map(|&c| c as f64).collect(), format!("Kept the current weights: {why}"), "none".to_string()),
+    if d.assets.iter().any(|a| a.closes.len() > MAX_CLOSES) {
+        return Err(format!("at most {MAX_CLOSES} closes per asset"));
+    }
+    let (proposed, reason, model) = match &d.template {
+        Some(t) => {
+            if t.base_bps.len() != d.assets.len() {
+                return Err("one base weight per asset".into());
+            }
+            let series: Vec<templates::Series> = d
+                .assets
+                .iter()
+                .zip(&t.base_bps)
+                .map(|(a, &b)| templates::Series { id: &a.id, kind: &a.kind, closes: &a.closes, base: b as f64, current: a.current_bps as f64 })
+                .collect();
+            let (p, r) = templates::propose(&t.id, &series, t.due)?;
+            (p, r, format!("template:{}", t.id))
+        }
+        None => match ask_model(&d) {
+            Ok((p, r, m)) => (p, r, m),
+            Err(why) => (current.iter().map(|&c| c as f64).collect(), format!("Kept the current weights: {why}"), "none".to_string()),
+        },
     };
     let weights = policy::clamp(&current, &proposed, limits)?;
     Ok(json!({
@@ -110,10 +154,17 @@ fn ask_model(d: &Decide) -> Result<(Vec<f64>, String, String), String> {
     let base = std::env::var("LLM_BASE_URL").ok().filter(|b| b.starts_with("https://")).ok_or("no model URL is configured")?;
     let model = std::env::var("LLM_MODEL").ok().filter(|m| !m.is_empty()).ok_or("no model name is configured")?;
 
-    let mut table = String::from("id | name | price USD | 1-day % | 7-day % | current weight %\n");
+    // Longer horizons matter more than yesterday's move at these trading costs.
+    let mut table = String::from("id | name | price USD | 1-day % | 7-day % | 30-day % | 90-day % | 90-day volatility %/yr | vs 100-day average % | current weight %\n");
     for a in &d.assets {
         let pct = |v: Option<f64>| v.map_or("n/a".to_string(), |x| format!("{x:.2}"));
-        table.push_str(&format!("{} | {} | {} | {} | {} | {:.2}\n", a.id, a.name, a.price, pct(a.change_1d), pct(a.change_7d), a.current_bps as f64 / 100.0));
+        let r = |n| templates::ret(&a.closes, n).map(|x| x * 100.0);
+        let vol = templates::ewma_vol(&a.closes, 90, 30.0).map(|x| x * 100.0);
+        let vs = templates::sma(&a.closes, 100).and_then(|m| a.closes.last().map(|p| (p / m - 1.0) * 100.0));
+        table.push_str(&format!(
+            "{} | {} | {} | {} | {} | {} | {} | {} | {} | {:.2}\n",
+            a.id, a.name, a.price, pct(a.change_1d), pct(a.change_7d), pct(r(30)), pct(r(90)), pct(vol), pct(vs), a.current_bps as f64 / 100.0
+        ));
     }
     let system = "You set the target weights of an investment basket. Use only the asset ids given. \
         Answer with JSON only, no prose around it: {\"weights\": {\"<id>\": <percent>, ...}, \"reason\": \"<one sentence, under 200 characters>\"}. \
@@ -192,7 +243,22 @@ mod tests {
     use super::*;
 
     fn assets() -> Vec<Asset> {
-        ["SOL", "NEAR"].iter().map(|id| Asset { id: id.to_string(), name: String::new(), price: 1.0, change_1d: None, change_7d: None, current_bps: 5_000 }).collect()
+        ["SOL", "NEAR"].iter().map(|id| Asset { id: id.to_string(), name: String::new(), price: 1.0, change_1d: None, change_7d: None, kind: String::new(), closes: vec![], current_bps: 5_000 }).collect()
+    }
+
+    #[test]
+    fn template_runs_without_a_model() {
+        let input = json!({"op": "decide", "assets": [
+            {"id": "BTC", "kind": "crypto", "price": 1.0, "current_bps": 7000},
+            {"id": "ETH", "kind": "crypto", "price": 1.0, "current_bps": 3000}],
+            "limits": {"min_weight_bps": 500, "max_weight_bps": 6000, "max_change_bps": 1500, "max_turnover_bps": 2000},
+            "template": {"id": "equal", "base_bps": [7000, 3000]}});
+        let out = run(&input).unwrap();
+        assert_eq!(out["model"], "template:equal");
+        assert_eq!(out["weights"], json!([5000, 5000]));
+        assert!(run(&json!({"op": "decide", "assets": [{"id": "BTC", "price": 1.0, "current_bps": 10000}],
+            "limits": {"min_weight_bps": 0, "max_weight_bps": 10000, "max_change_bps": 100, "max_turnover_bps": 100},
+            "template": {"id": "nope", "base_bps": [10000]}})).is_err());
     }
 
     #[test]

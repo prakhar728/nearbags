@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/client/auth";
 import { AssetTag } from "@/components/AssetLogo";
+import { getTemplate, type TemplateId } from "@/lib/agent/templates";
 
 interface Run {
   id: number;
@@ -27,13 +28,15 @@ interface Props {
   basketId: number;
   creatorId: number;
   limits: { minWeightBps: number; maxWeightBps: number; maxChangeBps: number; maxTurnoverBps: number };
+  template: TemplateId | null;
 }
 
 const pct = (bps: number) => `${(bps / 100).toFixed(bps % 100 ? 1 : 0)}%`;
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const STATUS: Record<Run["status"], string> = { deciding: "Deciding…", rebalancing: "Rebalancing holders…", done: "Done", failed: "Failed" };
 
-export function AgentPanel({ basketId, creatorId, limits }: Props) {
+export function AgentPanel({ basketId, creatorId, limits, template }: Props) {
+  const tpl = getTemplate(template);
   const { user } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
@@ -70,10 +73,19 @@ export function AgentPanel({ basketId, creatorId, limits }: Props) {
           <p className="label">AI agent</p>
           <h2 className="mt-1 font-sans text-lg font-semibold text-text">This basket rebalances itself</h2>
           <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-muted">
-            Once a day an agent reads the market and the creator&rsquo;s private strategy, picks new weights, and rebalances every holder who
-            opted in. It runs in sealed hardware on OutLayer. Its key can only swap between this basket&rsquo;s assets inside each holder&rsquo;s
-            own account; it cannot send funds anywhere else.
+            {tpl ? (
+              <>Once a day an agent applies the creator&rsquo;s chosen rule, <span className="font-medium text-text">{tpl.name}</span>, and rebalances every holder who opted in.</>
+            ) : (
+              <>Once a day an agent reads the market and the creator&rsquo;s private strategy, picks new weights, and rebalances every holder who opted in.</>
+            )}{" "}
+            It runs in sealed hardware on OutLayer. Its key can only swap between this basket&rsquo;s assets inside each holder&rsquo;s own
+            account; it cannot send funds anywhere else.
           </p>
+          {tpl && (
+            <p className="mt-2 max-w-[62ch] text-sm leading-relaxed text-muted">
+              <span className="font-medium text-text">How {tpl.name} works.</span> {tpl.how}
+            </p>
+          )}
         </div>
         {isCreator && (
           <button type="button" onClick={runNow} disabled={busy} className="btn btn-secondary btn-sm shrink-0">
@@ -136,7 +148,9 @@ export function AgentPanel({ basketId, creatorId, limits }: Props) {
                       ))}
                     </span>
                   )}
-                  {r.model && r.model !== "none" && <span className="num">model {r.model}</span>}
+                  {r.model && r.model !== "none" && (
+                    <span className="num">{r.model.startsWith("template:") ? `rule ${getTemplate(r.model.slice(9))?.name ?? r.model.slice(9)}` : `model ${r.model}`}</span>
+                  )}
                 </div>
               </li>
             ))}

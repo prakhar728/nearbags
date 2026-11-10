@@ -4,6 +4,7 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { minBuyUsd } from "@/lib/basket-rules";
 import type { WeightInput } from "@/lib/trade/types";
+import type { TemplateId } from "@/lib/agent/templates";
 
 export const PLATFORM_FEE_BPS = () => Number(process.env.PLATFORM_FEE_BPS ?? 25);
 
@@ -25,7 +26,11 @@ export interface BasketView {
   assets: (WeightInput & { why: string })[];
   minBuyUsd: number;
   /** Agent-managed: the public limits. The creator's strategy is never part of this view. */
-  agent: { limits: { minWeightBps: number; maxWeightBps: number; maxChangeBps: number; maxTurnoverBps: number } } | null;
+  agent: {
+    limits: { minWeightBps: number; maxWeightBps: number; maxChangeBps: number; maxTurnoverBps: number };
+    /** The rule-based strategy, if the creator picked one (public, unlike a written strategy). */
+    template: TemplateId | null;
+  } | null;
 }
 
 type BasketRow = typeof schema.baskets.$inferSelect;
@@ -56,7 +61,7 @@ async function hydrate(rows: BasketRow[]): Promise<BasketView[]> {
       creator: { id: u.id, handle: u.handle, address: u.walletAddress, chain: u.walletChain },
       assets: a,
       minBuyUsd: minBuyUsd(a, r.feeBps + PLATFORM_FEE_BPS()),
-      agent: r.agent ? { limits: r.agent.limits } : null,
+      agent: r.agent ? { limits: r.agent.limits, template: r.agent.template?.id ?? null } : null,
     };
   });
 }

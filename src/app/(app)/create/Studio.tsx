@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { minMaxWeightBps } from "@/lib/agent/config";
+import { TEMPLATES, templateProblem, type TemplateId } from "@/lib/agent/templates";
 import { BacktestView } from "@/components/basket/BacktestView";
 import { BacktestSkeleton } from "@/components/basket/Skeletons";
 import { Field } from "@/components/basket/CreatorTools";
@@ -59,6 +60,8 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
   const [house, setHouse] = useState(false);
   const [agentOn, setAgentOn] = useState(false);
   const [strategy, setStrategy] = useState("");
+  // How the agent sets weights: the creator's own strategy for the AI, or a rule-based template.
+  const [agentMode, setAgentMode] = useState<"ai" | TemplateId>("fixed");
   const [maxWeight, setMaxWeight] = useState(60);
   const [accept, setAccept] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -121,7 +124,12 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
           feeBps,
           assets: picks.map((p) => ({ assetId: p.assetId, weightBps: Math.round(p.pct * 100), why: why[p.assetId] ?? "" })),
           house: user?.isAdmin ? house : undefined,
-          agent: agentOn ? { strategy, limits: { maxWeightBps: Math.max(maxWeight * 100, minMaxWeightBps(picks.length)) } } : undefined,
+          agent: agentOn
+            ? {
+                ...(agentMode === "ai" ? { strategy } : { template: agentMode }),
+                limits: { maxWeightBps: Math.max(maxWeight * 100, minMaxWeightBps(picks.length)) },
+              }
+            : undefined,
           acceptRisk: accept,
         }),
       });
@@ -347,8 +355,33 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                 <span className="num text-text">{feePct(platformFeeBps)}</span>. Selling is free. The fee is frozen once you publish.
               </p>
               <MinBuy minBuy={minBuy} hint={hint} />
-              <AgentOption on={agentOn} setOn={setAgentOn} strategy={strategy} setStrategy={setStrategy} maxWeight={Math.max(maxWeight, minMaxWeightBps(picks.length) / 100)} minMax={minMaxWeightBps(picks.length) / 100} setMaxWeight={setMaxWeight} />
-              <Nav back={() => setStep(1)} next={!agentOn || strategy.trim().length >= 20 ? () => setStep(3) : undefined} />
+              <AgentOption
+                on={agentOn}
+                setOn={setAgentOn}
+                mode={agentMode}
+                setMode={(m) => {
+                  setAgentMode(m);
+                  // Equal Weight starts where it means to stay.
+                  if (m === "equal") {
+                    setManual(false);
+                    setPicks(evenSplit(picks.map((p) => p.assetId)));
+                  }
+                }}
+                problem={agentMode === "ai" ? null : templateProblem(agentMode, picks.map((p) => p.assetId))}
+                strategy={strategy}
+                setStrategy={setStrategy}
+                maxWeight={Math.max(maxWeight, minMaxWeightBps(picks.length) / 100)}
+                minMax={minMaxWeightBps(picks.length) / 100}
+                setMaxWeight={setMaxWeight}
+              />
+              <Nav
+                back={() => setStep(1)}
+                next={
+                  !agentOn || (agentMode === "ai" ? strategy.trim().length >= 20 : !templateProblem(agentMode, picks.map((p) => p.assetId)))
+                    ? () => setStep(3)
+                    : undefined
+                }
+              />
             </div>
           )}
 
@@ -543,23 +576,59 @@ function usePreview(weights: { assetId: string; weightBps: number }[] | null) {
   return state;
 }
 
-/** Opt the basket into the AI agent: a private strategy, and a cap on any one asset's weight. */
-function AgentOption(p: { on: boolean; setOn: (v: boolean) => void; strategy: string; setStrategy: (v: string) => void; maxWeight: number; minMax: number; setMaxWeight: (v: number) => void }) {
+/** Opt the basket into the agent: a template or a private strategy for the AI, and a cap on any one asset's weight. */
+function AgentOption(p: {
+  on: boolean;
+  setOn: (v: boolean) => void;
+  mode: "ai" | TemplateId;
+  setMode: (m: "ai" | TemplateId) => void;
+  problem: string | null;
+  strategy: string;
+  setStrategy: (v: string) => void;
+  maxWeight: number;
+  minMax: number;
+  setMaxWeight: (v: number) => void;
+}) {
+  const picked = TEMPLATES.find((t) => t.id === p.mode);
   return (
     <div className="well space-y-4 p-5">
       <label className="flex cursor-pointer items-start gap-3">
         <input type="checkbox" checked={p.on} onChange={(e) => p.setOn(e.target.checked)} className="mt-1 h-4 w-4 accent-accent" />
         <span>
-          <span className="font-medium text-text">Let an AI agent manage the weights</span>
+          <span className="font-medium text-text">Let an agent manage the weights</span>
           <span className="mt-1 block text-sm text-muted">
-            Once a day the agent reads the market and your strategy, picks new weights within the limits, and rebalances every holder who opted
-            in. It runs in sealed hardware on OutLayer, and it can only swap between this basket&rsquo;s assets inside each holder&rsquo;s own
-            account. Holders see each decision and its proof. Your strategy stays private.
+            Once a day the agent works out the weights, by a rule you pick or by your own strategy for the AI, and rebalances every holder who
+            opted in. It runs in sealed hardware on OutLayer, and it can only swap between this basket&rsquo;s assets inside each holder&rsquo;s
+            own account. Holders see each decision and its proof.
           </span>
         </span>
       </label>
       {p.on && (
         <div className="space-y-4">
+          <div role="radiogroup" aria-label="How the agent sets weights" className="grid gap-2 sm:grid-cols-2">
+            {[...TEMPLATES.map((t) => ({ id: t.id as "ai" | TemplateId, name: t.name, short: t.short })), { id: "ai" as const, name: "Your own strategy", short: "Write it in plain words. An AI model follows it, inside the limits." }].map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                role="radio"
+                aria-checked={p.mode === o.id}
+                onClick={() => p.setMode(o.id)}
+                className={`rounded-xl border p-3 text-left transition-colors ${p.mode === o.id ? "border-accent bg-accent/10" : "border-[var(--line)] hover:border-[var(--line-strong)]"}`}
+              >
+                <span className="block text-sm font-medium text-text">{o.name}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-muted">{o.short}</span>
+              </button>
+            ))}
+          </div>
+          {picked && (
+            <div className="space-y-2 text-sm leading-relaxed text-muted">
+              <p>
+                <span className="font-medium text-text">How {picked.name} works.</span> {picked.how}
+              </p>
+              {p.problem && <p className="text-loss">{p.problem}</p>}
+            </div>
+          )}
+          {p.mode === "ai" && (
           <div>
             <Label>Strategy (private)</Label>
             <textarea
@@ -571,6 +640,7 @@ function AgentOption(p: { on: boolean; setOn: (v: boolean) => void; strategy: st
             />
             <div className="num mt-1 text-right text-[10px] text-faint">{p.strategy.length}/2000</div>
           </div>
+          )}
           <div>
             <Label>Most any one asset can be: {p.maxWeight}%</Label>
             <input type="range" min={Math.ceil(p.minMax / 5) * 5} max={80} step={5} value={Math.max(p.maxWeight, Math.ceil(p.minMax / 5) * 5)} onChange={(e) => p.setMaxWeight(Number(e.target.value))} aria-label="Max weight per asset" className="mt-3 h-2 w-full cursor-pointer accent-accent" />

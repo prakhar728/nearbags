@@ -46,3 +46,6 @@ next-env.d.ts
 
 # thesis track: raw Explorer API pages (thesis.json is checked in)
 /data/thesis/raw/
+
+# research notes (local only)
+/research/

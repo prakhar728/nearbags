@@ -13,11 +13,12 @@ import { getBasketById } from "@/lib/baskets";
 import { revalidateBasket } from "@/lib/basket-pages";
 import type { Session } from "@/lib/auth/session";
 import { HttpError } from "@/lib/auth/session";
-import { livePrice } from "@/lib/prices/live";
 import { createResetOrder, prepareLeg, refreshOrder, submitLeg } from "@/lib/trade/orders";
 import { untradeable } from "@/lib/trade/availability";
 import type { SignedRawEd25519 } from "@/lib/intents/payload";
 import { proofUrl, runModule, signerModule, strategistModule } from "./outlayer";
+import { getTemplate } from "./templates";
+import { DAY, marketData } from "./market";
 export { DEFAULT_LIMITS, minMaxWeightBps, sanitizeAgentConfig } from "./config";
 
 export const MAX_LEG_USD = 100; // the signer's own hard cap is $250; this is tighter for now
@@ -61,21 +62,14 @@ async function setRun(id: number, patch: Partial<Run>) {
   await db().update(schema.agentRuns).set({ ...patch, updatedAt: new Date() }).where(eq(schema.agentRuns.id, id));
 }
 
-async function marketData(assetIds: string[]) {
-  return Promise.all(
-    assetIds.map(async (id) => {
-      const a = getAsset(id);
-      const price = (await livePrice(id)).price;
-      const closes = await db()
-        .select({ close: schema.priceDaily.close })
-        .from(schema.priceDaily)
-        .where(eq(schema.priceDaily.ticker, a.refTicker))
-        .orderBy(desc(schema.priceDaily.date))
-        .limit(8);
-      const chg = (n: number) => (closes[n] ? Math.round((price / closes[n].close - 1) * 10_000) / 100 : null);
-      return { id: a.id, name: a.name, price, change_1d: chg(1), change_7d: chg(7) };
-    }),
-  );
+/** Monthly templates recompute when nothing moved the targets in the last 28 days. */
+async function templateDue(basketId: number, cadence: "daily" | "monthly") {
+  if (cadence === "daily") return true;
+  const recent = await db()
+    .select()
+    .from(schema.agentRuns)
+    .where(and(eq(schema.agentRuns.basketId, basketId), gte(schema.agentRuns.createdAt, new Date(Date.now() - 28 * DAY))));
+  return !recent.some((r) => r.status !== "failed" && r.weightsAfter && JSON.stringify(r.weightsAfter) !== JSON.stringify(r.weightsBefore));
 }
 
 /** Start a run: decide new weights, then rebalance opted-in holders. Returns the run id; pumping continues the swaps. */
@@ -102,6 +96,7 @@ export async function runAgent(basketId: number, trigger: Run["trigger"]): Promi
   try {
     const market = await marketData(basket.assets.map((a) => a.assetId));
     const cfg = row.agent;
+    const tpl = getTemplate(cfg.template?.id);
     const d = await runModule<{ weights: number[]; reason: string; model: string }>(
       strategist,
       {
@@ -109,8 +104,17 @@ export async function runAgent(basketId: number, trigger: Run["trigger"]): Promi
         strategy: cfg.strategy,
         assets: market.map((m, i) => ({ ...m, current_bps: basket.assets[i].weightBps })),
         limits: { min_weight_bps: cfg.limits.minWeightBps, max_weight_bps: cfg.limits.maxWeightBps, max_change_bps: cfg.limits.maxChangeBps, max_turnover_bps: cfg.limits.maxTurnoverBps },
+        ...(tpl && cfg.template
+          ? {
+              template: {
+                id: tpl.id,
+                base_bps: basket.assets.map((a) => cfg.template!.baseBps[a.assetId] ?? a.weightBps),
+                due: await templateDue(basketId, tpl.cadence),
+              },
+            }
+          : {}),
       },
-      { seconds: 60, secrets: strategistSecrets() },
+      { seconds: 60, secrets: tpl ? null : strategistSecrets() },
     );
     if (!d.ok || !d.result) throw new Error(`The strategist refused: ${d.error}`);
     const w = d.result.weights;
@@ -138,7 +142,7 @@ export async function runAgent(basketId: number, trigger: Run["trigger"]): Promi
     const orders: NonNullable<Run["orders"]> = [];
     for (const p of holders) {
       try {
-        const { order } = await createResetOrder(await ownerSession(p.userId), p.id);
+        const { order } = await createResetOrder(await ownerSession(p.userId), p.id, { onlyIfOutsideBands: Boolean(tpl) });
         orders.push({ positionId: p.id, orderId: order.id });
       } catch (e) {
         orders.push({ positionId: p.id, orderId: null, note: (e as Error).message.slice(0, 160) });

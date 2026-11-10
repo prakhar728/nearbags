@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     // Agent-managed: the creator's strategy and limits. The strategy stays private to the creator and the agent.
     let agent = null;
     try {
-      agent = body?.agent ? sanitizeAgentConfig(body.agent, data.assets.length) : null;
+      agent = body?.agent ? sanitizeAgentConfig(body.agent, data.assets) : null;
     } catch (e) {
       return Response.json({ errors: [(e as Error).message] }, { status: 400 });
     }

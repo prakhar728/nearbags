@@ -39,8 +39,11 @@ export const users = pgTable(
 );
 
 export interface AgentConfig {
+  /** The creator's private prompt for the AI. Empty when the basket uses a template. */
   strategy: string;
   limits: { minWeightBps: number; maxWeightBps: number; maxChangeBps: number; maxTurnoverBps: number };
+  /** A rule-based strategy instead of the AI (public). baseBps: the creator's starting weights. */
+  template?: { id: "fixed" | "equal" | "risk" | "trend" | "voltarget" | "momentum"; baseBps: Record<string, number> } | null;
 }
 
 export const baskets = pgTable(
