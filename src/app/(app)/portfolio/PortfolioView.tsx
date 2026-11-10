@@ -196,6 +196,12 @@ export function PortfolioView() {
                             </tbody>
                           </table>
                         </div>
+                        {r.paused.cantSell.length > 0 && (
+                          <p className="callout callout-warn text-sm" role="status">
+                            <span className="font-medium text-text">Selling {r.paused.cantSell.join(", ")} is paused on NEAR Intents right now.</span> Nothing is
+                            wrong with your bag: it stays in your own account, and you can sell once it returns. This clears by itself.
+                          </p>
+                        )}
                         <div className="fine break-all">
                           Basket account {r.accountId} on intents.near{r.recoveryKeyAdded ? " · your wallet is its recovery key" : ""}
                         </div>

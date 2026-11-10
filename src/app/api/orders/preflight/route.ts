@@ -6,6 +6,7 @@ import { handle, HttpError } from "@/lib/auth/session";
 import { getSettings } from "@/lib/settings";
 import { platformFee } from "@/lib/trade/orders";
 import { preflightBuy } from "@/lib/trade/preflight";
+import { buyBlockReason, paused } from "@/lib/trade/availability";
 
 const Body = z.object({
   weights: z.array(z.object({ assetId: z.string(), weightBps: z.number().int() })).min(1).max(10),
@@ -27,6 +28,8 @@ export async function POST(request: Request) {
     // Live baskets can sit outside the 5–50% creation rule once an agent has rebalanced them.
     const errs = validateWeights(weights, { maxWeightBps: AGENT_MAX_WEIGHT_BPS });
     if (errs.length) throw new HttpError(400, errs.join(" "));
+    const blocked = buyBlockReason(await paused(weights.map((w) => w.assetId)));
+    if (blocked) throw new HttpError(409, blocked);
     const pf = platformFee().bps;
     const min = minBuyUsd(weights, creatorFeeBps + pf);
     if (usd < min) throw new HttpError(400, `This basket's minimum buy is $${min}.`);

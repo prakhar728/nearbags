@@ -6,6 +6,7 @@ import { db, schema } from "@/db";
 import { getAsset, USDC } from "@/lib/assets";
 import { getBasketById } from "@/lib/baskets";
 import { balancesOf } from "@/lib/intents/rpc";
+import { paused, type Paused } from "./availability";
 import { oneclick } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 
@@ -88,6 +89,8 @@ export async function portfolio(userId: number) {
       pnlUsd: cost > 0 ? (exit ?? value) - cost : null,
       openOrderId: open?.id ?? null,
       openOrderKind: open?.kind ?? null,
+      // Assets 1Click won't buy or sell right now (only the ones this position actually holds matter for selling).
+      paused: await paused(holdings.filter((h) => h.units > 0 && h.assetId !== "USDC").map((h) => h.assetId)).catch((): Paused => ({ cantBuy: [], cantSell: [] })),
       boughtAt: lastBuy?.createdAt ?? null,
     });
   }
