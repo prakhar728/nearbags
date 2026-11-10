@@ -30,9 +30,9 @@ export default async function SharedPnl({ params }: { params: Promise<{ token: s
   return (
     <div className="mx-auto grid max-w-3xl gap-8 py-6">
       <div className="card card-ticks rise relative overflow-hidden p-8 sm:p-12">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
+        <div aria-hidden className="green-fade pointer-events-none absolute inset-x-0 bottom-0 h-40 opacity-60" />
         <div className="relative grid gap-3">
-          <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
+          <span className="label">
             {s.by ?? "A Stonkbag holder"} · {s.state === "open" ? "holding" : "closed"}
           </span>
           <h1 className="display text-[clamp(36px,6vw,64px)]">{s.name}</h1>
@@ -59,7 +59,7 @@ export default async function SharedPnl({ params }: { params: Promise<{ token: s
           Stonkbag baskets mix tokenized US stocks and crypto. Pay with any token on any chain and get the whole bag in one buy, in an account only your keys control.
         </p>
         <Link href={`/b/${s.slug}`} className="btn btn-primary">
-          SEE THE {s.name.toUpperCase()} BAG →
+          See the {s.name} bag →
         </Link>
       </div>
       <p className="num text-[11px] text-faint">A snapshot from when it was shared, not live. Past returns don&apos;t predict future ones. Not financial advice.</p>

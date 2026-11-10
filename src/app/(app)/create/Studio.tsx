@@ -160,9 +160,9 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
               disabled={!reachable(i)}
               onClick={() => setStep(i)}
               aria-current={i === step ? "step" : undefined}
-              className={`chip h-10 gap-2 pl-1.5 uppercase ${i === step ? "pr-4" : "pr-1.5 md:pr-4"} tracking-wider disabled:cursor-not-allowed disabled:opacity-40 ${i === step ? "chip-on" : i < step ? "text-text" : ""}`}
+              className={`chip h-10 gap-2 pl-1.5 ${i === step ? "pr-4" : "pr-1.5 md:pr-4"} disabled:cursor-not-allowed disabled:opacity-40 ${i === step ? "chip-on" : i < step ? "text-text" : ""}`}
             >
-              <span className={`grid h-7 w-7 place-items-center rounded-full text-[11px] ${i === step ? "bg-accent text-accent-ink" : i < step ? "bg-white/10 text-text" : "border border-[var(--line-strong)]"}`}>
+              <span className={`num grid h-7 w-7 place-items-center rounded-[7px] text-[12px] font-semibold ${i === step ? "bg-accent text-accent-ink" : i < step ? "bg-[var(--surface-2)] text-text" : "border border-[var(--line-strong)]"}`}>
                 {i < step ? "✓" : i + 1}
               </span>
               {/* Phones: only the current step is named, so all four fit on one line. */}
@@ -191,7 +191,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                             aria-pressed={on}
                             disabled={!on && picks.length >= RULES.maxAssets}
                             onClick={() => toggle(a.id)}
-                            className={`chip gap-1.5 pl-1.5 disabled:cursor-not-allowed disabled:opacity-30 ${on ? "!border-accent !bg-accent !text-accent-ink" : ""}`}
+                            className={`chip gap-1.5 pl-1.5 disabled:cursor-not-allowed disabled:opacity-30 ${on ? "chip-on" : ""}`}
                           >
                             <AssetLogo id={a.id} size={18} />
                             {a.id}
@@ -229,7 +229,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                           </span>
                           <span className="hidden flex-1 truncate text-xs text-muted sm:block">{getAsset(p.assetId).name}</span>
                           <span className="flex-1 sm:hidden" />
-                          <button type="button" aria-label={`Less ${p.assetId}`} onClick={() => setPct(p.assetId, Math.max(5, Math.round(p.pct) - 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-accent hover:text-accent active:scale-95">
+                          <button type="button" aria-label={`Less ${p.assetId}`} onClick={() => setPct(p.assetId, Math.max(5, Math.round(p.pct) - 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-[var(--text)] hover:text-text active:scale-95">
                             −
                           </button>
                           <input
@@ -237,12 +237,12 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                             aria-label={`${p.assetId} weight`}
                             value={Number.isFinite(p.pct) ? String(p.pct) : ""}
                             onChange={(e) => setPct(p.assetId, e.target.value === "" ? NaN : Number(e.target.value))}
-                            className={`num h-9 w-14 rounded-[var(--r-sm)] border bg-black/35 text-center text-sm outline-none focus:border-[var(--accent-line)] ${bad ? "border-loss text-loss" : "border-[var(--line-strong)]"}`}
+                            className={`num h-9 w-14 rounded-[var(--r-sm)] border bg-[var(--surface)] text-center text-sm outline-none focus:border-[var(--text)] ${bad ? "border-loss text-loss" : "border-[var(--line-strong)]"}`}
                           />
-                          <button type="button" aria-label={`More ${p.assetId}`} onClick={() => setPct(p.assetId, Math.min(50, Math.round(p.pct) + 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-accent hover:text-accent active:scale-95">
+                          <button type="button" aria-label={`More ${p.assetId}`} onClick={() => setPct(p.assetId, Math.min(50, Math.round(p.pct) + 1))} className="num grid h-9 w-9 place-items-center rounded-full border border-[var(--line-strong)] text-muted transition-colors hover:border-[var(--text)] hover:text-text active:scale-95">
                             +
                           </button>
-                          <button type="button" aria-label={`Remove ${p.assetId}`} onClick={() => toggle(p.assetId)} className="grid h-9 w-9 place-items-center rounded-full font-mono text-sm text-faint transition-colors hover:bg-[var(--loss-soft)] hover:text-loss">
+                          <button type="button" aria-label={`Remove ${p.assetId}`} onClick={() => toggle(p.assetId)} className="grid h-9 w-9 place-items-center rounded-full text-base text-faint transition-colors hover:bg-[var(--loss-soft)] hover:text-loss">
                             ×
                           </button>
                         </div>
@@ -325,7 +325,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
             <div className="space-y-6">
               <div>
                 <Label>Your fee, on buys only</Label>
-                <div className="big-num mt-3 text-6xl text-accent">{feePct(feeBps)}</div>
+                <div className="big-num mt-3 text-6xl text-accent-fg">{feePct(feeBps)}</div>
                 <input
                   type="range"
                   min={0}
@@ -377,7 +377,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                   </div>
                   <div>
                     <Label>Min buy</Label>
-                    <span className="text-accent">{minBuy == null ? "—" : `$${minBuy}`}</span>
+                    <span className="text-accent-fg">{minBuy == null ? "—" : `$${minBuy}`}</span>
                   </div>
                 </div>
               </div>
@@ -401,7 +401,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
 
               {!(user?.isAdmin && house) && minBuy != null && (
                 <p className="text-sm">
-                  Next: <span className="text-muted">publish by buying at least</span> <span className="num text-accent">${minBuy}</span>{" "}
+                  Next: <span className="text-muted">publish by buying at least</span> <span className="num text-accent-fg">${minBuy}</span>{" "}
                   <span className="text-muted">of your basket. It stays pending until that buy completes.</span>
                 </p>
               )}
@@ -481,7 +481,7 @@ function MinBuy({ minBuy, hint }: { minBuy: number | null; hint: string | null }
     <div className="well p-4">
       <div className="flex items-baseline justify-between">
         <Label>Minimum buy</Label>
-        <span className="big-num text-2xl text-accent">{minBuy == null ? "—" : `$${minBuy}`}</span>
+        <span className="big-num text-2xl text-accent-fg">{minBuy == null ? "—" : `$${minBuy}`}</span>
       </div>
       <p className="mt-1 text-xs text-muted">
         {hint ?? "Every asset has a smallest trade the market will fill. The basket's minimum is set by the leg that hits it first, after fees. Floor $20."}

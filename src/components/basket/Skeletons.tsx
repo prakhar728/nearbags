@@ -102,7 +102,7 @@ export function ChartSkeleton({ height }: { height: number }) {
       {[0.25, 0.5, 0.75].map((f) => (
         <div key={f} className="absolute inset-x-0 border-t border-dashed border-[var(--line)]" style={{ top: `${f * 100}%` }} />
       ))}
-      <div className="absolute inset-0 bg-white/[0.02] motion-safe:animate-pulse" />
+      <div className="absolute inset-0 bg-[var(--layer-1)] motion-safe:animate-pulse" />
     </div>
   );
 }

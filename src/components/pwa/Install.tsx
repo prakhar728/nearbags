@@ -49,7 +49,7 @@ function IosSteps({ open, onClose }: { open: boolean; onClose: () => void }) {
           </li>
         </ol>
         <button type="button" className="btn btn-secondary w-full" onClick={onClose}>
-          GOT IT
+          Got it
         </button>
       </div>
     </dialog>
@@ -116,7 +116,7 @@ export function InstallBanner() {
           <span className="font-medium text-text">Get the app.</span> Full screen, one tap from your home screen.
         </span>
         <button type="button" onClick={install} className="btn btn-primary btn-sm shrink-0">
-          INSTALL
+          Install
         </button>
         <button type="button" onClick={dismiss} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-faint active:bg-[var(--layer-2)]">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>

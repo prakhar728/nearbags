@@ -29,9 +29,8 @@ export default async function ProfilePage({ params }: PageProps<"/c/[handle]">) 
   return (
     <div className="space-y-10">
       <div className="card card-pad relative overflow-hidden">
-        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
-          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[var(--r-xl)] bg-accent font-[family-name:var(--display)] text-3xl font-black text-accent-ink shadow-[0_14px_40px_-14px_rgba(232,255,89,0.7)]">
+                <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center">
+          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-[var(--r-lg)] bg-accent text-3xl font-semibold text-accent-ink">
             {(p.handle ?? p.address).slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 space-y-2">
@@ -95,7 +94,7 @@ async function OwnerBits({ p }: { p: CreatorProfile }) {
           <ul className="mt-2 space-y-1 text-sm">
             {pending.map((b) => (
               <li key={b.slug}>
-                <Link href={`/b/${b.slug}`} className="hover:text-accent">
+                <Link href={`/b/${b.slug}`} className="hover:text-accent-fg">
                   {b.name}
                 </Link>
               </li>

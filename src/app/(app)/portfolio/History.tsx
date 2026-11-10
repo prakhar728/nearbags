@@ -6,9 +6,10 @@ import { LineChart, type ChartLine } from "@/components/charts/LineChart";
 import { SharePnl } from "@/components/share/SharePnl";
 import { Section } from "@/components/ui/Primitives";
 import type { History } from "@/lib/trade/history";
+import { CHART } from "@/lib/palette";
 
-const ACCENT = "#e8ff59";
-const SECOND = "#8a8a8a";
+const ACCENT = CHART.basket;
+const SECOND = CHART.second;
 const usd = (x: number) => `$${x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = (x: number) => `${x >= 0 ? "+" : "−"}${usd(Math.abs(x))}`;
 const tone = (x: number) => (x >= 0 ? "text-gain" : "text-loss");
@@ -62,7 +63,7 @@ export function ClosedBags({ closed }: { closed: History["closed"] }) {
           <li key={i} className="card card-pad grid gap-3">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent">
+                <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent-fg">
                   {c.basket.name}
                 </Link>
                 <div className="num mt-0.5 text-[11px] text-muted">closed {when(c.closedAt)}</div>
@@ -98,7 +99,7 @@ export function ClosedBags({ closed }: { closed: History["closed"] }) {
             {closed.map((c, i) => (
               <tr key={i}>
                 <td>
-                  <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent">
+                  <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent-fg">
                     {c.basket.name}
                   </Link>
                 </td>
@@ -155,7 +156,7 @@ export function TradeHistory({ trades }: { trades: History["trades"] }) {
               <tr key={t.orderId}>
                 <td className="text-muted">{when(t.at)}</td>
                 <td>
-                  <Link href={`/b/${t.basket.slug}`} className="font-sans text-sm text-text hover:text-accent">
+                  <Link href={`/b/${t.basket.slug}`} className="font-sans text-sm text-text hover:text-accent-fg">
                     {t.basket.name}
                   </Link>
                 </td>

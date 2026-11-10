@@ -51,7 +51,7 @@ export function AdminView() {
         <div className="card flex flex-wrap items-center gap-4 p-5">
           <span className="text-sm">Buying is {d.settings.buysPaused ? <b className="text-loss">paused</b> : <b className="text-gain">on</b>}. Selling always works.</span>
           <button type="button" onClick={() => act({ action: "pause_buys", paused: !d.settings.buysPaused })} className="btn btn-secondary btn-sm">
-            {d.settings.buysPaused ? "RESUME BUYS" : "PAUSE ALL BUYS"}
+            {d.settings.buysPaused ? "Resume buys" : "Pause all buys"}
           </button>
           <span className="num text-xs text-muted">
             Platform fee {(d.platformFeeBps / 100).toFixed(2)}% → {d.platformFeeAccount ?? "no fee account set (fee off)"}
@@ -87,7 +87,7 @@ export function AdminView() {
                 onClick={() => act({ action: "hide_basket", basketId: b.id, hidden: b.status !== "hidden", reason: b.status !== "hidden" ? "Hidden by admin" : undefined })}
                 className="btn btn-secondary btn-sm"
               >
-                {b.status === "hidden" ? "UNHIDE" : "HIDE"}
+                {b.status === "hidden" ? "Unhide" : "Hide"}
               </button>
             </div>
           ))}

@@ -25,12 +25,12 @@ function Inl({ nodes }: { nodes: Inline[] }) {
             );
           case "code":
             return (
-              <code key={i} className="num rounded-[var(--r-xs)] bg-white/[0.07] px-1.5 py-0.5 text-[0.86em] text-text">
+              <code key={i} className="font-mono rounded-[var(--r-xs)] bg-[var(--surface-2)] px-1.5 py-0.5 text-[0.86em] text-text">
                 {n.v}
               </code>
             );
           case "link": {
-            const cls = "text-text underline decoration-[var(--accent-line)] underline-offset-[3px] transition-colors hover:decoration-accent";
+            const cls = "text-text underline decoration-[var(--accent-line)] underline-offset-[3px] transition-colors hover:decoration-text";
             if (n.href.startsWith(INTERNAL))
               return (
                 <Link key={i} href={n.href.slice(INTERNAL.length)} className={cls}>
@@ -89,7 +89,7 @@ function Block({ b }: { b: DocBlock }) {
     case "ol": {
       const L = b.type;
       return (
-        <L className={`grid max-w-[68ch] gap-1.5 pl-5 ${L === "ul" ? "list-disc" : "list-decimal"} marker:text-[var(--accent-line)]`}>
+        <L className={`grid max-w-[68ch] gap-1.5 pl-5 ${L === "ul" ? "list-disc" : "list-decimal"} marker:text-muted`}>
           {b.items.map((it, i) => (
             <li key={i} className="pl-1">
               <Inl nodes={it.inl} />
@@ -164,9 +164,9 @@ function Block({ b }: { b: DocBlock }) {
       );
     }
     case "code":
-      return <pre className="num overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-black/40 p-4 text-[12.5px] leading-relaxed text-text/90">{b.text}</pre>;
+      return <pre className="font-mono overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--surface)] p-4 text-[12.5px] leading-relaxed text-text/90">{b.text}</pre>;
     case "diagram":
-      return <figure className="doc-diagram" dangerouslySetInnerHTML={{ __html: b.svg }} />;
+      return <figure className="doc-diagram theme-dark" dangerouslySetInnerHTML={{ __html: b.svg }} />;
   }
 }
 

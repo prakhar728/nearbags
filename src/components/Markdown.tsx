@@ -22,13 +22,13 @@ function Inl({ nodes }: { nodes: Inline[] }) {
             );
           case "code":
             return (
-              <code key={i} className="num rounded-md bg-white/[0.07] px-1.5 py-0.5 text-[0.88em]">
+              <code key={i} className="font-mono rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-[0.88em]">
                 {n.v}
               </code>
             );
           case "link":
             return (
-              <a key={i} href={n.href} target="_blank" rel="noopener noreferrer nofollow ugc" className="text-text underline decoration-border-strong underline-offset-2 hover:decoration-accent">
+              <a key={i} href={n.href} target="_blank" rel="noopener noreferrer nofollow ugc" className="text-text underline decoration-border-strong underline-offset-2 hover:decoration-text">
                 <Inl nodes={n.c} />
               </a>
             );
@@ -48,14 +48,14 @@ function B({ b }: { b: Block }) {
       );
     case "quote":
       return (
-        <blockquote className="rounded-r-[var(--r-sm)] border-l-2 border-accent/60 bg-white/[0.025] py-2 pl-4 pr-3 text-muted">
+        <blockquote className="rounded-r-[var(--r-sm)] border-l-2 border-accent bg-[var(--surface)] py-2 pl-4 pr-3 text-muted">
           <Inl nodes={b.inl} />
         </blockquote>
       );
     case "h": {
       const H = b.level === 1 ? "h3" : "h4";
       return (
-        <H className={`pt-2 font-mono uppercase tracking-wider text-text ${b.level === 1 ? "text-sm" : "text-xs"}`}>
+        <H className={`pt-2 font-semibold tracking-tight text-text ${b.level === 1 ? "text-base" : "text-[15px]"}`}>
           <Inl nodes={b.inl} />
         </H>
       );
@@ -64,7 +64,7 @@ function B({ b }: { b: Block }) {
     case "ol": {
       const L = b.type;
       return (
-        <L className={`space-y-1 pl-5 ${b.type === "ul" ? "list-disc" : "list-decimal"} marker:text-accent/70`}>
+        <L className={`space-y-1 pl-5 ${b.type === "ul" ? "list-disc" : "list-decimal"} marker:text-muted`}>
           {b.items.map((it, i) => (
             <li key={i}>
               <Inl nodes={it} />
@@ -74,7 +74,7 @@ function B({ b }: { b: Block }) {
       );
     }
     case "code":
-      return <pre className="num overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-black/30 p-4 text-xs">{b.text}</pre>;
+      return <pre className="font-mono overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--surface)] p-4 text-xs">{b.text}</pre>;
   }
 }
 

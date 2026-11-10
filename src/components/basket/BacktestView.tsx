@@ -5,10 +5,10 @@ import { useMemo, useState } from "react";
 import { LineChart, type ChartLine } from "@/components/charts/LineChart";
 import type { AnalyticsView, WindowKey } from "@/lib/analytics/view";
 import { pct, tone, usd } from "@/lib/format";
-import { assetColor, BENCH } from "@/lib/palette";
+import { assetColor, BENCH, CHART } from "@/lib/palette";
 
-const ACCENT = "#e8ff59";
-const DIM = "#2a2a2a";
+const ACCENT = CHART.basket;
+const DIM = CHART.dim;
 
 export function BacktestView({ a, compact = false }: { a: AnalyticsView; compact?: boolean }) {
   const [key, setKey] = useState<WindowKey>(a.windows.at(-1)!.key);
@@ -33,7 +33,7 @@ export function BacktestView({ a, compact = false }: { a: AnalyticsView; compact
               </button>
             ))}
           </div>
-          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 font-mono text-[11px] text-muted hover:text-text">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[13px] font-medium text-muted hover:text-text">
             <input type="checkbox" checked={monthly} onChange={(e) => setMonthly(e.target.checked)} className="check" />
             Show monthly-rebalanced line
           </label>
@@ -65,8 +65,7 @@ export function BacktestView({ a, compact = false }: { a: AnalyticsView; compact
 
 function H({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="label flex items-center gap-2 text-muted">
-      <span className="inline-block h-px w-5 bg-accent/70" aria-hidden />
+    <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-text">
       {children}
     </h2>
   );
@@ -79,7 +78,7 @@ function GrowthChart({ w, monthly, height }: { w: AnalyticsView["windows"][numbe
     const out: (ChartLine & { label: string })[] = [];
     if (w.btc) out.push({ id: "BTC", label: "BTC", color: BENCH.BTC, data: w.btc, dashed: true });
     if (w.spy) out.push({ id: "SPY", label: "SPY", color: BENCH.SPY, data: w.spy });
-    if (monthly && w.monthly) out.push({ id: "monthly", label: "Monthly reset", color: "#9aa64a", data: w.monthly, dashed: true, width: 1 });
+    if (monthly && w.monthly) out.push({ id: "monthly", label: "Monthly reset", color: CHART.monthly, data: w.monthly, dashed: true, width: 1 });
     out.push({ id: "basket", label: "Basket", color: ACCENT, data: w.value, width: 2 });
     return out;
   }, [w, monthly]);
@@ -93,7 +92,7 @@ function GrowthChart({ w, monthly, height }: { w: AnalyticsView["windows"][numbe
             $1,000 on {w.start} → {hover == null ? "today" : w.times[i]}
           </div>
           <div className="mt-2 flex items-baseline gap-3">
-            <div className="big-num text-[clamp(36px,5vw,52px)] text-accent">{usd(end)}</div>
+            <div className="big-num text-[clamp(36px,5vw,52px)] text-accent-fg">{usd(end)}</div>
             <span className={`badge ${end >= 1000 ? "badge-gain" : "badge-loss"} normal-case tracking-normal`}>{pct(end / 1000 - 1)}</span>
           </div>
         </div>
@@ -153,7 +152,7 @@ function AssetChart({ a, w, height }: { a: AnalyticsView; w: AnalyticsView["wind
     }));
     // Highlighted asset drawn last so it sits on top; basket always bold.
     out.sort((x, y) => Number(x.id === focus) - Number(y.id === focus));
-    out.push({ id: "basket", color: focus && focus !== "basket" ? "#6b7330" : ACCENT, width: 3, data: basket });
+    out.push({ id: "basket", color: focus && focus !== "basket" ? CHART.basketSoft : ACCENT, width: 3, data: basket });
     return out;
   }, [a.assetIds, w, focus, basket]);
 
@@ -161,7 +160,7 @@ function AssetChart({ a, w, height }: { a: AnalyticsView; w: AnalyticsView["wind
     <div>
       <div className="flex flex-wrap items-center gap-1.5">
         <LegendBtn active={focus === "basket"} dim={!!focus && focus !== "basket"} color={ACCENT} onClick={() => setFocus(focus === "basket" ? null : "basket")}>
-          BASKET <span className="text-text">{basket[i]?.toFixed(0)}</span>
+          Basket <span className="text-text">{basket[i]?.toFixed(0)}</span>
         </LegendBtn>
         {a.assetIds.map((id, k) => (
           <LegendBtn key={id} active={focus === id} dim={!!focus && focus !== id} color={assetColor(k)} onClick={() => setFocus(focus === id ? null : id)}>
@@ -169,7 +168,7 @@ function AssetChart({ a, w, height }: { a: AnalyticsView; w: AnalyticsView["wind
           </LegendBtn>
         ))}
         <button type="button" aria-pressed={log} onClick={() => setLog(!log)} className="chip ml-auto">
-          LOG
+          Log scale
         </button>
       </div>
       <div className="mt-4">
@@ -186,9 +185,9 @@ function LegendBtn({ children, active, dim, color, onClick }: { children: React.
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`chip ${active ? "border-[var(--line-strong)] bg-[var(--layer-3)] text-text" : ""} ${dim ? "opacity-50" : ""}`}
+      className={`chip ${active ? "!border-[var(--text)] text-text" : ""} ${dim ? "opacity-50" : ""}`}
     >
-      <span className="inline-block h-2 w-2 rounded-full" style={{ background: dim ? DIM : color, boxShadow: dim ? undefined : `0 0 8px ${color}` }} />
+      <span className="inline-block h-2 w-2 rounded-full" style={{ background: dim ? DIM : color }} />
       {children}
     </button>
   );
@@ -210,7 +209,7 @@ function Contributions({ a, w }: { a: AnalyticsView; w: AnalyticsView["windows"]
                 {r.id} <span className="text-faint">{Math.round(r.weight * 100)}%</span>
               </div>
               <div className="bar-track">
-                {hasNeg && <div className="absolute inset-y-0 left-1/2 z-10 w-px bg-white/25" />}
+                {hasNeg && <div className="absolute inset-y-0 left-1/2 z-10 w-px bg-[var(--line-strong)]" />}
                 <div
                   className={`bar-fill ${r.c >= 0 ? "bg-gain/80" : "bg-loss/80"}`}
                   style={

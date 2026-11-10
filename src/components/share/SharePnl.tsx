@@ -43,7 +43,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
         onClick={openDialog}
         className={`btn btn-secondary ${compact ? "btn-sm" : ""}`}
       >
-        <ShareIcon /> {compact ? "SHARE" : "SHARE P&L"}
+        <ShareIcon /> {compact ? "Share" : "Share P&L"}
       </button>
       <dialog
         ref={dialog}
@@ -51,7 +51,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
           e.stopPropagation();
           if (e.target === dialog.current) dialog.current?.close();
         }}
-        className="m-auto w-[min(640px,calc(100vw-32px))] text-left rounded-[var(--r-xl)] border border-[var(--line-strong)] bg-[#121212] p-0 text-text shadow-2xl shadow-black/70 backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+        className="m-auto w-[min(640px,calc(100vw-32px))] text-left rounded-[var(--r-xl)] border border-[var(--line-strong)] bg-[var(--elev)] p-0 text-text shadow-[var(--shadow-lg)] backdrop:bg-black/40 backdrop:backdrop-blur-sm"
       >
         <div className="grid gap-4 p-5 sm:p-6">
           <div className="flex items-center justify-between gap-3">
@@ -78,7 +78,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
                 setShowAmount(e.target.checked);
                 void make(e.target.checked);
               }}
-              className="h-4 w-4 accent-[var(--color-accent,#e8ff59)]"
+              className="h-4 w-4 accent-[var(--ink)]"
             />
             Show the dollar amount (off: only the percentage)
           </label>
@@ -93,7 +93,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
               aria-disabled={!made}
               className={`btn btn-primary ${made ? "" : "pointer-events-none opacity-40"}`}
             >
-              POST ON X
+              Post on X
             </a>
             <button
               type="button"
@@ -105,7 +105,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
               }}
               className="btn btn-secondary"
             >
-              {copied ? "COPIED" : "COPY LINK"}
+              {copied ? "Copied" : "Copy link"}
             </button>
             {canNative ? (
               <button
@@ -114,7 +114,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
                 onClick={() => navigator.share({ title: `My ${basketName} bag`, url }).catch(() => {})}
                 className="btn btn-secondary"
               >
-                SHARE…
+                Share…
               </button>
             ) : (
               <a
@@ -122,7 +122,7 @@ export function SharePnl({ positionId, basketName, compact = false }: { position
                 aria-disabled={!made}
                 className={`btn btn-secondary ${made ? "" : "pointer-events-none opacity-40"}`}
               >
-                DOWNLOAD IMAGE
+                Download image
               </a>
             )}
           </div>

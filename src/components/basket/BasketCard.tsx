@@ -23,46 +23,40 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
       style={{ "--i": Math.min(i, 8) } as React.CSSProperties}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {b.status === "closed" ? <Tag>Closed</Tag> : b.isHouse ? <Tag>House</Tag> : <Tag tone="accent">Live</Tag>}
-          {b.agent && <Tag>AI agent</Tag>}
-          <span className="badge border-transparent px-0 normal-case tracking-normal text-faint">by {creatorName(b.creator)}</span>
+        <div className="flex items-center" aria-hidden>
+          {shown.map((t) => (
+            <AssetLogo key={t} id={t} size={32} className="-mr-2 ring-2 ring-[var(--elev)]" />
+          ))}
+          {tickers.length > shown.length && (
+            <span className="num -mr-2 grid h-8 min-w-8 place-items-center rounded-full bg-[var(--surface-2)] px-1.5 text-[11px] font-semibold text-muted ring-2 ring-[var(--elev)]">
+              +{tickers.length - shown.length}
+            </span>
+          )}
         </div>
-        <span
-          aria-hidden
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[var(--line)] text-muted transition-all duration-300 group-hover:rotate-[-45deg] group-hover:border-accent group-hover:bg-accent group-hover:text-accent-ink"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-        </span>
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {b.agent && <Tag>AI agent</Tag>}
+          {b.status === "closed" ? <Tag>Closed</Tag> : b.isHouse ? <Tag>House</Tag> : <Tag tone="accent">Live</Tag>}
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <h3 className="display text-[26px] leading-[1.02] transition-colors group-hover:text-accent">{b.name}</h3>
+      <div className="space-y-1.5">
+        <h3 className="display text-[22px] leading-tight">{b.name}</h3>
         <p className="line-clamp-2 text-sm leading-relaxed text-muted">{b.tagline}</p>
+        <p className="num truncate text-[13px] text-muted">
+          {tickers.join(" · ")} <span className="text-faint">· by {creatorName(b.creator)}</span>
+        </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5">
-        {shown.map((t) => (
-          <span key={t} className="chip h-7 gap-1.5 pl-1 pr-2.5 text-[10.5px]">
-            <AssetLogo id={t} size={18} />
-            {t}
-          </span>
-        ))}
-        {tickers.length > shown.length && <span className="chip h-7 px-2.5 text-[10.5px] text-faint">+{tickers.length - shown.length}</span>}
-      </div>
-
-      <div className="mt-auto flex items-end justify-between gap-4">
+      <div className="mt-auto flex items-end justify-between gap-4 rounded-[var(--r-md)] bg-[var(--surface)] px-4 py-3.5">
         <div>
           <div className="label">Backtest {backtest?.label ?? ""}{backtest?.cagr != null ? " · per yr" : ""}</div>
-          <div className={`big-num mt-2 text-[34px] ${headline == null ? "text-muted" : headline >= 0 ? "text-accent" : "text-loss"}`}>
+          <div className={`big-num mt-1.5 text-[30px] ${headline == null ? "text-muted" : headline >= 0 ? "text-gain" : "text-loss"}`}>
             {headline == null ? "—" : pct(headline, 0)}
           </div>
         </div>
         <div className="text-right">
           <div className="label">Live</div>
-          <div className="num mt-2 text-sm">
+          <div className="num mt-1.5 text-sm font-medium">
             {live ? (
               <>
                 <span className={tone(live.value)}>{pct(live.value)}</span> <span className="text-faint">{live.days}d</span>
@@ -74,7 +68,7 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
         </div>
       </div>
 
-      <div className="num flex flex-wrap gap-x-3 gap-y-1 border-t border-[var(--line)] pt-4 text-[11px] text-muted">
+      <div className="num flex flex-wrap gap-x-3 gap-y-1 text-[12.5px] text-muted">
         <span>
           <span className="text-text">{metrics.tvlUsd == null ? "—" : usd(metrics.tvlUsd, { compact: true })}</span> held
         </span>
@@ -98,6 +92,6 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
 }
 
 export function Tag({ children, tone: t = "muted" }: { children: React.ReactNode; tone?: "muted" | "accent" | "loss" }) {
-  const cls = t === "accent" ? "badge-accent" : t === "loss" ? "badge-loss" : "";
+  const cls = t === "accent" ? "badge-accent badge-dot" : t === "loss" ? "badge-loss" : "";
   return <span className={`badge ${cls}`}>{children}</span>;
 }

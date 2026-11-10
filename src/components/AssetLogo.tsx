@@ -9,7 +9,7 @@ export function AssetLogo({ id, size = 16, className = "" }: { id: string; size?
       alt=""
       width={size}
       height={size}
-      className={`shrink-0 rounded-full bg-white/5 object-cover ${className}`}
+      className={`shrink-0 rounded-full bg-[var(--surface-2)] object-cover ${className}`}
       style={{ width: size, height: size }}
     />
   );

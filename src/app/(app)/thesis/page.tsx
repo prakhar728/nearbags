@@ -69,7 +69,7 @@ export default async function ThesisPage() {
         </h1>
         <p className="rise max-w-3xl text-[15px] leading-relaxed text-muted" style={{ "--i": 2 } as React.CSSProperties}>
           Each chart below comes from the NEAR Intents Explorer API and Stonkbag&apos;s own on-chain balances, rebuilt with{" "}
-          <code className="rounded-md bg-white/[0.07] px-1.5 py-0.5 font-mono text-[0.9em] text-text">pnpm thesis</code>. We started from &ldquo;tokenized US stocks are becoming a real use of NEAR Intents&rdquo;; the
+          <code className="rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 font-mono text-[0.9em] text-text">pnpm thesis</code>. We started from &ldquo;tokenized US stocks are becoming a real use of NEAR Intents&rdquo;; the
           data below rejected that, so the claim changed. The full argument and the evidence against it are in THESIS.md in the repo.
         </p>
         {d ? (
@@ -94,8 +94,7 @@ export default async function ThesisPage() {
 function Card({ def, sentence, children }: { def: ChartDef; sentence: string; children?: React.ReactNode }) {
   return (
     <section className="card card-pad rise grid gap-4">
-      <h2 className="label flex items-center gap-2 text-muted">
-        <span className="inline-block h-px w-5 bg-accent/70" aria-hidden />
+      <h2 className="flex items-center gap-2 text-[15px] font-semibold tracking-tight text-text">
         {def.title}
       </h2>
       <p className="max-w-3xl text-[17px] leading-relaxed text-text">{sentence}</p>
@@ -105,7 +104,7 @@ function Card({ def, sentence, children }: { def: ChartDef; sentence: string; ch
           <span className="transition-transform duration-300 group-open:rotate-90" aria-hidden>›</span> How this was made
         </summary>
         <div className="mt-3 grid gap-2">
-          <pre className="overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-black/30 p-4 font-mono text-[11px] leading-relaxed text-muted">{def.request}</pre>
+          <pre className="overflow-x-auto rounded-[var(--r-md)] border border-[var(--line)] bg-[var(--surface)] p-4 font-mono text-[11px] leading-relaxed text-muted">{def.request}</pre>
           <p className="fine">{def.rule}</p>
         </div>
       </details>

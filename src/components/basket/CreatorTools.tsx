@@ -75,7 +75,7 @@ export function CreatorTools({ basket: b }: { basket: CreatorToolsBasket }) {
       </div>
       {b.status === "pending" && (
         <p className="text-sm">
-          Publish by buying at least <span className="num text-accent">${b.minBuyUsd}</span> of your basket. It goes live once that buy completes.
+          Publish by buying at least <span className="num text-accent-fg">${b.minBuyUsd}</span> of your basket. It goes live once that buy completes.
         </p>
       )}
       {closing && <p className="callout callout-warn text-xs">Closing stops new buys for good. Holders can still sell and withdraw. You can&apos;t reopen it.</p>}

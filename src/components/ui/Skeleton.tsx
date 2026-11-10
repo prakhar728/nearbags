@@ -3,12 +3,12 @@
 
 /** One grey block. Size it with className (h-*, w-*); rounded by default, override with rounded-*. */
 export function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
-  return <div aria-hidden className={`rounded-md bg-white/[0.06] motion-safe:animate-pulse ${className}`} style={style} />;
+  return <div aria-hidden className={`rounded-md bg-[var(--surface-2)] motion-safe:animate-pulse ${className}`} style={style} />;
 }
 
 /** A line of text, inline. Height follows the surrounding font size. */
 export function SkeletonText({ className = "w-16" }: { className?: string }) {
-  return <span aria-hidden className={`inline-block h-[0.9em] translate-y-[0.1em] rounded bg-white/[0.06] motion-safe:animate-pulse ${className}`} />;
+  return <span aria-hidden className={`inline-block h-[0.9em] translate-y-[0.1em] rounded bg-[var(--surface-2)] motion-safe:animate-pulse ${className}`} />;
 }
 
 /** Wraps a skeleton so screen readers hear one "loading" message instead of nothing. */

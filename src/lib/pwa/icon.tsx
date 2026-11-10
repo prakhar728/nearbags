@@ -1,8 +1,8 @@
-// The app icon: an acid-yellow bag with a rising line on black. One drawing for every size, rendered to PNG by
+// The app icon: a bright green bag with a rising line on near-black. One drawing for every size, rendered to PNG by
 // next/og (favicon, Apple touch icon, the manifest's icons). `pad` shrinks the art for maskable icons, whose outer
 // 10% Android may crop to a circle or squircle.
-export const ICON_BG = "#0a0a0a";
-export const ICON_FG = "#e8ff59";
+export const ICON_BG = "#171717";
+export const ICON_FG = "#00ec97";
 
 export function IconArt({ size, pad = 0 }: { size: number; pad?: number }) {
   const inner = size * (1 - 2 * pad);
