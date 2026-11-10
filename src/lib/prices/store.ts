@@ -121,11 +121,19 @@ async function ingestDividends(asset: Asset, from: string): Promise<string> {
   return parts.join("/") || "none";
 }
 
-export async function ingestAll(opts: { full?: boolean; ids?: string[] } = {}): Promise<IngestResult[]> {
+export async function ingestAll(opts: { full?: boolean; ids?: string[]; concurrency?: number } = {}): Promise<IngestResult[]> {
   const list = (opts.ids?.map(getAsset) ?? ASSETS).filter((a) => a.kind !== "stable");
-  const out: IngestResult[] = [];
-  // Sequential per asset to stay polite with free APIs.
-  for (const a of list) out.push(await ingestAsset(a, opts));
+  // A few assets at a time: one by one, the full list ran past the cron's 5-minute limit and the last assets (the
+  // meme coins) never got prices. Each asset still calls its own sources one after another.
+  const out: IngestResult[] = new Array(list.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < list.length) {
+      const i = next++;
+      out[i] = await ingestAsset(list[i], opts);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(opts.concurrency ?? 6, list.length) }, worker));
   return out;
 }
 
