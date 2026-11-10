@@ -11,6 +11,7 @@ export const DOCS = [
   { slug: "how-it-works", title: "How it works", audience: "Everyone", blurb: "What a bag is, and how buying, selling and creating work" },
   { slug: "fees", title: "Fees", audience: "Everyone", blurb: "What a buy and a sell cost, with a real example" },
   { slug: "safety", title: "Safety and custody", audience: "Everyone", blurb: "Who holds the money, and what happens if Stonkbag goes away" },
+  { slug: "agent", title: "AI agent baskets", audience: "Everyone", blurb: "How the agent rebalances, what it can't do, and how to check it" },
   { slug: "data", title: "Prices and numbers", audience: "Everyone", blurb: "Where every number comes from, and what is live" },
   { slug: "architecture", title: "Architecture", audience: "Engineers", blurb: "Components, the order flow, database and API" },
   { slug: "operations", title: "Operations", audience: "Whoever runs it", blurb: "Settings, scheduled jobs, admin controls, fixing common problems" },

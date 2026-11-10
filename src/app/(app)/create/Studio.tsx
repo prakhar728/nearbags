@@ -39,6 +39,15 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(0);
+  // Moving between steps brings the step chips (and the new step under them) back into view.
+  const stepsRef = useRef<HTMLOListElement>(null);
+  const shownStep = useRef(step);
+  useEffect(() => {
+    if (shownStep.current === step) return;
+    shownStep.current = step;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    stepsRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  }, [step]);
   const [picks, setPicks] = useState<Choice[]>([]);
   const [manual, setManual] = useState(false);
   const [t, setT] = useState({ name: "", tagline: "", thesis: "", risks: "", exitSignal: "", deepDive: "" });
@@ -46,6 +55,9 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
   const [why, setWhy] = useState<Record<string, string>>({});
   const [feeBps, setFeeBps] = useState(50);
   const [house, setHouse] = useState(false);
+  const [agentOn, setAgentOn] = useState(false);
+  const [strategy, setStrategy] = useState("");
+  const [maxWeight, setMaxWeight] = useState(60);
   const [accept, setAccept] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishErr, setPublishErr] = useState<string[] | null>(null);
@@ -107,6 +119,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
           feeBps,
           assets: picks.map((p) => ({ assetId: p.assetId, weightBps: Math.round(p.pct * 100), why: why[p.assetId] ?? "" })),
           house: user?.isAdmin ? house : undefined,
+          agent: agentOn ? { strategy, limits: { maxWeightBps: maxWeight * 100 } } : undefined,
           acceptRisk: accept,
         }),
       });
@@ -137,7 +150,7 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
         </p>
       )}
 
-      <ol className="flex gap-2 md:flex-wrap">
+      <ol ref={stepsRef} className="flex scroll-mt-24 gap-2 md:flex-wrap">
         {STEPS.map((s, i) => (
           <li key={s}>
             <button
@@ -328,7 +341,8 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
                 <span className="num text-text">{feePct(platformFeeBps)}</span>. Selling is free. The fee is frozen once you publish.
               </p>
               <MinBuy minBuy={minBuy} hint={hint} />
-              <Nav back={() => setStep(1)} next={() => setStep(3)} />
+              <AgentOption on={agentOn} setOn={setAgentOn} strategy={strategy} setStrategy={setStrategy} maxWeight={maxWeight} setMaxWeight={setMaxWeight} />
+              <Nav back={() => setStep(1)} next={!agentOn || strategy.trim().length >= 20 ? () => setStep(3) : undefined} />
             </div>
           )}
 
@@ -521,4 +535,45 @@ function usePreview(weights: { assetId: string; weightBps: number }[] | null) {
   }, [key]);
 
   return state;
+}
+
+/** Opt the basket into the AI agent: a private strategy, and a cap on any one asset's weight. */
+function AgentOption(p: { on: boolean; setOn: (v: boolean) => void; strategy: string; setStrategy: (v: string) => void; maxWeight: number; setMaxWeight: (v: number) => void }) {
+  return (
+    <div className="well space-y-4 p-5">
+      <label className="flex cursor-pointer items-start gap-3">
+        <input type="checkbox" checked={p.on} onChange={(e) => p.setOn(e.target.checked)} className="mt-1 h-4 w-4 accent-accent" />
+        <span>
+          <span className="font-medium text-text">Let an AI agent manage the weights</span>
+          <span className="mt-1 block text-sm text-muted">
+            Once a day the agent reads the market and your strategy, picks new weights within the limits, and rebalances every holder who opted
+            in. It runs in sealed hardware on OutLayer, and it can only swap between this basket&rsquo;s assets inside each holder&rsquo;s own
+            account. Holders see each decision and its proof. Your strategy stays private.
+          </span>
+        </span>
+      </label>
+      {p.on && (
+        <div className="space-y-4">
+          <div>
+            <Label>Strategy (private)</Label>
+            <textarea
+              value={p.strategy}
+              onChange={(e) => p.setStrategy(e.target.value.slice(0, 2000))}
+              rows={5}
+              placeholder="e.g. Lean into whatever has the strongest 7-day momentum, but never let stocks fall under half the basket. Cut anything down more than 15% in a week."
+              className="field mt-2 w-full"
+            />
+            <div className="num mt-1 text-right text-[10px] text-faint">{p.strategy.length}/2000</div>
+          </div>
+          <div>
+            <Label>Most any one asset can be: {p.maxWeight}%</Label>
+            <input type="range" min={20} max={80} step={5} value={p.maxWeight} onChange={(e) => p.setMaxWeight(Number(e.target.value))} aria-label="Max weight per asset" className="mt-3 h-2 w-full cursor-pointer accent-accent" />
+          </div>
+          <p className="text-sm text-muted">
+            Fixed limits: each asset stays at 5% or more, moves at most 15 points a day, and at most 20% of the basket changes hands per run.
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }

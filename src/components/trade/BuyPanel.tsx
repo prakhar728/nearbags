@@ -25,6 +25,7 @@ export interface BuyPanelBasket {
   minBuyUsd: number;
   status: "draft" | "pending" | "live" | "closed" | "hidden";
   assets: WeightInput[];
+  agentManaged?: boolean;
 }
 
 type Phase = "form" | "review" | "working" | "order";
@@ -191,7 +192,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       setStep("Unlocking your basket key…");
       const { k, mode } = await keyFor();
       setStep("Registering your basket account…");
-      const { position } = await api<{ position: { recoveryKeyAddedAt: string | null } }>("/api/positions", {
+      const { position } = await api<{ position: { recoveryKeyAddedAt: string | null; agentKeyAddedAt?: string | null } }>("/api/positions", {
         method: "POST",
         body: JSON.stringify({ basketId: basket.id, accountId: k.accountId, keyMode: mode }),
       });
@@ -199,6 +200,13 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
         if (!user.walletPubkey) throw new Error("No wallet key on file. Sign out and in again.");
         setStep("Adding your wallet as the recovery key…");
         await api("/api/relay/recovery", { method: "POST", body: JSON.stringify({ signed: signIntents(k, [{ intent: "add_public_key", public_key: user.walletPubkey }]) }) });
+      }
+      if (basket.agentManaged && !position.agentKeyAddedAt) {
+        // Agent-managed basket: the agent's key joins the account so it can rebalance it (swaps only, checked in its code).
+        const { key } = await api<{ key: { publicKey: string } | null }>("/api/agent/key");
+        if (!key) throw new Error("This basket's agent isn't set up yet. Try again later.");
+        setStep("Letting the agent manage this basket…");
+        await api("/api/relay/agent", { method: "POST", body: JSON.stringify({ signed: signIntents(k, [{ intent: "add_public_key", public_key: key.publicKey }]) }) });
       }
       setStep("Getting a deposit address…");
       const v = await api<OrderView>("/api/orders", {
@@ -380,7 +388,15 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
           </button>
         )}
         <p className="fine">
-          Your basket sits in its own NEAR Intents account. Only your browser key and your wallet can move it.
+          {basket.agentManaged ? (
+            <>
+              Your basket sits in its own NEAR Intents account. Buying lets this basket&rsquo;s AI agent rebalance it: its key can only swap
+              between the basket&rsquo;s assets inside your account, never send funds out. Your browser key and wallet keep full control, and your
+              wallet can remove the agent at any time.
+            </>
+          ) : (
+            "Your basket sits in its own NEAR Intents account. Only your browser key and your wallet can move it."
+          )}
         </p>
       </div>
     </Box>

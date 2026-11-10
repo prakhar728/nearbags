@@ -1,0 +1,17 @@
+[package]
+name = "strategist"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Stonkbag strategist: asks a model for basket weights and clamps them to hard limits, inside OutLayer's TEE"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+wasi-http-client = "0.2"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
