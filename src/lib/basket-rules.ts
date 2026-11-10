@@ -27,7 +27,15 @@ export function minBuyUsd(weights: WeightInput[], feeBps: number): number {
   return Math.ceil(need / 5) * 5;
 }
 
-export function validateWeights(weights: WeightInput[]): string[] {
+/** The most an AI agent may move one asset to (the strategist's hard cap, agent/strategist/src/policy.rs). */
+export const AGENT_MAX_WEIGHT_BPS = 8000;
+
+/**
+ * `maxWeightBps` defaults to the creation rule (50%). Buying a live basket passes AGENT_MAX_WEIGHT_BPS, since an
+ * agent-managed basket's targets can move past 50% after it was created.
+ */
+export function validateWeights(weights: WeightInput[], opts: { maxWeightBps?: number } = {}): string[] {
+  const maxBps = opts.maxWeightBps ?? RULES.maxWeightBps;
   const errs: string[] = [];
   const ids = new Set(ASSETS.map((a) => a.id));
   if (weights.length < RULES.minAssets) errs.push(`Pick at least ${RULES.minAssets} assets.`);
@@ -38,7 +46,7 @@ export function validateWeights(weights: WeightInput[]): string[] {
     if (seen.has(w.assetId)) errs.push(`${w.assetId} appears twice.`);
     seen.add(w.assetId);
     if (w.weightBps % RULES.weightStepBps) errs.push(`${w.assetId}: use whole percents.`);
-    if (w.weightBps < RULES.minWeightBps || w.weightBps > RULES.maxWeightBps) errs.push(`${w.assetId}: weight must be 5–50%.`);
+    if (w.weightBps < RULES.minWeightBps || w.weightBps > maxBps) errs.push(`${w.assetId}: weight must be ${RULES.minWeightBps / 100}–${maxBps / 100}%.`);
   }
   const sum = weights.reduce((s, w) => s + w.weightBps, 0);
   if (sum !== 10_000) errs.push(`Weights add up to ${sum / 100}%, not 100%.`);
