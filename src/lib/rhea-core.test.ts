@@ -10,6 +10,7 @@ import {
   DCL_CONTRACT,
   disagreementProblem,
   judgeSafety,
+  taxedSwap,
   memeMidUsd,
   minOutput,
   pointToPrice,
@@ -61,7 +62,16 @@ describe("Rhea routes", () => {
   });
   it("allowlists only USDC/wNEAR and each meme coin's main pool", () => {
     const pools = allowedPools();
-    expect([...pools].sort()).toEqual([USDC_WNEAR_POOL, HOOT_POOL, `${NEARLY}|wrap.near|10000`].sort());
+    expect([...pools].sort()).toEqual(
+      [
+        USDC_WNEAR_POOL,
+        HOOT_POOL,
+        `${NEARLY}|wrap.near|10000`,
+        "imeme-2.v2-launchpad.justhoot.near|wrap.near|10000",
+        "batman-4.nearlytrade.near|wrap.near|10000",
+        "singularty.nearlytrade.near|wrap.near|10000",
+      ].sort(),
+    );
     expect(pools.has(`${HOOT}|wrap.near|2000`)).toBe(false);
   });
   it("strips nep141: and rejects other token standards", () => {
@@ -185,5 +195,20 @@ describe("meme coin safety", () => {
   it("has nothing to check on immutable NEARLY or on 1Click assets", () => {
     expect(judgeSafety(getAsset("NEARLY"), {}).ok).toBe(true);
     expect(judgeSafety(getAsset("BTC"), {}).ok).toBe(true);
+  });
+});
+
+describe("launch tax (nearly.trade)", () => {
+  it("a sell is quoted on the amount less the sell tax", () => {
+    expect(taxedSwap("BATMAN", "USDC", 1_000_000n).poolIn).toBe(990_000n);
+    expect(taxedSwap("NEARLY", "USDC", 1_000_000n).poolIn).toBe(1_000_000n);
+  });
+  it("a buy delivers the pool's output less the buy tax", () => {
+    expect(taxedSwap("USDC", "SINGULARTY", 5_000_000n).net(1_000_000n)).toBe(990_000n);
+    expect(taxedSwap("USDC", "IMEME", 5_000_000n).net(1_000_000n)).toBe(1_000_000n);
+  });
+  it("every Rhea coin's pool is on the allowlist", () => {
+    const pools = allowedPools();
+    for (const id of ["HOOT", "NEARLY", "IMEME", "BATMAN", "SINGULARTY"]) expect(pools.has(getAsset(id).rhea!.pool)).toBe(true);
   });
 });

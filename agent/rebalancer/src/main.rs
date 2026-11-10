@@ -21,7 +21,7 @@
 //!    "assets": ["nep141:…", …], "max_usd": 100}
 //!   {"op": "sign_rhea_leg", "account_id": "<64 hex>", "payload": "<one ft_withdraw to Rhea DCL>", "assets": […], "max_usd": 100}
 //!
-//! Signer 2 adds: an app-fee cap and a reference-price check on 1Click legs (src/check.rs), Rhea DCL legs checked
+//! Signer 3 adds IMEME, BATMAN and SINGULARTY pools and quotes tax-token sells after their tax. Signer 2 added: an app-fee cap and a reference-price check on 1Click legs (src/check.rs), Rhea DCL legs checked
 //! against a fresh on-chain quote and a fixed pool list (src/rhea.rs), and a daily swap limit per account enforced by
 //! intents.near's single-use nonces (src/daily.rs). The signed payload carries the signer's nonce, not the input's.
 mod check;
@@ -44,7 +44,7 @@ mod bindings {
 use bindings::outlayer::signing_keys::api as keys;
 
 const KEY: &str = "agent";
-const BUILD: &str = "rebalancer-signer-2";
+const BUILD: &str = "rebalancer-signer-3";
 const RPC: &str = "https://rpc.mainnet.near.org";
 const ONECLICK_STATUS: &str = "https://1click.chaindefuser.com/v0/status?depositAddress=";
 

@@ -8,11 +8,23 @@ use serde_json::Value;
 pub const DCL: &str = "dclv2.ref-labs.near";
 pub const USDC: &str = "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1";
 /// The only pools the agent may route through. Adding a pool means a new build (and a new agent key).
-pub const POOLS: [&str; 3] = [
+pub const POOLS: [&str; 6] = [
     "17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1|wrap.near|100",
     "hoot-8ecf65.launchpad.justhoot.near|wrap.near|10000",
     "nearly-993927.nearlytrade.near|wrap.near|10000",
+    "imeme-2.v2-launchpad.justhoot.near|wrap.near|10000",
+    "batman-4.nearlytrade.near|wrap.near|10000",
+    "singularty.nearlytrade.near|wrap.near|10000",
 ];
+/// nearly.trade launch taxes, fixed in each token at launch (no setter): (token, sell bps). A sell's pool input is the
+/// amount less this tax, so that is what gets quoted.
+pub const SELL_TAX_BPS: [(&str, u128); 2] = [("batman-4.nearlytrade.near", 100), ("singularty.nearlytrade.near", 100)];
+
+/// The amount the pool actually swaps for this input (after any sell tax the token takes on the way in).
+pub fn pool_input(token_in: &str, amount: u128) -> u128 {
+    let tax = SELL_TAX_BPS.iter().find(|(t, _)| *t == token_in).map_or(0, |(_, b)| *b);
+    amount * (10_000 - tax) / 10_000
+}
 const MAX_GAS: u64 = 200_000_000_000_000;
 
 #[derive(Deserialize)]
@@ -122,7 +134,7 @@ pub fn against_quote(s: &Swap, quoted: u128, max_usd: Option<f64>) -> Result<f64
 }
 
 pub fn quote_args(s: &Swap) -> Value {
-    serde_json::json!({ "pool_ids": s.pool_ids, "input_token": s.token_in, "output_token": s.token_out, "input_amount": s.amount_in.to_string(), "tag": null })
+    serde_json::json!({ "pool_ids": s.pool_ids, "input_token": s.token_in, "output_token": s.token_out, "input_amount": pool_input(&s.token_in, s.amount_in).to_string(), "tag": null })
 }
 
 pub fn account_ok(a: &str) -> bool {
@@ -174,6 +186,13 @@ mod tests {
         refused(buy(ACC, PATH, "").replace(DCL, "attacker.near"), "DCL");
         refused(buy(ACC, PATH, "").replace("ft_withdraw", "transfer"), "ft_withdraw");
         refused(buy(ACC, PATH, "").replace("150000000000000", "900000000000000"), "min_gas");
+    }
+
+    #[test]
+    fn quotes_a_tax_token_sell_after_its_tax() {
+        assert_eq!(pool_input("batman-4.nearlytrade.near", 1_000_000), 990_000);
+        assert_eq!(pool_input(NEARLY, 1_000_000), 1_000_000);
+        assert!(POOLS.contains(&"singularty.nearlytrade.near|wrap.near|10000"));
     }
 
     #[test]
