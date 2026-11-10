@@ -323,7 +323,7 @@ export function Landing({ data }: { data: Data }) {
               <h3>Learn</h3>
               <Link href="/docs">Docs</Link>
               <Link href="/thesis">Thesis</Link>
-              <a href="https://github.com/prakhar728/stonkbag" target="_blank" rel="noopener">GitHub</a>
+              <a href="https://github.com/prakhar728/nearbags" target="_blank" rel="noopener">GitHub</a>
             </div>
             <div>
               <h3>Legal</h3>

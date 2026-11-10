@@ -106,7 +106,7 @@ export function SideNav() {
           {l.label}
         </Link>
       ))}
-      <a href="https://github.com/prakhar728/stonkbag" target="_blank" rel="noopener" className="side-link">
+      <a href="https://github.com/prakhar728/nearbags" target="_blank" rel="noopener" className="side-link">
         <Icon name="github" />
         GitHub
       </a>

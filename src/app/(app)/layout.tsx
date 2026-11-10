@@ -50,7 +50,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link href="/explore" className="app-nav-link">Explore</Link>
               <Link href="/thesis" className="app-nav-link">Thesis</Link>
               <Link href="/docs" className="app-nav-link">Docs</Link>
-              <a href="https://github.com/prakhar728/stonkbag" target="_blank" rel="noopener" className="app-nav-link">GitHub</a>
+              <a href="https://github.com/prakhar728/nearbags" target="_blank" rel="noopener" className="app-nav-link">GitHub</a>
               <Link href="/terms" className="app-nav-link">Terms</Link>
               <Link href="/risk" className="app-nav-link">Risks</Link>
             </nav>
