@@ -1,4 +1,4 @@
-# Stonkbag rebalancer (OutLayer spike)
+# Stonkbag rebalancer (the signer)
 
 An OutLayer WASI module whose ed25519 key is derived inside OutLayer's TEE (Intel TDX) and bound to this exact
 build (`bind: "wasm"`). It composes NEAR Intents payloads itself, in the app's `raw_ed25519` shape, and signs them.
@@ -25,3 +25,26 @@ node verify.mjs <run-output.json>                                   # from the r
 ```
 
 The key belongs to this build and the caller (`ai-creator.near`). A new build, or another caller, gets another key.
+
+## Signer build 1, 2026-11-10 (mainnet)
+
+`sign_leg` signs a basket's swap leg only after checking it. The payload must be exactly one transfer from the basket
+account to a 1Click deposit address. The module then reads that deposit address's quote from 1Click itself and checks:
+
+- the output and any refund go back to the same account, inside NEAR Intents;
+- the token and amount match the transfer;
+- both assets are on the basket's list;
+- the quote is still waiting for its deposit;
+- slippage is at most 3%;
+- the leg is at most $250 (or the input's lower cap).
+
+The rules are in `src/check.rs`, with 9 unit tests.
+
+| Step | Outcome |
+| --- | --- |
+| Build | `20b42e48aad4ee0e247710cc5030da1f7aa60331eb55d54c8285260847c66514` (FastFS tx `3YunH9aUF6as9cbamrwhCkCBKePJWdwvbsgxbpsRNqHd`) |
+| Key | account `01199b9b9f4833660459f20f11d38d4342281b09080495f802c54faa9c6dd3e8`, `ed25519:5J4DP2spg712rrUddWifcspWxpbzVv4U2gEonDYHK6F` |
+| Real 1Click quote (USDC → wNEAR, back to the account) | signed. intents.near `simulate_intents` fails only on balance, so the signature is accepted |
+| Quote whose output goes to another account | refused: "the swap output does not go back to the basket account" |
+
+Building the module again changes the key, so a holder who opted in would have to opt in again.
