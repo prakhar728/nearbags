@@ -25,6 +25,13 @@ export function ConnectButton({ variant = "landing" }: { variant?: "landing" | "
     return () => document.removeEventListener("pointerdown", close);
   }, []);
 
+  // A failed sign-in reopens the menu so the reason shows.
+  const [shownErr, setShownErr] = useState(error);
+  if (error !== shownErr) {
+    setShownErr(error);
+    if (error) setOpen(true);
+  }
+
   // Same footprint as the button, so the header doesn't shift when the session check finishes.
   if (loading) return <Skeleton className={app ? "h-9 w-[7.5rem] rounded-full" : "h-[30px] w-[5.5rem] rounded-none"} />;
 
@@ -55,15 +62,15 @@ export function ConnectButton({ variant = "landing" }: { variant?: "landing" | "
           {!user ? (
             <div className="grid gap-2">
               <p className="font-mono text-[10px] uppercase tracking-wider text-faint">NEAR</p>
-              <button type="button" onClick={signInNear} className={app ? "flex min-h-11 items-center rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--layer-1)] px-3 py-2 text-left transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--layer-2)]" : "border border-border px-3 py-2 text-left hover:border-border-strong"}>
+              <button type="button" onClick={() => (setOpen(false), void signInNear())} className={app ? "flex min-h-11 items-center rounded-[var(--r-sm)] border border-[var(--line)] bg-[var(--layer-1)] px-3 py-2 text-left transition-colors hover:border-[var(--line-strong)] hover:bg-[var(--layer-2)]" : "border border-border px-3 py-2 text-left hover:border-border-strong"}>
                 <span className="grid">
                   <span>NEAR wallet</span>
-                  <span className="text-xs text-muted">HOT, Meteor, NEAR Mobile, Intear</span>
+                  <span className="text-xs text-muted">HOT, Meteor, NEAR Mobile, Intear, OKX and more</span>
                 </span>
               </button>
               {standalone && (
                 <p className="text-[11px] leading-relaxed text-faint">
-                  In the installed app, HOT and NEAR Mobile work best. Meteor and Intear sign in a browser window that may not return to the app.
+                  In the installed app, HOT and NEAR Mobile work best. Wallets that sign in a browser window (Meteor, Intear, MyNearWallet) may not return to the app.
                 </p>
               )}
               <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-faint">EVM</p>

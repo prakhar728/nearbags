@@ -49,7 +49,7 @@ export function nep413Request(signerId: string, intents: Intent[], deadlineMs = 
   return { message, nonce: randomNonce(), recipient: VERIFYING_CONTRACT };
 }
 
-/** `signature` is what wallet selectors return: base64 of the 64-byte ed25519 signature. */
+/** `signature` is base64 of the 64-byte ed25519 signature (lib/client/near normalizes what wallets return). */
 export function nep413Signed(req: { message: string; nonce: Uint8Array; recipient: string }, publicKey: string, signatureB64: string): SignedNep413 {
   return {
     standard: "nep413",

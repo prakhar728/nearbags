@@ -4,14 +4,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useWalletSelector } from "@near-wallet-selector/react-hook";
 import { useConfig } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ASSETS, getAsset } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder, retryLeg } from "@/lib/client/order-runner";
-import { canPayFromEvm, canPayFromNear, payFromEvm, payFromNear, type PayToken } from "@/lib/client/pay";
+import { canPayFromEvm, canPayFromNear, nearBalance, nearFtBalance, payFromEvm, payFromNear, type PayToken } from "@/lib/client/pay";
 import type { BasketKey } from "@/lib/intents/keys";
 import { signIntents } from "@/lib/intents/payload";
 import type { BuyPreflight } from "@/lib/trade/preflight";
@@ -49,7 +48,6 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const { user, keyForBasket, signInNear, busy: authBusy } = useAuth();
   const wagmiConfig = useConfig();
-  const near = useWalletSelector();
   const [tokens, setTokens] = useState<PayToken[]>([]);
   const [amount, setAmount] = useState(String(Math.max(basket.minBuyUsd, 20)));
   const [payAsset, setPayAsset] = useState("");
@@ -84,10 +82,10 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     staleTime: 30_000,
     queryFn: async () => {
       const t = token!;
-      const raw = BigInt(String((await near.viewFunction({ contractId: t.contract!, method: "ft_balance_of", args: { account_id: user!.address } })) ?? "0"));
+      const raw = await nearFtBalance(t.contract!, user!.address);
       const f = (x: bigint, d: number) => (Number(x) / 10 ** d).toLocaleString(undefined, { maximumFractionDigits: 4 });
       if (t.contract !== "wrap.near") return `${f(raw, t.decimals)} ${t.symbol}`;
-      const native = await near.getBalance(user!.address);
+      const native = await nearBalance(user!.address);
       return `${f(native, 24)} NEAR${raw > 0n ? ` + ${f(raw, 24)} wNEAR` : ""}`;
     },
   });
@@ -224,7 +222,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     try {
       setStep("Confirm the transfer in your wallet…");
       if (user?.chain === "near" && canPayFromNear(token)) {
-        await payFromNear(near, user.address, token, view.order.deposit.address!, view.order.deposit.amountIn);
+        await payFromNear(user.address, token, view.order.deposit.address!, view.order.deposit.amountIn);
       } else {
         await payFromEvm(wagmiConfig, token, view.order.deposit.address!, view.order.deposit.amountIn);
       }

@@ -25,7 +25,7 @@ Buying a theme ("AI picks and shovels", "gold and bitcoin") means many separate 
 | 1Click API | Cross-chain deposits, swaps and payouts. Buy legs use `INTENTS` deposit and recipient types, so funds never leave the basket account between steps. |
 | Intent signing | Basket keys sign `raw_ed25519` payloads in the browser. Wallets sign `erc191` (EVM) or `nep413` (NEAR) payloads to add a key or recover an account. |
 | Relayer | A platform NEAR account that pays gas for `execute_intents` on already-signed payloads. It holds no user funds and can't sign for users. Every batch is simulated first. |
-| NEAR wallets | Wallet Selector (Meteor, HOT, Intear) for sign-in with NEP-413. EVM wallets sign in with SIWE-style messages. |
+| NEAR wallets | HOT Connect (HOT, Meteor, NEAR Mobile, Intear, OKX, Ledger and more) for sign-in with NEP-413. EVM wallets sign in with SIWE-style messages. |
 
 No custom contract: everything runs on `intents.near` and 1Click.
 
@@ -123,7 +123,7 @@ Optional env: `ONECLICK_JWT` (no 0.2% 1Click fee), `RELAYER_ACCOUNT_ID` and `REL
 
 ## Libraries
 
-Next.js 16, React 19, Tailwind CSS 4, drizzle-orm with postgres.js (Neon in production), TanStack Query, near-api-js (v6 for wallets, v7 for the server), NEAR Wallet Selector 10, wagmi 3 and viem, @noble/curves, @noble/hashes, @scure/base, jose, zod, lightweight-charts, vitest, tsx. Hosted on Vercel.
+Next.js 16, React 19, Tailwind CSS 4, drizzle-orm with postgres.js (Neon in production), TanStack Query, near-api-js 7 on the server, HOT Connect (@hot-labs/near-connect) for NEAR wallets, wagmi 3 and viem, @noble/curves, @noble/hashes, @scure/base, jose, zod, lightweight-charts, vitest, tsx. Hosted on Vercel.
 
 AI coding tools (Claude Code) were used during the build.
 
