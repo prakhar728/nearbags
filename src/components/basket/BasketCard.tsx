@@ -24,6 +24,7 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           {b.status === "closed" ? <Tag>Closed</Tag> : b.isHouse ? <Tag>House</Tag> : <Tag tone="accent">Live</Tag>}
+          {b.agent && <Tag>AI agent</Tag>}
           <span className="badge border-transparent px-0 normal-case tracking-normal text-faint">by {creatorName(b.creator)}</span>
         </div>
         <span

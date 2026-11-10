@@ -38,6 +38,11 @@ export const users = pgTable(
   (t) => [uniqueIndex("users_wallet_uq").on(t.walletChain, t.walletAddress), uniqueIndex("users_handle_uq").on(t.handle)],
 );
 
+export interface AgentConfig {
+  strategy: string;
+  limits: { minWeightBps: number; maxWeightBps: number; maxChangeBps: number; maxTurnoverBps: number };
+}
+
 export const baskets = pgTable(
   "baskets",
   {
@@ -57,6 +62,9 @@ export const baskets = pgTable(
     hiddenReason: text("hidden_reason"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
+    // Agent-managed baskets: the creator's strategy (private, never sent to other users) and the weight limits the
+    // agent must stay inside. Null for ordinary baskets.
+    agent: jsonb("agent").$type<AgentConfig>(),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("baskets_slug_uq").on(t.slug), index("baskets_status_idx").on(t.status)],
@@ -91,6 +99,9 @@ export const positions = pgTable(
     accountId: text("account_id").notNull(), // hex implicit account in intents.near
     keyMode: text("key_mode", { enum: ["derived", "device"] }).notNull(),
     recoveryKeyAddedAt: timestamp("recovery_key_added_at", { withTimezone: true }),
+    // When the holder added the agent's key to this account (agent-managed baskets), and which key it was.
+    agentKeyAddedAt: timestamp("agent_key_added_at", { withTimezone: true }),
+    agentPublicKey: text("agent_public_key"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("positions_account_uq").on(t.accountId), uniqueIndex("positions_user_basket_uq").on(t.userId, t.basketId)],
@@ -237,3 +248,25 @@ export const authNonces = pgTable("auth_nonces", {
   nonce: text("nonce").primaryKey(),
   expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
 });
+
+// One agent run on one basket: the strategist's decision, then a rebalance of each opted-in holder's account.
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: serial("id").primaryKey(),
+    basketId: integer("basket_id").notNull().references(() => baskets.id),
+    trigger: text("trigger", { enum: ["cron", "creator", "admin"] }).notNull(),
+    status: text("status", { enum: ["deciding", "rebalancing", "done", "failed"] }).notNull().default("deciding"),
+    weightsBefore: jsonb("weights_before").$type<Record<string, number>>(),
+    weightsAfter: jsonb("weights_after").$type<Record<string, number>>(),
+    reason: text("reason"),
+    model: text("model"),
+    decideTx: text("decide_tx"), // OutLayer request_execution tx: its attestation is at /attestations/by-tx/{tx}
+    orders: jsonb("orders").$type<{ positionId: number; orderId: number | null; note?: string }[]>(),
+    signTxs: jsonb("sign_txs").$type<string[]>(),
+    error: text("error"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("agent_runs_basket_idx").on(t.basketId, t.createdAt)],
+);

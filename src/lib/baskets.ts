@@ -24,6 +24,8 @@ export interface BasketView {
   creator: { id: number; handle: string | null; address: string; chain: "near" | "evm" };
   assets: (WeightInput & { why: string })[];
   minBuyUsd: number;
+  /** Agent-managed: the public limits. The creator's strategy is never part of this view. */
+  agent: { limits: { minWeightBps: number; maxWeightBps: number; maxChangeBps: number; maxTurnoverBps: number } } | null;
 }
 
 type BasketRow = typeof schema.baskets.$inferSelect;
@@ -54,6 +56,7 @@ async function hydrate(rows: BasketRow[]): Promise<BasketView[]> {
       creator: { id: u.id, handle: u.handle, address: u.walletAddress, chain: u.walletChain },
       assets: a,
       minBuyUsd: minBuyUsd(a, r.feeBps + PLATFORM_FEE_BPS()),
+      agent: r.agent ? { limits: r.agent.limits } : null,
     };
   });
 }

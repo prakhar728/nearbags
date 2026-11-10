@@ -8,6 +8,7 @@ import { createProblems, slugify } from "@/lib/basket-text";
 import { revalidateBasket, revalidateProfiles } from "@/lib/basket-pages";
 import { PLATFORM_FEE_BPS } from "@/lib/baskets";
 import { isAdmin, sessionUser } from "@/lib/users";
+import { sanitizeAgentConfig } from "@/lib/agent/config";
 
 async function uniqueSlug(base: string): Promise<string> {
   const taken = new Set(
@@ -26,8 +27,16 @@ export async function POST(request: Request) {
   return handle(async () => {
     const session = await requireSession();
     const user = await sessionUser(session);
-    const { errors, data } = createProblems(await request.json().catch(() => null));
+    const body = await request.json().catch(() => null);
+    const { errors, data } = createProblems(body);
     if (!data) return Response.json({ errors }, { status: 400 });
+    // Agent-managed: the creator's strategy and limits. The strategy stays private to the creator and the agent.
+    let agent = null;
+    try {
+      agent = body?.agent ? sanitizeAgentConfig(body.agent) : null;
+    } catch (e) {
+      return Response.json({ errors: [(e as Error).message] }, { status: 400 });
+    }
 
     const admin = isAdmin(user);
     if (data.house && !admin) throw new HttpError(403, "Only admins can publish House baskets.");
@@ -51,6 +60,7 @@ export async function POST(request: Request) {
               exitSignal: data.exitSignal ?? null,
               deepDive: data.deepDive ?? null,
               feeBps: data.feeBps,
+              agent,
               isHouse: house,
               status: house ? "live" : "pending",
               publishedAt: house ? new Date() : null,

@@ -7,6 +7,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { BacktestView } from "@/components/basket/BacktestView";
 import { Tag } from "@/components/basket/BasketCard";
+import { AgentPanel } from "@/components/basket/AgentPanel";
 import { CreatorTools } from "@/components/basket/CreatorTools";
 import { BacktestSkeleton, CellsSkeleton } from "@/components/basket/Skeletons";
 import { Pairs } from "@/components/basket/Pairs";
@@ -47,7 +48,7 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
       <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
         <Header b={b} />
         <div id="buy" className="rise scroll-mt-20 space-y-3 lg:sticky lg:top-24 lg:self-start" style={{ "--i": 2 } as React.CSSProperties}>
-          <BuyPanel basket={{ id: b.id, slug: b.slug, name: b.name, feeBps: b.feeBps, minBuyUsd: b.minBuyUsd, status: b.status, assets: weightsOf(b) }} />
+          <BuyPanel basket={{ id: b.id, slug: b.slug, name: b.name, feeBps: b.feeBps, minBuyUsd: b.minBuyUsd, status: b.status, assets: weightsOf(b), agentManaged: !!b.agent }} />
           <p className="fine px-1">
             Min buy ${b.minBuyUsd} · creator fee {feePct(b.feeBps)} + platform fee on buys · selling is free.
           </p>
@@ -69,6 +70,8 @@ export default async function BasketPage({ params }: PageProps<"/b/[slug]">) {
           assets: b.assets.map(({ assetId, why }) => ({ assetId, why })),
         }}
       />
+
+      {b.agent && <AgentPanel basketId={b.id} creatorId={b.creator.id} limits={b.agent.limits} />}
 
       <Suspense fallback={<BacktestSkeleton assets={b.assets.length} />}>
         <Analytics b={b} />
@@ -127,6 +130,7 @@ function Header({ b }: { b: BasketView }) {
         <div className="flex flex-wrap items-center gap-2">
           {statusTag}
           {b.isHouse && <Tag>House basket</Tag>}
+          {b.agent && <Tag tone="accent">AI agent</Tag>}
         </div>
         <div data-slot="basket-actions" className="flex flex-wrap items-center gap-2">
           {(b.status === "live" || b.status === "closed") && <ShareBasket slug={b.slug} name={b.name} tagline={b.tagline} />}
