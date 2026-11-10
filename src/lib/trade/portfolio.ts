@@ -69,7 +69,9 @@ export async function portfolio(userId: number) {
     // Cost basis: buys add what was paid; a sell of X% removes X% of the basis.
     let cost = 0;
     for (const o of orders.filter((o) => o.positionId === p.id)) {
-      if (o.kind === "buy" && ["complete", "partial"].includes(o.status)) cost += o.usdIn ?? 0;
+      // From the moment the deposit arrived, not when the swaps finish: an unfinished buy already holds its value
+      // (USDC, then the swapped assets), so leaving its cost out showed that value as profit.
+      if (o.kind === "buy" && ["funded", "fees_paid", "legs_running", "complete", "partial"].includes(o.status)) cost += o.usdIn ?? 0;
       if (o.kind === "sell" && ["complete", "partial"].includes(o.status) && o.sellPct) cost *= 1 - o.sellPct / 100;
     }
     const open = orders.filter((o) => o.positionId === p.id && ["awaiting_deposit", "funded", "fees_paid", "legs_running"].includes(o.status)).at(-1);
