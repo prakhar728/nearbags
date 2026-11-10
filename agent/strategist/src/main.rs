@@ -24,7 +24,7 @@ use std::time::Duration;
 #[link_section = "outlayer.manifest"]
 static OUTLAYER_MANIFEST: [u8; include_bytes!("../manifest.json").len()] = *include_bytes!("../manifest.json");
 
-const BUILD: &str = "strategist-1";
+const BUILD: &str = "strategist-2";
 const MAX_STRATEGY_CHARS: usize = 4_000;
 const MAX_REASON_CHARS: usize = 200;
 
@@ -132,7 +132,7 @@ fn ask_model(d: &Decide) -> Result<(Vec<f64>, String, String), String> {
         "model": model,
         "messages": [{ "role": "system", "content": system }, { "role": "user", "content": user }],
         "temperature": 0.2,
-        "max_tokens": 400,
+        "max_tokens": 2000, // room for models that reason before answering
     });
     let res = wasi_http_client::Client::new()
         .post(&format!("{}/chat/completions", base.trim_end_matches('/')))
@@ -149,8 +149,17 @@ fn ask_model(d: &Decide) -> Result<(Vec<f64>, String, String), String> {
     }
     let v: Value = serde_json::from_slice(&bytes).map_err(|_| "the model answer was not JSON")?;
     let text = v.pointer("/choices/0/message/content").and_then(Value::as_str).ok_or("the model gave no answer")?;
+    let text = strip_thinking(text);
     let (weights, reason) = parse_answer(text, &d.assets)?;
     Ok((weights, reason, model))
+}
+
+/// Drop a reasoning model's <think>…</think> block, which may contain braces of its own.
+fn strip_thinking(text: &str) -> &str {
+    match text.rfind("</think>") {
+        Some(i) => &text[i + "</think>".len()..],
+        None => text,
+    }
 }
 
 /// Pull {"weights": {...}, "reason": "..."} out of the model's text (it may wrap it in prose or a code fence).
@@ -184,6 +193,13 @@ mod tests {
         let (w, r) = parse_answer("Sure!\n```json\n{\"weights\": {\"SOL\": 40, \"NEAR\": 60}, \"reason\": \"NEAR momentum\"}\n```", &assets()).unwrap();
         assert_eq!(w, vec![4_000.0, 6_000.0]);
         assert_eq!(r, "NEAR momentum");
+    }
+
+    #[test]
+    fn skips_thinking() {
+        let t = strip_thinking("<think>maybe {\"weights\": {\"SOL\": 1}}</think>\n{\"weights\": {\"SOL\": 55, \"NEAR\": 45}, \"reason\": \"r\"}");
+        let (w, _) = parse_answer(t, &assets()).unwrap();
+        assert_eq!(w, vec![5_500.0, 4_500.0]);
     }
 
     #[test]
