@@ -26,7 +26,6 @@ import {
   storageRegistered,
   swapIntent,
   swapSettlement,
-  taxedSwap,
   tokenOf,
   tokenSafety,
   txReceipts,
@@ -118,7 +117,7 @@ export async function prepareRheaLeg(leg: Leg, ctx: { accountId: string; amountI
     amount: ctx.amountIn,
     poolIds: q.poolIds,
     outputToken: q.outputToken,
-    minOut: minOutput(BigInt(q.poolOut)).toString(), // checked by the pool before any buy tax
+    minOut: minOutput(BigInt(q.amountOut)).toString(),
   };
   const payload = buildPayload(ctx.accountId, [swapIntent(spec)], { deadlineMs: RHEA_DEADLINE_MS });
   const quote: RheaLegQuote = { venue: "rhea", kind: "swap", spec, quoteOut: q.amountOut, midUsd };
@@ -231,9 +230,7 @@ export async function settleRheaLeg(leg: Leg, accountId: string) {
   if (q.kind === "swap" && q.preBalance != null && q.spec) {
     const [now] = await balancesOf(accountId, [leg.assetTo]);
     const diff = BigInt(now) - BigInt(q.preBalance);
-    // A buy tax comes off after the pool's minimum check, so compare what landed with the minimum less that tax.
-    const landedMin = taxedSwap(assetByIntentsId(leg.assetFrom)?.id ?? "USDC", assetByIntentsId(leg.assetTo)?.id ?? "USDC", 0n).net(BigInt(q.spec.minOut));
-    if (diff >= landedMin) return setLeg(leg.id, { status: "success", amountOutActual: diff.toString(), error: null });
+    if (diff >= BigInt(q.spec.minOut)) return setLeg(leg.id, { status: "success", amountOutActual: diff.toString(), error: null });
   }
   await setLeg(leg.id, {
     status: "failed",

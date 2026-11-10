@@ -11,7 +11,7 @@
 //   $T sell HOOT [--send]            # all HOOT → USDC
 //   $T withdraw you.near [--send]    # all USDC back to your NEAR account (plain ft_withdraw)
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { getAsset, USDC } from "../../src/lib/assets";
+import { ASSETS, getAsset, USDC } from "../../src/lib/assets";
 import { bytesToHex, hexToBytes, keyFromSecret, randomBasketKey, type BasketKey } from "../../src/lib/intents/keys";
 import { buildPayload, parsePayload, signRaw, type SignedRawEd25519 } from "../../src/lib/intents/payload";
 import { balancesOf, simulateIntents } from "../../src/lib/intents/rpc";
@@ -41,7 +41,7 @@ function loadKey(): BasketKey {
 }
 
 async function balances(k: BasketKey) {
-  const ids = ["USDC", "HOOT", "NEARLY", "NEAR"].map(getAsset);
+  const ids = [USDC, ...ASSETS.filter((a) => a.venue === "rhea"), getAsset("NEAR")];
   const bals = await balancesOf(k.accountId, ids.map((a) => a.intentsAssetId));
   return Object.fromEntries(ids.map((a, i) => [a.id, { raw: bals[i], units: Number(bals[i]) / 10 ** a.decimals }]));
 }
@@ -66,7 +66,7 @@ async function main() {
     return;
   }
   if (!["status", "buy", "sell", "withdraw"].includes(cmd ?? "")) {
-    return console.log("Commands: init | status | buy <HOOT|NEARLY> <usd> | sell <HOOT|NEARLY> | withdraw <you.near>   (add --send to relay)");
+    return console.log("Commands: init | status | buy <COIN> <usd> | sell <COIN> | withdraw <you.near>   (add --send to relay)");
   }
   const k = loadKey();
   if (cmd === "status") return console.log(k.accountId, await balances(k));

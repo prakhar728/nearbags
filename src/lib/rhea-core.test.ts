@@ -10,7 +10,6 @@ import {
   DCL_CONTRACT,
   disagreementProblem,
   judgeSafety,
-  taxedSwap,
   memeMidUsd,
   minOutput,
   pointToPrice,
@@ -68,8 +67,6 @@ describe("Rhea routes", () => {
         HOOT_POOL,
         `${NEARLY}|wrap.near|10000`,
         "imeme-2.v2-launchpad.justhoot.near|wrap.near|10000",
-        "batman-4.nearlytrade.near|wrap.near|10000",
-        "singularty.nearlytrade.near|wrap.near|10000",
       ].sort(),
     );
     expect(pools.has(`${HOOT}|wrap.near|2000`)).toBe(false);
@@ -198,17 +195,10 @@ describe("meme coin safety", () => {
   });
 });
 
-describe("launch tax (nearly.trade)", () => {
-  it("a sell is quoted on the amount less the sell tax", () => {
-    expect(taxedSwap("BATMAN", "USDC", 1_000_000n).poolIn).toBe(990_000n);
-    expect(taxedSwap("NEARLY", "USDC", 1_000_000n).poolIn).toBe(1_000_000n);
-  });
-  it("a buy delivers the pool's output less the buy tax", () => {
-    expect(taxedSwap("USDC", "SINGULARTY", 5_000_000n).net(1_000_000n)).toBe(990_000n);
-    expect(taxedSwap("USDC", "IMEME", 5_000_000n).net(1_000_000n)).toBe(1_000_000n);
-  });
-  it("every Rhea coin's pool is on the allowlist", () => {
+describe("Rhea coins", () => {
+  it("every Rhea coin's pool is on the allowlist, and nothing else", () => {
     const pools = allowedPools();
-    for (const id of ["HOOT", "NEARLY", "IMEME", "BATMAN", "SINGULARTY"]) expect(pools.has(getAsset(id).rhea!.pool)).toBe(true);
+    for (const id of ["HOOT", "NEARLY", "IMEME"]) expect(pools.has(getAsset(id).rhea!.pool)).toBe(true);
+    expect(pools.size).toBe(4);
   });
 });

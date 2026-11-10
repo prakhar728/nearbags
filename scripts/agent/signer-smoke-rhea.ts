@@ -9,9 +9,9 @@ const [account, coin, side, amount] = process.argv.slice(2);
 const meme = getAsset(coin);
 const [from, to] = side === "sell" ? [meme.id, "USDC"] : ["USDC", meme.id];
 const q = await quoteLeg(from, to, amount);
-const spec = { account, token: q.inputToken, amount, poolIds: q.poolIds, outputToken: q.outputToken, minOut: minOutput(BigInt(q.poolOut)).toString() };
+const spec = { account, token: q.inputToken, amount, poolIds: q.poolIds, outputToken: q.outputToken, minOut: minOutput(BigInt(q.amountOut)).toString() };
 const payload = buildPayload(account, [swapIntent(spec)], { deadlineMs: RHEA_DEADLINE_MS });
-console.log("quote", { from, to, amountIn: amount, poolOut: q.poolOut, landed: q.amountOut, minOut: spec.minOut });
+console.log("quote", { from, to, amountIn: amount, amountOut: q.amountOut, minOut: spec.minOut });
 const r = await runModule<{ signed: { payload: string }; usd: number }>(
   signerModule()!,
   { op: "sign_rhea_leg", account_id: account, payload, assets: [USDC.intentsAssetId, meme.intentsAssetId], max_usd: 100 },

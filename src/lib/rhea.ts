@@ -3,7 +3,7 @@
 import "server-only";
 import { getAsset, type Asset } from "@/lib/assets";
 import { rpcRaw, viewFunction } from "@/lib/intents/rpc";
-import { DCL_CONTRACT, judgeSafety, memeMidUsd, receiptLogs, routeFor, taxedSwap, tokenOf, type ReceiptLogs, type TokenSafety } from "./rhea-core";
+import { DCL_CONTRACT, judgeSafety, memeMidUsd, receiptLogs, routeFor, tokenOf, type ReceiptLogs, type TokenSafety } from "./rhea-core";
 
 export * from "./rhea-core";
 
@@ -24,10 +24,7 @@ export interface RheaQuote {
   inputToken: string;
   outputToken: string;
   amountIn: string;
-  /** What lands in the account, after any launch tax. Use for values, prices and costs. */
   amountOut: string;
-  /** What the pool pays out (before a buy tax). min_output_amount is checked against this. */
-  poolOut: string;
 }
 
 /** Quote one leg between our asset ids (e.g. USDC → HOOT). Throws RheaNoLiquidity when the pool can't fill it. */
@@ -37,10 +34,9 @@ export async function quoteLeg(fromId: string, toId: string, amountIn: string): 
   const poolIds = routeFor(fromId, toId);
   const inputToken = tokenOf(from.intentsAssetId);
   const outputToken = tokenOf(to.intentsAssetId);
-  const tax = taxedSwap(fromId, toId, BigInt(amountIn));
-  const out = await dclQuote(poolIds, inputToken, outputToken, tax.poolIn.toString());
+  const out = await dclQuote(poolIds, inputToken, outputToken, amountIn);
   if (out <= 0n) throw new RheaNoLiquidity((from.rhea ? from : to).id);
-  return { poolIds, inputToken, outputToken, amountIn, amountOut: tax.net(out).toString(), poolOut: out.toString() };
+  return { poolIds, inputToken, outputToken, amountIn, amountOut: out.toString() };
 }
 
 interface PoolState {

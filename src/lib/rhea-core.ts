@@ -68,18 +68,6 @@ export function routeFor(fromId: string, toId: string): string[] {
 
 export const minOutput = (quoteOut: bigint, slippageBps = RHEA_SLIPPAGE_BPS): bigint => (quoteOut * BigInt(10_000 - slippageBps)) / 10_000n;
 
-const lessBps = (x: bigint, bps: number) => (x * BigInt(10_000 - bps)) / 10_000n;
-
-/**
- * nearly.trade launch tax around one swap. Selling a tax token: the token takes `sell` as it enters the exchange, so
- * the pool swaps (and must be quoted on) the amount less the tax. Buying: the pool checks min_output_amount first,
- * then the token takes `buy` on the way out, so the account receives the pool's output less the tax.
- */
-export function taxedSwap(fromId: string, toId: string, amountIn: bigint): { poolIn: bigint; net: (poolOut: bigint) => bigint } {
-  const sell = getAsset(fromId).rhea?.taxBps?.sell ?? 0;
-  const buy = getAsset(toId).rhea?.taxBps?.buy ?? 0;
-  return { poolIn: lessBps(amountIn, sell), net: (poolOut) => lessBps(poolOut, buy) };
-}
 
 export interface SwapSpec {
   account: string; // the basket account: signer and client_echo

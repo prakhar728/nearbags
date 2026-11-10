@@ -15,11 +15,6 @@ export interface RheaRoute {
   geckoPool: string; // GeckoTerminal pool address, for daily candles
   pinnedCodeHash?: string; // upgradable contracts: the code we checked. A change pauses buys.
   transferFeeView?: boolean; // the contract has get_config().transfer_fee_pips (justhoot launchpad tokens)
-  /**
-   * nearly.trade launch tax, fixed in the token at launch (no setter). Taken in the token on transfers out of the DCL
-   * exchange (buys) and into it (sells): a sell's pool input shrinks by `sell`, a buy's delivered output by `buy`.
-   */
-  taxBps?: { buy: number; sell: number };
 }
 
 export interface Asset {
@@ -136,8 +131,10 @@ export const ASSETS: Asset[] = [
       // Immutable global contract: no upgrade, owner or fee methods.
     },
   },
-  // Added 2026-11-11: the NEAR meme coins above $50k market cap (GeckoTerminal) with $20k+ pool liquidity. All three
-  // are global contracts pinned by hash with no access keys, so their code can't change.
+  // Added 2026-11-11: IMEME, the other NEAR meme coin above $50k market cap with $20k+ pool liquidity and no tax.
+  // Tax tokens (nearly.trade launches with a buy/sell tax, e.g. BATMAN) are left out on purpose: selling one from
+  // NEAR Intents makes intents.near credit the tax back as a "refund" it never received (tested 2026-11-10, tx
+  // 4PTzcrJRF7FCNBMzaYF1VuAYSUNTWawRJW1Hs6EBMkDD). A global contract pinned by hash with no access keys.
   {
     id: "IMEME",
     name: "IMEME",
@@ -153,40 +150,6 @@ export const ASSETS: Asset[] = [
       pool: "imeme-2.v2-launchpad.justhoot.near|wrap.near|10000",
       geckoPool: "refv2-imeme-2.v2-launchpad.justhoot.near:wrap.near:10000",
       transferFeeView: true, // justhoot v2: the fee is locked at launch (0), still checked
-    },
-  },
-  {
-    id: "BATMAN",
-    name: "BATMAN",
-    kind: "meme",
-    venue: "rhea",
-    intentsAssetId: "nep141:batman-4.nearlytrade.near",
-    decimals: 18,
-    refTicker: "BATMAN",
-    chainNote: "NEAR (Rhea)",
-    minLegUsd: 5,
-    rhea: {
-      token: "batman-4.nearlytrade.near",
-      pool: "batman-4.nearlytrade.near|wrap.near|10000",
-      geckoPool: "refv2-batman-4.nearlytrade.near:wrap.near:10000",
-      taxBps: { buy: 100, sell: 100 }, // nearlytrade.near get_tax(launch 217)
-    },
-  },
-  {
-    id: "SINGULARTY",
-    name: "SINGULARTY",
-    kind: "meme",
-    venue: "rhea",
-    intentsAssetId: "nep141:singularty.nearlytrade.near",
-    decimals: 18,
-    refTicker: "SINGULARTY",
-    chainNote: "NEAR (Rhea)",
-    minLegUsd: 5,
-    rhea: {
-      token: "singularty.nearlytrade.near",
-      pool: "singularty.nearlytrade.near|wrap.near|10000",
-      geckoPool: "refv2-singularty.nearlytrade.near:wrap.near:10000",
-      taxBps: { buy: 100, sell: 100 }, // nearlytrade.near get_tax(launch 1230)
     },
   },
 
