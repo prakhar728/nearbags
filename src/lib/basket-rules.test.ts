@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { minBuyUsd, validateWeights } from "./basket-rules";
+import { AGENT_MAX_WEIGHT_BPS, minBuyUsd, validateWeights } from "./basket-rules";
 
 describe("minimum buy", () => {
   it("crypto-only baskets sit at the $20 floor", () => {
@@ -24,5 +24,11 @@ describe("weights", () => {
     expect(errs.join(" ")).toMatch(/twice/);
     expect(errs.join(" ")).toMatch(/approved list/);
     expect(errs.join(" ")).toMatch(/not 100%/);
+  });
+  it("lets a buy go through on agent-moved weights up to the agent's cap", () => {
+    const moved = [{ assetId: "NEAR", weightBps: 8000 }, { assetId: "ZEC", weightBps: 2000 }];
+    expect(validateWeights(moved).join(" ")).toMatch(/5–50%/); // still refused at creation
+    expect(validateWeights(moved, { maxWeightBps: AGENT_MAX_WEIGHT_BPS })).toEqual([]);
+    expect(validateWeights([{ assetId: "NEAR", weightBps: 8500 }, { assetId: "ZEC", weightBps: 1500 }], { maxWeightBps: AGENT_MAX_WEIGHT_BPS }).join(" ")).toMatch(/5–80%/);
   });
 });
