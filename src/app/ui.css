@@ -16,7 +16,7 @@
   --ease-spring: cubic-bezier(0.3, 1.4, 0.4, 1);
 
   --display: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
-  --wordmark: var(--font-anybody), "Arial Black", sans-serif;
+  --wordmark: var(--font-familjen), var(--font-figtree), sans-serif;
   --side-w: 17rem;
 }
 
@@ -148,16 +148,16 @@
   }
 }
 
-/* The wordmark keeps Stonkbag's own wide heavy face; everything around it is Figtree. */
+/* The wordmark: lowercase "stonkbag" in Familjen Grotesk; everything around it is Figtree. */
 .app-logo {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   font-family: var(--wordmark);
-  font-variation-settings: "wdth" 150;
-  font-weight: 900;
-  font-size: 15px;
-  letter-spacing: 0.03em;
+  font-weight: 700;
+  font-size: 21px;
+  line-height: 1;
+  letter-spacing: -0.03em;
   color: var(--text);
 }
 .app-logo-mark {

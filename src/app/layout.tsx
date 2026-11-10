@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Anybody, Figtree, JetBrains_Mono } from "next/font/google";
+import { Familjen_Grotesk, Figtree, JetBrains_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
 
 // Figtree (open licence, the face near.com uses) for everything; JetBrains Mono only for code and addresses.
 const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"] });
 const jetbrains = JetBrains_Mono({ variable: "--font-jetbrains", subsets: ["latin"] });
-// Variable width (50–150) face, kept only for the STONKBAG wordmark.
-const anybody = Anybody({ variable: "--font-anybody", subsets: ["latin"], axes: ["wdth"] });
+// Familjen Grotesk, kept for the stonkbag wordmark only; everything else is Figtree.
+const familjen = Familjen_Grotesk({ variable: "--font-familjen", subsets: ["latin"], weight: ["600", "700"] });
 
 export const metadata: Metadata = {
   title: "Stonkbag",
@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${figtree.variable} ${jetbrains.variable} ${anybody.variable} h-full antialiased`}>
+    <html lang="en" className={`${figtree.variable} ${jetbrains.variable} ${familjen.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-bg text-text">
         <Providers>{children}</Providers>
       </body>

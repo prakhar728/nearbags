@@ -1,5 +1,5 @@
 // Fonts for share images (next/og needs TTF/OTF data, not the woff2 that next/font serves). Same families as the app:
-// Anybody for display, JetBrains Mono for figures. Fetched once per server instance.
+// Familjen Grotesk for display (as the wordmark), JetBrains Mono for figures. Fetched once per server instance.
 import "server-only";
 
 type Font = { name: string; data: ArrayBuffer; weight: 400 | 500 | 700 | 800; style: "normal" };
@@ -14,7 +14,7 @@ async function ttf(family: string, weight: number): Promise<ArrayBuffer> {
 
 export function shareFonts(): Promise<Font[]> {
   cache ??= Promise.all([
-    ttf("Anybody", 800).then((data) => ({ name: "Anybody", data, weight: 800 as const, style: "normal" as const })),
+    ttf("Familjen+Grotesk", 700).then((data) => ({ name: "Familjen Grotesk", data, weight: 700 as const, style: "normal" as const })),
     ttf("JetBrains+Mono", 500).then((data) => ({ name: "JetBrains Mono", data, weight: 500 as const, style: "normal" as const })),
     ttf("JetBrains+Mono", 800).then((data) => ({ name: "JetBrains Mono", data, weight: 800 as const, style: "normal" as const })),
   ]).catch((e) => {

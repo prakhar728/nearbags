@@ -14,7 +14,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const fonts = await shareFonts().catch(() => undefined);
   if (!b) {
     return new ImageResponse(
-      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#0a0a0a", color: "#e8ff59", fontSize: 64 }}>STONKBAG</div>,
+      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#171717", color: "#00ec97", fontSize: 72 }}>stonkbag</div>,
       { ...SIZE, fonts },
     );
   }

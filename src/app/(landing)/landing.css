@@ -628,11 +628,10 @@
 /* Our own wordmark, huge and nearly invisible, along the bottom edge. */
 .lp-watermark {
   font-family: var(--wordmark);
-  font-weight: 900;
-  font-variation-settings: "wdth" 150;
-  font-size: min(140px, calc((min(100vw, 1280px) - 64px) / 9.1));
+  font-weight: 700;
+  font-size: min(240px, calc((min(100vw, 1280px) - 64px) / 4.6));
   line-height: 0.78;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.045em;
   white-space: nowrap;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.045);

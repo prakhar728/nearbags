@@ -4,14 +4,14 @@ import "server-only";
 import type { PnlSnapshot } from "./token";
 
 export const SIZE = { width: 1200, height: 630 };
-const BG = "#0a0a0a";
-const SURFACE = "#141414";
-const LINE = "#262626";
+const BG = "#171717";
+const SURFACE = "#1f1f1f";
+const LINE = "#2e2e2e";
 const TEXT = "#f2f2f2";
 const MUTED = "#8a8a8a";
-const ACCENT = "#e8ff59";
-const GAIN = "#4ade80";
-const LOSS = "#f87171";
+const ACCENT = "#00ec97";
+const GAIN = "#00ec97";
+const LOSS = "#ff4d7d";
 const HOST = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://stonkbag-iota.vercel.app").replace(/^https?:\/\//, "");
 
 const pctText = (x: number, digits = 1) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(digits)}%`;
@@ -25,7 +25,7 @@ function Frame({ children }: { children: React.ReactNode }) {
         height: "100%",
         display: "flex",
         background: BG,
-        backgroundImage: `radial-gradient(circle at 85% 0%, rgba(232,255,89,0.16), transparent 55%), radial-gradient(circle at 0% 100%, rgba(232,255,89,0.06), transparent 50%)`,
+        backgroundImage: `radial-gradient(circle at 85% 0%, rgba(0,236,151,0.14), transparent 55%), radial-gradient(circle at 0% 100%, rgba(0,236,151,0.05), transparent 50%)`,
         padding: 40,
         fontFamily: "JetBrains Mono",
         color: TEXT,
@@ -42,7 +42,7 @@ function Header({ right }: { right: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 22, letterSpacing: 6, color: MUTED }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <span style={{ color: TEXT, fontWeight: 800 }}>STONKBAG</span>
+        <span style={{ color: TEXT, fontFamily: "Familjen Grotesk", fontWeight: 700, fontSize: "1.25em", letterSpacing: -1 }}>stonkbag</span>
       </div>
       <span style={{ letterSpacing: 2 }}>{right}</span>
     </div>
@@ -98,7 +98,7 @@ export function BasketCard({ b }: { b: BasketCardData }) {
       <Header right={b.by ? `by ${b.by}` : "creator basket"} />
       <div style={{ display: "flex", flex: 1, marginTop: 36, gap: 40 }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 20 }}>
-          <div style={{ fontFamily: "Anybody", fontSize: 76, lineHeight: 1.0, letterSpacing: -2 }}>{b.name}</div>
+          <div style={{ fontFamily: "Familjen Grotesk", fontSize: 80, lineHeight: 1.0, letterSpacing: -3 }}>{b.name}</div>
           <div style={{ fontSize: 26, color: MUTED, lineHeight: 1.35 }}>{b.tagline}</div>
           <div style={{ display: "flex", marginTop: 8 }}>
             <Pills items={b.assets.map((a) => `${a.id} ${Math.round(a.weightBps / 100)}%`)} />

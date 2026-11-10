@@ -1,21 +1,21 @@
-// The app icon: a bright green bag with a rising line on near-black. One drawing for every size, rendered to PNG by
-// next/og (favicon, Apple touch icon, the manifest's icons). `pad` shrinks the art for maskable icons, whose outer
-// 10% Android may crop to a circle or squircle.
+// The app icon: a white shopping bag on near-black whose handle is a green up-arrow. One drawing for every size,
+// rendered to PNG by next/og (favicon, Apple touch icon, the manifest's icons). `pad` shrinks the art for maskable
+// icons, whose outer 10% Android may crop to a circle or squircle.
 export const ICON_BG = "#171717";
 export const ICON_FG = "#00ec97";
+export const ICON_BAG = "#ffffff";
+
+/** The bag drawing on a 48-unit grid; the logo uses the same paths. */
+export const BAG_PATH = "M11 18h26l-2.2 21a3 3 0 0 1-3 2.7H16.2a3 3 0 0 1-3-2.7z";
+export const HANDLE_PATH = "M18 18l6-7 6 7";
 
 export function IconArt({ size, pad = 0 }: { size: number; pad?: number }) {
-  const inner = size * (1 - 2 * pad);
+  const inner = size * (1 - 2 * pad) * 0.78;
   return (
     <div style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", background: ICON_BG }}>
-      <svg width={inner} height={inner} viewBox="0 0 512 512">
-        {/* handle (drawn first; its ends tuck behind the bag) */}
-        <path d="M206 236 V176 a50 50 0 0 1 100 0 V236" fill="none" stroke={ICON_FG} strokeWidth="22" strokeLinecap="round" />
-        {/* bag: a little wider at the bottom, like a shopping bag */}
-        <path d="M150 204 H362 L392 418 H120 Z" fill={ICON_FG} stroke={ICON_FG} strokeWidth="28" strokeLinejoin="round" />
-        {/* rising line with an arrow head */}
-        <path d="M168 376 L226 326 L266 352 L334 288" fill="none" stroke={ICON_BG} strokeWidth="26" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M294 284 L338 284 L338 328" fill="none" stroke={ICON_BG} strokeWidth="26" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width={inner} height={inner} viewBox="6 6 36 38">
+        <path d={BAG_PATH} fill={ICON_BAG} />
+        <path d={HANDLE_PATH} fill="none" stroke={ICON_FG} strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </div>
   );

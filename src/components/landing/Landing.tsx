@@ -334,7 +334,7 @@ export function Landing({ data }: { data: Data }) {
         </div>
         <div className="lp-frame lp-foot-note">Stonkbag · NEAR hackathon 2026</div>
         <div className="lp-frame lp-watermark" aria-hidden>
-          STONKBAG
+          stonkbag
         </div>
       </footer>
     </div>
