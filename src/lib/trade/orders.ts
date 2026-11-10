@@ -20,6 +20,7 @@ import { balancesOf, hasPublicKey } from "@/lib/intents/rpc";
 import { isFinal, oneclick, OneClickError, type QuoteResponse, type TokenInfo } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 import { relay } from "@/lib/relayer";
+import { fundedAmount } from "./funding";
 import { guard, usSession } from "./guard";
 import { planLegs, preflightBuy, SLIPPAGE_BPS, splitFees } from "./preflight";
 
@@ -159,6 +160,7 @@ export async function createBuyOrder(
 
 /** Called when the funding swap lands: decide fees and legs from the USDC that actually arrived. */
 export async function markFunded(order: Order, position: Position, grossUsdc: bigint) {
+  if (grossUsdc <= 0n) throw new Error(`Order ${order.id}: refusing to plan a buy from 0 USDC.`);
   const basket = (await getBasketById(position.basketId))!;
   const pf = platformFee();
   const creatorBps = basket.creator.id === position.userId ? 0 : basket.feeBps;
@@ -499,14 +501,26 @@ export async function refreshOrder(s: Session, orderId: number) {
   let order = owned.order;
   const position = owned.position;
 
+  // Repair: a buy marked funded with 0 USDC (its balance was read before the deposit showed up) took no fees and
+  // planned 0-USDC swaps that can never run. If none of them started, forget the plan and read the deposit again.
+  if (order.kind === "buy" && order.status === "fees_paid" && order.grossUsdc === "0") {
+    const legs = await legsOf(order.id);
+    if (legs.every((l) => l.status === "pending" && l.attempts === 0 && !l.payload)) {
+      await db().delete(schema.orderLegs).where(eq(schema.orderLegs.orderId, order.id));
+      await setOrder(order.id, { status: "awaiting_deposit", grossUsdc: null });
+      order = { ...order, status: "awaiting_deposit", grossUsdc: null };
+    }
+  }
+
   if (order.status === "awaiting_deposit" && order.fundingDepositAddress) {
     try {
       const st = await oneclick.status(order.fundingDepositAddress, order.fundingDepositMemo ?? undefined);
       if (st.status === "SUCCESS") {
         const reported = BigInt(st.swapDetails?.amountOut ?? "0");
         const [onchain] = await balancesOf(position.accountId, [USDC.intentsAssetId]);
-        const gross = reported > 0n && reported <= BigInt(onchain) ? reported : BigInt(onchain);
-        await markFunded(order, position, gross);
+        const gross = fundedAmount(reported, BigInt(onchain), order.createdAt);
+        if (gross > 0n) await markFunded(order, position, gross);
+        // else: the RPC hasn't caught up with 1Click yet; the next poll tries again.
       } else if (st.status === "REFUNDED") await setOrder(order.id, { status: "refunded" });
       else if (st.status === "FAILED") await setOrder(order.id, { status: "failed", error: "The deposit swap failed." });
     } catch (e) {

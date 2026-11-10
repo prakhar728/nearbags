@@ -58,6 +58,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const [view, setView] = useState<OrderView | null>(null);
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [legErrs, setLegErrs] = useState<Record<number, string>>({});
   const keyRef = useRef<BasketKey | null>(null);
   const pickedToken = useRef(false); // the buyer chose a pay token; stop re-defaulting it
   const runRef = useRef<AbortController | null>(null);
@@ -121,7 +122,17 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     const ac = new AbortController();
     runRef.current = ac;
     try {
-      await driveOrder(orderId, k, { onUpdate: setView, signal: ac.signal });
+      await driveOrder(orderId, k, {
+        onUpdate: setView,
+        signal: ac.signal,
+        onLegError: (seq, msg) =>
+          setLegErrs((m) => {
+            const next = { ...m };
+            if (msg) next[seq] = msg;
+            else delete next[seq];
+            return next;
+          }),
+      });
     } catch (e) {
       if ((e as Error).name !== "AbortError") setErr((e as Error).message);
     }
@@ -221,6 +232,11 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     setErr(null);
     try {
       await retryLeg(view.order.id, seq, keyRef.current);
+      setLegErrs((m) => {
+        const next = { ...m };
+        delete next[seq];
+        return next;
+      });
       void run(view.order.id, keyRef.current);
     } catch (e) {
       setErr((e as Error).message);
@@ -249,7 +265,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const walletCanPay = !!token && (user?.chain === "near" ? canPayFromNear(token) : canPayFromEvm(token));
   // "Sent. Waiting for it to arrive…" belongs to the deposit step only.
   const orderStep = step?.startsWith("Sent.") && view && view.order.status !== "awaiting_deposit" ? null : step;
-  if (phase === "order" && view) return <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={orderStep} err={err} />;
+  if (phase === "order" && view) return <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={orderStep} err={err} legErrs={legErrs} />;
 
   if (elig.data?.status === "needs") {
     return <Attest needs={elig.data.needs} text={elig.data.text} onDone={() => void elig.refetch()} />;
@@ -430,7 +446,7 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
   );
 }
 
-function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: OrderView; token?: PayToken; canPay: boolean; onPay: () => void; onRetry: (seq: number) => void; step: string | null; err: string | null }) {
+function OrderBox({ view, token, canPay, onPay, onRetry, step, err, legErrs }: { view: OrderView; token?: PayToken; canPay: boolean; onPay: () => void; onRetry: (seq: number) => void; step: string | null; err: string | null; legErrs: Record<number, string> }) {
   const o = view.order;
   const dep = o.deposit;
   const steps: [string, "done" | "now" | "todo" | "bad"][] = [
@@ -486,19 +502,23 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err }: { view: Or
           {view.legs.map((l) => {
             const sym = l.isPayout ? "Payout" : symbolOf(l.assetTo);
             const tone = l.status === "success" ? "text-gain" : l.status === "refunded" || l.status === "failed" ? "text-loss" : "text-muted";
+            const stuck = (l.status === "pending" || l.status === "quoted") && legErrs[l.seq];
             return (
-              <div key={l.seq} className="num flex items-center justify-between gap-2 text-xs">
-                <span>{sym}</span>
-                <span className={tone}>
-                  {l.status === "success" && l.amountOutActual && sym !== "?" && !l.isPayout
-                    ? `${units(l.amountOutActual, getAsset(sym).decimals).toPrecision(4)} ${sym}`
-                    : l.status}
-                  {(l.status === "refunded" || l.status === "failed") && (
-                    <button type="button" onClick={() => onRetry(l.seq)} className="btn btn-secondary btn-sm ml-2 min-h-0 px-2.5 py-1">
-                      retry
-                    </button>
-                  )}
-                </span>
+              <div key={l.seq} className="num grid gap-1 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span>{sym}</span>
+                  <span className={tone}>
+                    {l.status === "success" && l.amountOutActual && sym !== "?" && !l.isPayout
+                      ? `${units(l.amountOutActual, getAsset(sym).decimals).toPrecision(4)} ${sym}`
+                      : l.status}
+                    {(l.status === "refunded" || l.status === "failed" || stuck) && (
+                      <button type="button" onClick={() => onRetry(l.seq)} className="btn btn-secondary btn-sm ml-2 min-h-0 px-2.5 py-1">
+                        retry
+                      </button>
+                    )}
+                  </span>
+                </div>
+                {stuck && <p className="text-[11px] leading-snug text-loss">{legErrs[l.seq]}</p>}
               </div>
             );
           })}

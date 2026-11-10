@@ -31,9 +31,11 @@ export interface RunOptions {
   onUpdate: (v: OrderView) => void;
   signal?: AbortSignal;
   pollMs?: number;
+  /** A swap couldn't start: show the reason. Called with null once it starts. */
+  onLegError?: (seq: number, message: string | null) => void;
 }
 
-export async function driveOrder(orderId: number, key: BasketKey, { onUpdate, signal, pollMs = 4000 }: RunOptions): Promise<OrderView> {
+export async function driveOrder(orderId: number, key: BasketKey, { onUpdate, signal, pollMs = 4000, onLegError }: RunOptions): Promise<OrderView> {
   const legErrors = new Map<number, number>();
   for (;;) {
     if (signal?.aborted) throw new DOMException("Stopped", "AbortError");
@@ -43,6 +45,7 @@ export async function driveOrder(orderId: number, key: BasketKey, { onUpdate, si
 
     if (v.next === "done") return v;
     if (v.next === "sign_fees") {
+      legErrors.clear(); // a repaired order re-plans its swaps; give them fresh tries
       const { intents } = await api<{ intents: Parameters<typeof signIntents>[1] }>(`/api/orders/${orderId}/fees`);
       await api(`/api/orders/${orderId}/fees`, { method: "POST", body: JSON.stringify({ signed: signIntents(key, intents) }) });
       continue;
@@ -51,10 +54,12 @@ export async function driveOrder(orderId: number, key: BasketKey, { onUpdate, si
       const pending = v.legs.filter((l) => l.ready && (legErrors.get(l.seq) ?? 0) < 2);
       await Promise.all(
         pending.map((l) =>
-          runLeg(orderId, l.seq, key).catch((e) => {
-            legErrors.set(l.seq, (legErrors.get(l.seq) ?? 0) + 1);
-            console.warn(`leg ${l.seq}:`, (e as Error).message);
-          }),
+          runLeg(orderId, l.seq, key)
+            .then(() => onLegError?.(l.seq, null))
+            .catch((e) => {
+              legErrors.set(l.seq, (legErrors.get(l.seq) ?? 0) + 1);
+              onLegError?.(l.seq, (e as Error).message);
+            }),
         ),
       );
       if (pending.length) continue;

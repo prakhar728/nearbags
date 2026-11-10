@@ -84,7 +84,7 @@ export function PortfolioView() {
         {rows.length > 0 && pnl != null ? (
           <Stat size="lg" label="Open P&L" value={signed(pnl)} tone={pnl >= 0 ? "text-gain" : "text-loss"} sub={`on ${usd(cost)} in`} />
         ) : (
-          <Stat size="lg" label="Open bags" value={String(rows.length)} sub="nothing held right now" />
+          <Stat size="lg" label="Open bags" value={String(rows.length)} sub={rows.length ? "a buy is still in progress" : "nothing held right now"} />
         )}
         {all && all.investedUsd > 0 ? (
           <Stat
