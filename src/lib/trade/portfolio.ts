@@ -6,6 +6,7 @@ import { db, schema } from "@/db";
 import { getAsset, USDC } from "@/lib/assets";
 import { getBasketById } from "@/lib/baskets";
 import { balancesOf } from "@/lib/intents/rpc";
+import { paused, type Paused } from "./availability";
 import { oneclick } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 
@@ -69,7 +70,9 @@ export async function portfolio(userId: number) {
     // Cost basis: buys add what was paid; a sell of X% removes X% of the basis.
     let cost = 0;
     for (const o of orders.filter((o) => o.positionId === p.id)) {
-      if (o.kind === "buy" && ["complete", "partial"].includes(o.status)) cost += o.usdIn ?? 0;
+      // From the moment the deposit arrived, not when the swaps finish: an unfinished buy already holds its value
+      // (USDC, then the swapped assets), so leaving its cost out showed that value as profit.
+      if (o.kind === "buy" && ["funded", "fees_paid", "legs_running", "complete", "partial"].includes(o.status)) cost += o.usdIn ?? 0;
       if (o.kind === "sell" && ["complete", "partial"].includes(o.status) && o.sellPct) cost *= 1 - o.sellPct / 100;
     }
     const open = orders.filter((o) => o.positionId === p.id && ["awaiting_deposit", "funded", "fees_paid", "legs_running"].includes(o.status)).at(-1);
@@ -86,6 +89,8 @@ export async function portfolio(userId: number) {
       pnlUsd: cost > 0 ? (exit ?? value) - cost : null,
       openOrderId: open?.id ?? null,
       openOrderKind: open?.kind ?? null,
+      // Assets 1Click won't buy or sell right now (only the ones this position actually holds matter for selling).
+      paused: await paused(holdings.filter((h) => h.units > 0 && h.assetId !== "USDC").map((h) => h.assetId)).catch((): Paused => ({ cantBuy: [], cantSell: [] })),
       boughtAt: lastBuy?.createdAt ?? null,
     });
   }
