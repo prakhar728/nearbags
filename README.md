@@ -5,6 +5,7 @@ Creator-made baskets of tokenized US stocks and crypto, bought in one step from 
 - Live demo: https://stonkbag-iota.vercel.app
 - Built at NEAR HACKATHON (2026-11-01 to 2026-11-14). Tracks: `defi` (Unstoppable DeFi) and `thesis` (Investment Thesis).
 - New project, started in the hackathon window. No earlier product on any chain.
+- Docs: [how it works](docs/how-it-works.md), [fees](docs/fees.md), [safety](docs/safety.md), [prices and numbers](docs/data.md), [architecture](docs/architecture.md), [operations](docs/operations.md).
 
 ## The problem
 
