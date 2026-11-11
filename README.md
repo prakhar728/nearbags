@@ -1,11 +1,11 @@
 # nearbags
 
-Creator-made baskets of tokenized US stocks and crypto, bought in one step from any token on any chain through NEAR Intents. Every basket position lives in its own NEAR Intents account that only the buyer's keys can move.
+Creator-made baskets of tokenized US stocks, crypto and NEAR meme coins, bought in one step from any token on any chain through NEAR Intents. Baskets can be run by an AI agent in sealed hardware, with a proof for every decision. Every basket position lives in its own NEAR Intents account that only the buyer's keys can move.
 
 - Live: https://nearbags.com (called Stonkbag until 2026-11-11; https://stonkbag-iota.vercel.app still works)
 - Built at NEAR HACKATHON (2026-11-01 to 2026-11-14). Tracks: `defi` (Unstoppable DeFi) and `thesis` (Investment Thesis).
 - New project, started in the hackathon window. No earlier product on any chain.
-- Docs: [how it works](docs/how-it-works.md), [fees](docs/fees.md), [safety](docs/safety.md), [prices and numbers](docs/data.md), [architecture](docs/architecture.md), [operations](docs/operations.md).
+- Docs: [how it works](docs/how-it-works.md), [fees](docs/fees.md), [safety](docs/safety.md), [AI agent baskets](docs/agent.md), [prices and numbers](docs/data.md), [architecture](docs/architecture.md), [operations](docs/operations.md).
 
 ## The problem
 
@@ -13,9 +13,10 @@ Buying a theme ("AI picks and shovels", "gold and bitcoin") means many separate 
 
 ## What nearbags does
 
-1. A creator picks up to 10 assets (19 Ondo stocks and ETFs, 9 crypto assets, USDC), sets weights and a fee of 0–1%, and writes a short thesis. The studio shows a backtest while they build.
+1. A creator picks up to 10 assets (19 Ondo stocks and ETFs, 9 crypto assets, USDC, and the NEAR meme coins HOOT, NEARLY and IMEME), sets weights and a fee of 0–1%, and writes a short thesis. The studio shows a backtest while they build.
 2. A buyer pays with whatever they hold (for example USDC on Base, ETH on Arbitrum, SOL). 1Click turns it into USDC inside a NEAR Intents account made for that position, then buys every asset at its weight.
 3. The buyer can sell 25–100% back to any token on any chain, reset to the target weights, or withdraw the real underlying tokens (for example TSLAon on BNB Chain).
+4. Optionally, the creator hands the weights to an agent: one of six rules (Fixed Mix, Equal Weight, Risk Balanced, Trend Guard, Volatility Target, Momentum Tilt) or their own strategy for an AI model. It runs daily on [OutLayer](https://outlayer.ai) in Intel TDX, and a separate signer, whose key only exists inside that hardware, signs each holder's swaps after checking them. Holders opt in when they buy; the agent can only swap inside their account.
 
 ## How NEAR is used
 
@@ -25,9 +26,11 @@ Buying a theme ("AI picks and shovels", "gold and bitcoin") means many separate 
 | 1Click API | Cross-chain deposits, swaps and payouts. Buy legs use `INTENTS` deposit and recipient types, so funds never leave the basket account between steps. |
 | Intent signing | Basket keys sign `raw_ed25519` payloads in the browser. Wallets sign `erc191` (EVM) or `nep413` (NEAR) payloads to add a key or recover an account. |
 | Relayer | A platform NEAR account that pays gas for `execute_intents` on already-signed payloads. It holds no user funds and can't sign for users. Every batch is simulated first. |
+| Rhea DCL | Meme coins (not on 1Click) swap on Rhea's concentrated-liquidity pools straight from the position account: one `ft_withdraw` intent to `dclv2.ref-labs.near` with a `client_echo` back to the same account. |
+| OutLayer (TEE) | The agent's strategist and signer run as attested WASI modules, called on-chain from the relayer. The signer's ed25519 key is bound to its build; every decision and signature links to an attestation. |
 | NEAR wallets | HOT Connect (HOT, Meteor, NEAR Mobile, Intear, OKX, Ledger and more) for sign-in with NEP-413. EVM wallets sign in with SIWE-style messages. |
 
-No custom contract: everything runs on `intents.near` and 1Click.
+No custom contract: everything runs on `intents.near`, 1Click, Rhea's DCL and OutLayer.
 
 ## Keys and custody
 

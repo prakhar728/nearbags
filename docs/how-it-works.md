@@ -1,6 +1,6 @@
 # How it works
 
-A **bag** is a list of assets with weights, made by a creator. Buying a bag buys every asset in it at its weight, in one order. Assets are tokenized US stocks and ETFs (Ondo), crypto, USDC and two NEAR meme coins (HOOT and NEARLY).
+A **bag** is a list of assets with weights, made by a creator. Buying a bag buys every asset in it at its weight, in one order. Assets are tokenized US stocks and ETFs (Ondo), crypto, USDC and three NEAR meme coins (HOOT, NEARLY and IMEME).
 
 ## Terms
 
@@ -39,7 +39,7 @@ A partial sell is greyed out when one of its legs would fall under that asset's 
 
 ## Meme coins
 
-HOOT and NEARLY are NEAR launchpad coins. NEAR Intents' swap network doesn't trade them, so their legs swap on **Rhea**, a NEAR exchange, straight from your position account: you sign one swap, Rhea fills it from its pool and sends the coins back to the same account. Nothing else changes: same keys, same account, same steps.
+HOOT, NEARLY and IMEME are NEAR launchpad coins, picked by hand: over $50k market cap, at least $20k in their pool, and no transfer tax. NEAR Intents' swap network doesn't trade them, so their legs swap on **Rhea**, a NEAR exchange, straight from your position account: you sign one swap, Rhea fills it from its pool and sends the coins back to the same account. Nothing else changes: same keys, same account, same steps.
 
 - **High risk.** Each pool holds about $100k. Prices can move 5–10% in minutes and halve in weeks.
 - **About 1–1.5% per swap**, mostly the pool's 1% fee.

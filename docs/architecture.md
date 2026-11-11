@@ -54,7 +54,7 @@ A sell runs the same legs in reverse (asset → USDC), then one payout leg from 
 
 ## Meme coin legs (Rhea)
 
-A leg that touches HOOT or NEARLY skips 1Click:
+A leg that touches a meme coin (HOOT, NEARLY or IMEME) skips 1Click:
 
 1. The server quotes it with the DCL contract's `quote` view (USDC → wNEAR → meme in one multi-hop, or back), and builds one `ft_withdraw` intent: the input token to `dclv2.ref-labs.near`, with a `Swap` message whose `min_output_amount` is the quote less 2% and whose `client_echo` is the position account.
 2. The browser signs that payload with the basket key, as for any leg.

@@ -33,7 +33,7 @@ A $50 buy and full sell of Degen Mix (Tesla, Circle, SOL, NEAR; 0.5% creator fee
 
 Swap costs are higher for small orders and outside US market hours.
 
-A meme coin round trip costs more: on 2026-11-11 a $10 buy and sell of HOOT or NEARLY came back as about $9.80 (2%), before creator and platform fees.
+A meme coin round trip costs more: on 2026-11-11 a $10 buy and sell of HOOT, NEARLY or IMEME came back as about $9.80 (2%), before creator and platform fees.
 
 ## Where fees go
 
