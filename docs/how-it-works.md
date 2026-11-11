@@ -47,6 +47,31 @@ HOOT, NEARLY and IMEME are NEAR launchpad coins, picked by hand: over $50k marke
 - **No AI agent.** Agent-managed bags can't hold meme coins yet.
 - **HOOT can be upgraded by its team.** If it ever adds a transfer fee or changes its code, buying pauses here. Selling stays open.
 
+## Bags vs liquidity pools
+
+A liquidity pool and a bag can hold the same tokens, but they do opposite jobs. A pool (Uniswap, Balancer, Rhea) is a shop: you put tokens in so traders can swap against them, and they pay you fees. A bag is a closet: you own the tokens and nobody trades against them.
+
+In a pool, every trade moves the mix. When one token rises, traders buy it from the pool cheaply until the pool's price matches the market, so the pool keeps selling what goes up and buying what goes down. A 4-token pool does the same across every pair, like an index fund that traders rebalance for you. That costs you a little each time, called impermanent loss, and the trading fees are meant to make up for it.
+
+$1,000 split evenly, then one token doubles and the rest stay flat:
+
+| | Held in a bag | In a pool, before fees | Difference |
+|---|---|---|---|
+| 2 tokens, 50/50 | $1,500 | $1,414 | −$86 |
+| 4 tokens, 25% each | $1,250 | $1,189 | −$61 |
+
+| | Liquidity pool | nearbags bag |
+|---|---|---|
+| Your tokens | Pooled with everyone's; you hold a share token | In your own NEAR Intents account; only your keys can move them |
+| Who trades them | Any trader, any time | Only you, or the agent if the bag has one and you opt in |
+| Rebalancing | Constant, done by traders against you | None unless you press Reset, or the agent moves the weights within its limits |
+| Impermanent loss | Yes | No |
+| You earn | Trading fees | Nothing; you pay the creator's fee on buys |
+| Assets | Whatever has a pool | Ondo stocks (no pools on NEAR; market makers fill them through NEAR Intents), crypto and meme coins |
+| Getting in | Get each token yourself on that chain, then deposit | One payment from any chain; every leg is bought for you |
+
+A pool earns yield and gives you one share token you can move or use elsewhere. A bag doesn't: your position is an account, not a token. A bag is for owning a theme without anyone trading against it.
+
 ## Creating a bag
 
 1. Pick assets and weights in **Create**. A backtest updates as you type.
@@ -69,8 +94,11 @@ A creator can close a bag to new buyers. Existing holders can still sell and wit
 **Why was my buy blocked at night or at the weekend?**
 Stock tokens trade thinly outside US market hours. If a quote is too far from the market price, the app blocks that leg rather than fill it badly. Meme coins have the same check against their pool's price.
 
+**Isn't this just a liquidity pool?**
+No. A pool lets traders swap against your tokens for fees and rebalances you at a cost. A bag holds your tokens in your own account and nobody trades against them. See [Bags vs liquidity pools](how-it-works.md#bags-vs-liquidity-pools).
+
 **Which wallets work?**
-NEAR: HOT, Meteor, NEAR Mobile, Intear, OKX, Ledger, MyNearWallet and Nightly, through HOT Connect. EVM: a browser wallet, or your wallet app's built-in browser on a phone.
+NEAR: HOT, Meteor, NEAR Mobile, Intear, OKX, Ledger, MyNearWallet and Nightly, through HOT Connect. EVM: a browser wallet, or WalletConnect (MetaMask, Rainbow and others on a phone, by QR code or link).
 
 **Can I install it on my phone?**
 Yes. On Android, tap the install button in the header. On iPhone, open it in Safari, tap Share, then Add to Home Screen. In the installed app, HOT and NEAR Mobile sign most reliably. Wallets that sign in a browser window (Meteor, Intear, MyNearWallet) may not return to the app.
