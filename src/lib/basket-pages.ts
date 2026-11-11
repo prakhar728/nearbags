@@ -20,7 +20,7 @@ export interface BasketEdit {
 
 /** Any status except draft. Hidden and pending baskets stay reachable by link (holders, the creator). */
 export async function getBasketPage(slug: string): Promise<{ basket: BasketView; edits: BasketEdit[] } | null> {
-  "use cache";
+  "use cache: remote";
   cacheLife("minutes");
   cacheTag(basketTag(slug), TAG_BASKETS);
   const basket = await getBasketBySlug(slug);
@@ -38,7 +38,7 @@ export async function getBasketPage(slug: string): Promise<{ basket: BasketView;
 }
 
 export async function listExploreBaskets(): Promise<BasketView[]> {
-  "use cache";
+  "use cache: remote";
   cacheLife("minutes");
   cacheTag(TAG_BASKETS);
   return (await listPublicBaskets()).filter(wasPublished);
@@ -94,7 +94,7 @@ export interface CreatorProfile {
 
 /** Look up by handle (case-insensitive), falling back to the wallet address for creators without one. */
 export async function getCreatorProfile(handleOrAddress: string): Promise<CreatorProfile | null> {
-  "use cache";
+  "use cache: remote";
   cacheLife("minutes");
   cacheTag(TAG_PROFILES, TAG_BASKETS);
   const key = handleOrAddress.toLowerCase();

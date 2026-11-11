@@ -24,7 +24,7 @@ function thin<T>(xs: T[], n: number): T[] {
 }
 
 export async function getLandingData(): Promise<LandingData> {
-  "use cache";
+  "use cache: remote";
   cacheLife("hours");
 
   // Hero: AI Picks & Shovels, 5 years, $1,000 in.

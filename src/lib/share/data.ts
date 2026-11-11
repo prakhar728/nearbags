@@ -10,7 +10,7 @@ const thin = (xs: number[], n: number) => (xs.length <= n ? xs : Array.from({ le
 export const shortWallet = (a: string) => (a.length > 20 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
 
 export async function basketCardData(slug: string): Promise<BasketCardData | null> {
-  "use cache";
+  "use cache: remote";
   cacheLife("hours");
   const b = await getBasketBySlug(slug);
   if (!b || b.status === "draft" || b.status === "hidden") return null;
