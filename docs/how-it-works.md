@@ -107,7 +107,7 @@ Yes. On Android, tap the install button in the header. On iPhone, open it in Saf
 Sanctioned regions are blocked. Where Ondo stocks are not allowed (US, Canada and others), only crypto-only bags can be bought. Some regions (EEA, UK, Switzerland, Singapore and others) need a professional-investor confirmation.
 
 **Where can I get help?**
-Ask in the [nearbags Telegram group](https://t.me/+rIPcPygY_ehhMGZl). For a bug, send the bag's name, what you did, and the order link or transaction hash. Admins never message you first, and nobody from nearbags will ask for your seed phrase or keys.
+Ask in the [nearbags Telegram group](https://t.me/+rIPcPygY_ehhMGZl). News and new bags go out on [X @nearbags](https://x.com/nearbags). For a bug, send the bag's name, what you did, and the order link or transaction hash. Admins never message you first, and nobody from nearbags will ask for your seed phrase or keys.
 
 **What if I lose my browser?**
 Sign in on the new device. Your wallet signs once to authorise a new browser key. See [Safety and custody](safety.md).
