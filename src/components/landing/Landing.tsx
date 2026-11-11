@@ -9,6 +9,7 @@ import { assetColor, CHART } from "@/lib/palette";
 import { HeroChart } from "./HeroChart";
 import { Pour } from "./Pour";
 import { Reveal, Scramble, SessionClock } from "./bits";
+import { GITHUB_URL, TELEGRAM_URL } from "@/lib/links";
 
 const money = (v: number) => "$" + Math.round(v).toLocaleString("en-US");
 const pct = (v: number, digits = 0) => `${v >= 0 ? "+" : "−"}${Math.abs(v * 100).toFixed(digits)}%`;
@@ -323,7 +324,8 @@ export function Landing({ data }: { data: Data }) {
               <h3>Learn</h3>
               <Link href="/docs">Docs</Link>
               <Link href="/thesis">Thesis</Link>
-              <a href="https://github.com/prakhar728/nearbags" target="_blank" rel="noopener">GitHub</a>
+              <a href={GITHUB_URL} target="_blank" rel="noopener">GitHub</a>
+              <a href={TELEGRAM_URL} target="_blank" rel="noopener">Telegram</a>
             </div>
             <div>
               <h3>Legal</h3>

@@ -3,6 +3,7 @@
 // dashboard), text links in the header on tablets and laptops, and a dark tab dock on phones.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GITHUB_URL, TELEGRAM_URL } from "@/lib/links";
 
 const LINKS = [
   { href: "/explore", label: "Explore", short: "Explore", match: ["/explore", "/b", "/c"] },
@@ -47,6 +48,7 @@ const ICONS: Record<string, React.ReactNode> = {
       <path d="M9 9h6M9 13h6M9 17h3" />
     </>
   ),
+  telegram: <path d="M21 4 3 11l6 2.5M21 4l-3 16-9-6.5M21 4 9 13.5v5l3-3.2" />,
   github: (
     <>
       <path d="M9 19c-4 1.3-4-2-6-2.5" />
@@ -106,7 +108,11 @@ export function SideNav() {
           {l.label}
         </Link>
       ))}
-      <a href="https://github.com/prakhar728/nearbags" target="_blank" rel="noopener" className="side-link">
+      <a href={TELEGRAM_URL} target="_blank" rel="noopener" className="side-link">
+        <Icon name="telegram" />
+        Telegram
+      </a>
+      <a href={GITHUB_URL} target="_blank" rel="noopener" className="side-link">
         <Icon name="github" />
         GitHub
       </a>

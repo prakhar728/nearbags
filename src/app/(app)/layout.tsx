@@ -4,6 +4,7 @@ import { Logo } from "@/components/Logo";
 import { MobileTabs, NavLinks, SideNav } from "@/components/NavLinks";
 import { BackButton, NavTracker } from "@/components/BackButton";
 import { InstallBanner, InstallButton } from "@/components/pwa/Install";
+import { GITHUB_URL, TELEGRAM_URL } from "@/lib/links";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -50,7 +51,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link href="/explore" className="app-nav-link">Explore</Link>
               <Link href="/thesis" className="app-nav-link">Thesis</Link>
               <Link href="/docs" className="app-nav-link">Docs</Link>
-              <a href="https://github.com/prakhar728/nearbags" target="_blank" rel="noopener" className="app-nav-link">GitHub</a>
+              <a href={GITHUB_URL} target="_blank" rel="noopener" className="app-nav-link">GitHub</a>
+              <a href={TELEGRAM_URL} target="_blank" rel="noopener" className="app-nav-link">Telegram</a>
               <Link href="/terms" className="app-nav-link">Terms</Link>
               <Link href="/risk" className="app-nav-link">Risks</Link>
             </nav>
