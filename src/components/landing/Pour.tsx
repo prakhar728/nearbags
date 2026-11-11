@@ -1,17 +1,16 @@
 "use client";
-// "Any chain in": token coins fall with gravity, collide and pile into a bag. Push them around with the cursor.
+// "Any chain in": the stocks and coins of a bag fall with gravity, collide and pile into a bag. Push them around with the cursor.
 // Small hand-written physics (circles, gravity, position-based collision). Starts when scrolled into view.
 // Coins with a logo in public/logos draw as that logo; the rest draw as a labelled disc.
 import { useEffect, useRef } from "react";
 
+// What lands in a bag: tokenized stocks and ETFs mixed with crypto (no stablecoins; you pay with those, you don't bag them).
+// Every symbol here has a logo in public/logos.
 const COINS = [
-  ["ETH", "Arbitrum"], ["USDC", "Base"], ["SOL", "Solana"], ["BTC", "Bitcoin"], ["NEAR", "NEAR"], ["USDT", "Ethereum"],
-  ["ZEC", "Zcash"], ["BNB", "BNB Chain"], ["XRP", "XRP"], ["DOGE", "Dogecoin"], ["SUI", "Sui"], ["USDC", "Arbitrum"],
-  ["ETH", "Base"], ["TRX", "Tron"], ["USDC", "NEAR"], ["ETH", "Ethereum"], ["SOL", "Solana"], ["USDC", "Solana"],
-  ["BTC", "Bitcoin"], ["POL", "Polygon"], ["ETH", "Optimism"], ["USDT", "Tron"], ["NEAR", "NEAR"], ["USDC", "Polygon"],
+  "NVDA", "BTC", "TSLA", "ETH", "AAPL", "MSFT", "SOL", "GOOGL", "AMZN", "NEAR", "META", "SPY", "QQQ",
+  "ZEC", "GLD", "HOOD", "CRCL", "XRP", "MRVL", "NVDA", "BTC", "INTC", "HOOT", "TSLA", "SLV", "ETH",
 ] as const;
-// Coins that have a logo file in public/logos.
-const LOGOS = new Set(["ETH", "USDC", "SOL", "BTC", "NEAR", "ZEC", "BNB", "XRP", "DOGE", "SUI"]);
+const LOGOS = new Set<string>(COINS);
 
 interface Coin {
   x: number;
@@ -20,8 +19,9 @@ interface Coin {
   py: number;
   r: number;
   sym: string;
-  chain: string;
   hot: boolean;
+  /** Pushed by the cursor: may leave the bag. Until then the walls hold it in at any height. */
+  free: boolean;
 }
 
 export function Pour() {
@@ -45,7 +45,7 @@ export function Pour() {
     const MONO = `${css.getPropertyValue("--font-figtree").trim() || "ui-sans-serif"}, system-ui, sans-serif`;
     const DISPLAY = MONO;
     const logos = new Map<string, HTMLImageElement>();
-    for (const sym of new Set(COINS.map(([s]) => s))) {
+    for (const sym of new Set(COINS)) {
       if (!LOGOS.has(sym)) continue;
       const img = new Image();
       img.src = `/logos/${sym}.png`;
@@ -81,12 +81,12 @@ export function Pour() {
 
     const make = (): Coin[] => {
       const scale = Math.max(0.72, Math.min(1, W / 900));
-      return COINS.map(([sym, chain], i) => {
+      return COINS.map((sym, i) => {
         const r = (sym.length > 3 ? 34 : 30) * scale + (i % 3) * 2;
         const b = bag();
         const x = b.x0 + r + Math.random() * (b.x1 - b.x0 - 2 * r);
         const y = -r - Math.random() * 40;
-        return { x, y, px: x + (Math.random() - 0.5) * 2, py: y, r, sym, chain, hot: i % 5 === 0 };
+        return { x, y, px: x + (Math.random() - 0.5) * 2, py: y, r, sym, hot: i % 5 === 0, free: false };
       });
     };
 
@@ -106,6 +106,7 @@ export function Pour() {
         const d = Math.hypot(dx, dy);
         const R = mouse.down ? 150 : 95;
         if (d < R && d > 0.01) {
+          c.free = true;
           const f = ((R - d) / R) * (mouse.down ? 4 : 1.8);
           c.x += (dx / d) * f;
           c.y += (dy / d) * f;
@@ -132,7 +133,7 @@ export function Pour() {
             }
           }
           // Bag walls are solid from both sides below the rim: a coin stays on the side it came from.
-          if (a.y + a.r > b.top) {
+          if (a.y + a.r > b.top || !a.free) {
             for (const wx of [b.x0, b.x1]) {
               if (Math.abs(a.x - wx) < a.r) {
                 const fromLeft = a.px < wx;
@@ -196,11 +197,7 @@ export function Pour() {
         ctx.fillStyle = c.hot ? C.ink : C.text;
         ctx.textAlign = "center";
         ctx.font = `700 ${Math.round(c.r * 0.44)}px ${MONO}`;
-        ctx.fillText(c.sym, c.x, c.y + c.r * 0.08);
-        ctx.font = `${Math.max(8, Math.round(c.r * 0.26))}px ${MONO}`;
-        ctx.globalAlpha = 0.7;
-        ctx.fillText(c.chain, c.x, c.y + c.r * 0.46);
-        ctx.globalAlpha = 1;
+        ctx.fillText(c.sym, c.x, c.y + c.r * 0.16);
       }
     };
 
@@ -282,7 +279,7 @@ export function Pour() {
       <button type="button" className="lp-pour-btn" onClick={() => shake.current()}>
         Pour again
       </button>
-      <canvas ref={cv} role="img" aria-label="Tokens from many chains falling into one bag." />
+      <canvas ref={cv} role="img" aria-label="Stock and crypto logos falling into one bag." />
     </div>
   );
 }

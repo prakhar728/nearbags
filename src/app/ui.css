@@ -571,6 +571,12 @@ a.chip.chip-on:hover {
   border-color: var(--ink);
   background: var(--ink);
 }
+/* Chart legend chips highlight with an outline, not the black "pressed" fill: their numbers stay readable. */
+.chip.chip-legend[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--text);
+  background: var(--surface);
+}
 @media (pointer: coarse) {
   a.chip,
   button.chip {

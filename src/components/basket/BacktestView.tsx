@@ -92,7 +92,7 @@ function GrowthChart({ w, monthly, height }: { w: AnalyticsView["windows"][numbe
             $1,000 on {w.start} → {hover == null ? "today" : w.times[i]}
           </div>
           <div className="mt-2 flex items-baseline gap-3">
-            <div className="big-num text-[clamp(36px,5vw,52px)] text-accent-fg">{usd(end)}</div>
+            <div className="big-num min-w-[6ch] text-[clamp(36px,5vw,52px)] text-accent-fg tabular-nums">{usd(end)}</div>
             <span className={`badge ${end >= 1000 ? "badge-gain" : "badge-loss"} normal-case tracking-normal`}>{pct(end / 1000 - 1)}</span>
           </div>
         </div>
@@ -100,7 +100,7 @@ function GrowthChart({ w, monthly, height }: { w: AnalyticsView["windows"][numbe
           {[...lines].reverse().map((l) => (
             <span key={l.id} className="chip">
               <span className="inline-block h-px w-4" style={{ background: l.color, height: l.width === 2 ? 2 : 1, borderTop: l.dashed ? `1px dashed ${l.color}` : undefined }} />
-              {l.label} <span className="text-text">{usd(l.data[i])}</span>
+              {l.label} <Num w="6ch">{usd(l.data[i])}</Num>
             </span>
           ))}
         </div>
@@ -158,16 +158,19 @@ function AssetChart({ a, w, height }: { a: AnalyticsView; w: AnalyticsView["wind
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <LegendBtn active={focus === "basket"} dim={!!focus && focus !== "basket"} color={ACCENT} onClick={() => setFocus(focus === "basket" ? null : "basket")}>
-          Basket <span className="text-text">{basket[i]?.toFixed(0)}</span>
-        </LegendBtn>
-        {a.assetIds.map((id, k) => (
-          <LegendBtn key={id} active={focus === id} dim={!!focus && focus !== id} color={assetColor(k)} onClick={() => setFocus(focus === id ? null : id)}>
-            {id} <span className="text-text">{w.assets[id]?.[i]?.toFixed(0)}</span>
+      {/* Hover changes the numbers, so they get a fixed width: otherwise the row re-wraps and the chart jumps under the cursor. */}
+      <div className="flex items-start gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-1.5">
+          <LegendBtn active={focus === "basket"} dim={!!focus && focus !== "basket"} color={ACCENT} onClick={() => setFocus(focus === "basket" ? null : "basket")}>
+            Basket <Num w="3ch">{basket[i]?.toFixed(0)}</Num>
           </LegendBtn>
-        ))}
-        <button type="button" aria-pressed={log} onClick={() => setLog(!log)} className="chip ml-auto">
+          {a.assetIds.map((id, k) => (
+            <LegendBtn key={id} active={focus === id} dim={!!focus && focus !== id} color={assetColor(k)} onClick={() => setFocus(focus === id ? null : id)}>
+              {id} <Num w="3ch">{w.assets[id]?.[i]?.toFixed(0)}</Num>
+            </LegendBtn>
+          ))}
+        </div>
+        <button type="button" aria-pressed={log} onClick={() => setLog(!log)} className="chip shrink-0">
           Log scale
         </button>
       </div>
@@ -179,13 +182,22 @@ function AssetChart({ a, w, height }: { a: AnalyticsView; w: AnalyticsView["wind
   );
 }
 
+/** A hover-driven number with a fixed minimum width, so changing digits never resizes its chip. */
+function Num({ w, children }: { w: string; children: React.ReactNode }) {
+  return (
+    <span className="inline-block text-right text-text tabular-nums" style={{ minWidth: w }}>
+      {children}
+    </span>
+  );
+}
+
 function LegendBtn({ children, active, dim, color, onClick }: { children: React.ReactNode; active: boolean; dim: boolean; color: string; onClick: () => void }) {
   return (
     <button
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`chip ${active ? "!border-[var(--text)] text-text" : ""} ${dim ? "opacity-50" : ""}`}
+      className={`chip chip-legend ${dim ? "opacity-50" : ""}`}
     >
       <span className="inline-block h-2 w-2 rounded-full" style={{ background: dim ? DIM : color }} />
       {children}
