@@ -3,7 +3,7 @@
 Creator-made baskets of tokenized US stocks, crypto and NEAR meme coins, bought in one step from any token on any chain through NEAR Intents. Baskets can be run by an AI agent in sealed hardware, with a proof for every decision. Every basket position lives in its own NEAR Intents account that only the buyer's keys can move.
 
 - Live: https://nearbags.com (called Stonkbag until 2026-11-11; https://stonkbag-iota.vercel.app still works)
-- Community: [X @nearbags](https://x.com/nearbags) · [Telegram group](https://t.me/+rIPcPygY_ehhMGZl)
+- Community: [X @nearbags](https://x.com/nearbags) · [Telegram group](https://t.me/nearbags)
 - Built at NEAR HACKATHON (2026-11-01 to 2026-11-14). Tracks: `defi` (Unstoppable DeFi) and `thesis` (Investment Thesis).
 - New project, started in the hackathon window. No earlier product on any chain.
 - Docs: [how it works](docs/how-it-works.md), [fees](docs/fees.md), [safety](docs/safety.md), [AI agent baskets](docs/agent.md), [prices and numbers](docs/data.md), [architecture](docs/architecture.md), [operations](docs/operations.md).
