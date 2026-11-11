@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loading, Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
+import { StatsView } from "./StatsView";
 
 interface AdminData {
   settings: { buysPaused: boolean; delisted: string[] };
@@ -22,12 +23,34 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function AdminView() {
   const { user, loading } = useAuth();
-  const qc = useQueryClient();
-  const [err, setErr] = useState<string | null>(null);
-  const q = useQuery({ queryKey: ["admin"], enabled: Boolean(user?.isAdmin), queryFn: () => api<AdminData>("/api/admin") });
+  const [tab, setTab] = useState<"stats" | "controls">("stats");
 
   if (loading) return <AdminSkeleton />;
   if (!user?.isAdmin) return <p className="callout">Admins only. Sign in with an admin wallet.</p>;
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8">
+      <div className="seg self-start justify-self-start" role="tablist" aria-label="Admin sections">
+        {(
+          [
+            ["stats", "Stats"],
+            ["controls", "Controls"],
+          ] as const
+        ).map(([k, label]) => (
+          <button key={k} type="button" role="tab" className="seg-item" aria-selected={tab === k} onClick={() => setTab(k)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "stats" ? <StatsView /> : <Controls />}
+    </div>
+  );
+}
+
+function Controls() {
+  const qc = useQueryClient();
+  const [err, setErr] = useState<string | null>(null);
+  const q = useQuery({ queryKey: ["admin"], queryFn: () => api<AdminData>("/api/admin") });
+
   if (q.error) return <p className="callout callout-warn text-loss">{(q.error as Error).message}</p>;
   if (!q.data) return <AdminSkeleton />;
   const d = q.data;
