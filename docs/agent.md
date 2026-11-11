@@ -113,4 +113,4 @@ The proofs show which code ran, not that the strategy is good. The strategist an
 
 **Which rule should I pick?** If unsure, Equal Weight or Fixed Mix. They trade least and have the strongest evidence behind them. The others aim to cut losses or follow trends, and they trade more, so swap costs eat more of the result.
 
-**Who pays for the runs?** nearbags pays the OutLayer runs and the NEAR gas. Swaps cost what any swap costs. There is no extra fee for agent baskets yet.
+**Who pays for the runs?** nearbags pays the OutLayer runs and the NEAR gas. To cover them, agent baskets have a 0.5% platform fee on buys (instead of 0.25%) and a 0.1% fee on each swap the agent makes, taken as a 1Click app fee inside the swap quote. The signer's cap on app fees (0.3% in all) covers this and 1Click's own 0.2%, so the agent can't be made to pay more.

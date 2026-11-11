@@ -194,7 +194,7 @@ export async function pumpRun(runId: number, deadline: number) {
       if (v.next !== "run_legs") continue;
       for (const leg of v.legs.filter((l) => l.ready)) {
         try {
-          const prep = await prepareLeg(s, orderId, leg.seq);
+          const prep = await prepareLeg(s, orderId, leg.seq, { agent: true });
           const [row] = await db().select().from(schema.orderLegs).where(and(eq(schema.orderLegs.orderId, orderId), eq(schema.orderLegs.seq, leg.seq)));
           const r = await runModule<{ signed: SignedRawEd25519; usd: number }>(
             signer,

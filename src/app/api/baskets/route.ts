@@ -1,12 +1,12 @@
 // Create a basket (spec §5.3). Normal creators get status "pending": it goes live after their self-buy
 // (the trading track flips it). Admins may publish a House basket straight to "live" without a self-buy.
-import { like, or, eq } from "drizzle-orm";
+import { and, count, eq, gte, like, or } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { handle, HttpError, requireSession } from "@/lib/auth/session";
-import { agentAssetProblem, minBuyUsd } from "@/lib/basket-rules";
+import { agentAssetProblem, minBuyUsd, RULES } from "@/lib/basket-rules";
 import { createProblems, slugify } from "@/lib/basket-text";
 import { revalidateBasket, revalidateProfiles } from "@/lib/basket-pages";
-import { PLATFORM_FEE_BPS } from "@/lib/baskets";
+import { platformFeeBpsFor } from "@/lib/baskets";
 import { isAdmin, sessionUser } from "@/lib/users";
 import { sanitizeAgentConfig } from "@/lib/agent/config";
 
@@ -41,6 +41,14 @@ export async function POST(request: Request) {
     }
 
     const admin = isAdmin(user);
+    // Spam guard: a few new baskets per creator per day. Pending baskets cost nothing on-chain, but they clutter.
+    if (!admin) {
+      const [{ n }] = await db()
+        .select({ n: count() })
+        .from(schema.baskets)
+        .where(and(eq(schema.baskets.creatorId, user.id), gte(schema.baskets.createdAt, new Date(Date.now() - 24 * 3600_000))));
+      if (n >= RULES.maxBasketsPerDay) throw new HttpError(429, `You can create up to ${RULES.maxBasketsPerDay} baskets a day. Try again tomorrow.`);
+    }
     if (data.house && !admin) throw new HttpError(403, "Only admins can publish House baskets.");
     const house = Boolean(data.house && admin);
 
@@ -77,7 +85,7 @@ export async function POST(request: Request) {
         revalidateProfiles();
         const weights = data.assets.map(({ assetId, weightBps }) => ({ assetId, weightBps }));
         return Response.json(
-          { slug: basket.slug, id: basket.id, status: basket.status, minBuyUsd: minBuyUsd(weights, data.feeBps + PLATFORM_FEE_BPS()) },
+          { slug: basket.slug, id: basket.id, status: basket.status, minBuyUsd: minBuyUsd(weights, data.feeBps + platformFeeBpsFor(Boolean(agent))) },
           { status: 201 },
         );
       } catch (e) {

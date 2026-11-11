@@ -40,7 +40,7 @@ function evenSplit(ids: string[]): Choice[] {
   return ids.map((assetId) => ({ assetId, pct: base + (rest-- > 0 ? 1 : 0) }));
 }
 
-export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
+export function Studio({ platformFeeBps: baseFeeBps, agentPlatformFeeBps }: { platformFeeBps: number; agentPlatformFeeBps: number }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -61,6 +61,8 @@ export function Studio({ platformFeeBps }: { platformFeeBps: number }) {
   const [feeBps, setFeeBps] = useState(50);
   const [house, setHouse] = useState(false);
   const [agentOn, setAgentOn] = useState(false);
+  // Agent baskets pay a higher platform fee on buys (we pay their daily runs).
+  const platformFeeBps = agentOn ? agentPlatformFeeBps : baseFeeBps;
   const [strategy, setStrategy] = useState("");
   // How the agent sets weights: the creator's own strategy for the AI, or a rule-based template.
   const [agentMode, setAgentMode] = useState<"ai" | TemplateId>("fixed");

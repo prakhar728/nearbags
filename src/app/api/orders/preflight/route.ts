@@ -12,6 +12,7 @@ const Body = z.object({
   weights: z.array(z.object({ assetId: z.string(), weightBps: z.number().int() })).min(1).max(10),
   usd: z.number().positive(),
   creatorFeeBps: z.number().int().min(0).max(RULES.maxCreatorFeeBps),
+  agent: z.boolean().optional(),
 });
 
 
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
     await rateLimit("preflight", 20, 60_000);
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed preflight request.");
-    const { weights, usd, creatorFeeBps } = p.data;
+    const { weights, usd, creatorFeeBps, agent } = p.data;
     const settings = await getSettings();
     if (settings.buysPaused) throw new HttpError(503, "Buying is paused for a moment. Selling still works.");
     const delisted = weights.filter((w) => settings.delisted.includes(w.assetId)).map((w) => w.assetId);
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
     if (errs.length) throw new HttpError(400, errs.join(" "));
     const blocked = buyBlockReason(await paused(weights.map((w) => w.assetId)));
     if (blocked) throw new HttpError(409, blocked);
-    const pf = platformFee().bps;
+    const pf = platformFee(Boolean(agent)).bps;
     const min = minBuyUsd(weights, creatorFeeBps + pf);
     if (usd < min) throw new HttpError(400, `This basket's minimum buy is $${min}.`);
     if (usd > RULES.maxBuyUsd) throw new HttpError(400, `The maximum buy is $${RULES.maxBuyUsd} for now.`);

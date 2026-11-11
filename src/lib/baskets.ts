@@ -7,6 +7,9 @@ import type { WeightInput } from "@/lib/trade/types";
 import type { TemplateId } from "@/lib/agent/templates";
 
 export const PLATFORM_FEE_BPS = () => Number(process.env.PLATFORM_FEE_BPS ?? 25);
+/** Agent baskets pay a higher platform fee on buys: we pay their daily OutLayer runs. */
+export const AGENT_PLATFORM_FEE_BPS = () => Number(process.env.AGENT_PLATFORM_FEE_BPS ?? 50);
+export const platformFeeBpsFor = (agent: boolean) => (agent ? AGENT_PLATFORM_FEE_BPS() : PLATFORM_FEE_BPS());
 
 export interface BasketView {
   id: number;
@@ -60,7 +63,7 @@ async function hydrate(rows: BasketRow[]): Promise<BasketView[]> {
       publishedAt: r.publishedAt?.toISOString() ?? null,
       creator: { id: u.id, handle: u.handle, address: u.walletAddress, chain: u.walletChain },
       assets: a,
-      minBuyUsd: minBuyUsd(a, r.feeBps + PLATFORM_FEE_BPS()),
+      minBuyUsd: minBuyUsd(a, r.feeBps + platformFeeBpsFor(Boolean(r.agent))),
       agent: r.agent ? { limits: r.agent.limits, template: r.agent.template?.id ?? null } : null,
     };
   });

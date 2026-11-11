@@ -9,7 +9,7 @@ import { db, schema } from "@/db";
 import { ASSETS, getAsset, USDC, withdrawTarget } from "@/lib/assets";
 import { isNearAccountId, RheaNoLiquidity } from "@/lib/rhea";
 import { minBuyUsd, RULES } from "@/lib/basket-rules";
-import { creatorFeeAccount, getBasketById, PLATFORM_FEE_BPS, type BasketView } from "@/lib/baskets";
+import { creatorFeeAccount, getBasketById, platformFeeBpsFor, type BasketView } from "@/lib/baskets";
 import { revalidateBasket } from "@/lib/basket-pages";
 import { eligibility } from "@/lib/compliance";
 import { getSettings } from "@/lib/settings";
@@ -36,9 +36,9 @@ export const PAYOUT_SEQ = 100;
 
 // ---------- helpers ----------
 
-export function platformFee(): { bps: number; account: string | null } {
+export function platformFee(agent = false): { bps: number; account: string | null } {
   const account = process.env.PLATFORM_FEE_ACCOUNT?.trim() || null;
-  return { bps: account ? PLATFORM_FEE_BPS() : 0, account };
+  return { bps: account ? platformFeeBpsFor(agent) : 0, account };
 }
 
 let tokenCache: { at: number; list: TokenInfo[] } | null = null;
@@ -115,7 +115,7 @@ export async function createBuyOrder(
   if (!position) throw new HttpError(409, "Set up your basket account first.");
   if (!position.recoveryKeyAddedAt) throw new HttpError(409, "Add your wallet as recovery key first.");
 
-  const pf = platformFee();
+  const pf = platformFee(Boolean(basket.agent));
   const creatorBps = isCreator ? 0 : basket.feeBps;
   const min = minBuyUsd(basket.assets, basket.feeBps + pf.bps);
   if (p.usd < min) throw new HttpError(400, `This basket's minimum buy is $${min}.`);
@@ -168,7 +168,7 @@ export async function createBuyOrder(
 export async function markFunded(order: Order, position: Position, grossUsdc: bigint) {
   if (grossUsdc <= 0n) throw new Error(`Order ${order.id}: refusing to plan a buy from 0 USDC.`);
   const basket = (await getBasketById(position.basketId))!;
-  const pf = platformFee();
+  const pf = platformFee(Boolean(basket.agent));
   const creatorBps = basket.creator.id === position.userId ? 0 : basket.feeBps;
   const fees = splitFees(grossUsdc, creatorBps, pf.bps);
   const plan = planLegs(fees.netUsdc, basket.assets);
@@ -223,7 +223,13 @@ export async function submitFees(s: Session, orderId: number, signed: SignedRawE
 
 // ---------- legs (buy, sell and payout) ----------
 
-export async function prepareLeg(s: Session, orderId: number, seq: number) {
+/**
+ * Fee on swaps the AI agent makes (rebalances), set as a 1Click app fee to the platform account. 1Click keeps half of
+ * an app fee, so 20 here pays us 10 bps (0.1%); with 1Click's own 20 the quote's total is 30 bps, the signer's cap.
+ */
+export const AGENT_SWAP_APP_FEE_BPS = 20;
+
+export async function prepareLeg(s: Session, orderId: number, seq: number, opts: { agent?: boolean } = {}) {
   const { order, position } = await loadOwned(orderId, s.userId);
   if (!["fees_paid", "legs_running", "partial"].includes(order.status)) throw new HttpError(409, "This order isn't ready for swaps.");
   const [leg] = (await legsOf(orderId)).filter((l) => l.seq === seq);
@@ -258,6 +264,7 @@ export async function prepareLeg(s: Session, orderId: number, seq: number) {
       recipientType: recipient ? "DESTINATION_CHAIN" : "INTENTS",
       refundTo: position.accountId,
       refundType: "INTENTS",
+      ...(opts.agent && platformFee().account ? { appFees: [{ recipient: platformFee().account!, fee: AGENT_SWAP_APP_FEE_BPS }] } : {}),
     });
   } catch (e) {
     const msg = e instanceof OneClickError && e.noLiquidity ? "No liquidity for this swap right now." : (e as Error).message.slice(0, 200);

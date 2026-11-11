@@ -9,6 +9,8 @@ export const RULES = {
   maxWeightBps: 5000,
   weightStepBps: 100, // whole percents
   minBuyFloorUsd: 20,
+  minBuyFloorMemeUsd: 25, // Rhea legs are relayed by us (gas ≈ $0.014 each), so meme baskets start higher
+  maxBasketsPerDay: 5, // per creator, admins exempt
   maxBuyUsd: 1000,
   maxCreatorFeeBps: 100,
   creatorFeeStepBps: 5,
@@ -23,7 +25,7 @@ export function minBuyUsd(weights: WeightInput[], feeBps: number): number {
   const need = weights.reduce<number>((m, w) => {
     const a = getAsset(w.assetId);
     return a.minLegUsd > 0 ? Math.max(m, a.minLegUsd / ((w.weightBps / 10_000) * keep)) : m;
-  }, RULES.minBuyFloorUsd);
+  }, weights.some((w) => getAsset(w.assetId).kind === "meme") ? RULES.minBuyFloorMemeUsd : RULES.minBuyFloorUsd);
   return Math.ceil(need / 5) * 5;
 }
 

@@ -22,6 +22,8 @@ export interface QuoteRequest {
   deadline?: string;
   referral?: string;
   quoteWaitingTimeMs?: number;
+  /** Extra fees paid out of the swap. 1Click keeps half of each (and adds its own 20 bps). */
+  appFees?: { recipient: string; fee: number }[];
 }
 
 export interface Quote {

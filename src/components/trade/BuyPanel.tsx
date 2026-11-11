@@ -175,7 +175,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     try {
       const r = await api<BuyPreflight & { minBuyUsd: number }>("/api/orders/preflight", {
         method: "POST",
-        body: JSON.stringify({ weights: basket.assets, usd: amountNum, creatorFeeBps: basket.feeBps }),
+        body: JSON.stringify({ weights: basket.assets, usd: amountNum, creatorFeeBps: basket.feeBps, agent: Boolean(basket.agentManaged) }),
       });
       setPre(r);
       setPhase("review");

@@ -46,7 +46,8 @@ describe("meme coins", () => {
     expect(agentAssetProblem(["BTC", "ETH"])).toBeNull();
     expect(agentAssetProblem(["BTC", "HOOT"])).toMatch(/can't manage meme coins yet \(HOOT\)/);
   });
-  it("sit at the $20 floor at 50/50 (their $5 minimum swap needs only $10)", () => {
-    expect(minBuyUsd([{ assetId: "HOOT", weightBps: 5000 }, { assetId: "NEARLY", weightBps: 5000 }], 75)).toBe(20);
+  it("start at the $25 meme floor (we relay their swaps), not the $20 one", () => {
+    expect(minBuyUsd([{ assetId: "HOOT", weightBps: 5000 }, { assetId: "NEARLY", weightBps: 5000 }], 75)).toBe(25);
+    expect(minBuyUsd([{ assetId: "BTC", weightBps: 5000 }, { assetId: "ETH", weightBps: 5000 }], 75)).toBe(20);
   });
 });

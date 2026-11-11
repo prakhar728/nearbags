@@ -19,6 +19,7 @@ printf %s "$VALUE" | vercel env add NAME production
 | `RELAYER_ACCOUNT_ID`, `RELAYER_PRIVATE_KEY` | Buying and selling | NEAR account that pays gas |
 | `PLATFORM_FEE_ACCOUNT` | Platform fee | NEAR account. Without it, no platform fee is charged. |
 | `PLATFORM_FEE_BPS` | Platform fee | Default 25 (0.25%) |
+| `AGENT_PLATFORM_FEE_BPS` | Platform fee on agent baskets | Default 50 (0.5%). Agent swaps also carry a 0.1% app fee to `PLATFORM_FEE_ACCOUNT`. |
 | `ADMIN_WALLETS` | `/admin` | Comma-separated NEAR accounts or EVM addresses |
 | `TWELVEDATA_API_KEY` | Stock prices | Third stock price source |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | WalletConnect | From cloud.reown.com |
@@ -72,6 +73,12 @@ pnpm dev
 | `pnpm tsx scripts/verify-keys-mainnet.ts` | Checks key and recovery logic against mainnet, read-only |
 
 Point `.env.local` at the production database to run a script against production.
+
+**Keep local baskets apart from production.** A basket's account comes from the wallet and the basket's id, so a local basket with the same id as a production one is the same account. Start local ids far above production's:
+
+```
+psql "$DATABASE_URL" -c "select setval('baskets_id_seq', 99999, true)"
+```
 
 ## Meme coin (Rhea) checks
 
