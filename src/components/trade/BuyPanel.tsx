@@ -3,14 +3,16 @@
 //   <BuyPanel basket={{ id, slug, name, feeBps, minBuyUsd, status, assets }} />
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useConfig } from "wagmi";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ASSETS, getAsset } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder, retryLeg } from "@/lib/client/order-runner";
-import { canPayFromEvm, canPayFromNear, nearBalance, nearFtBalance, payFromEvm, payFromNear, type PayToken } from "@/lib/client/pay";
+import { canPayFromEvm, canPayFromNear, payFromEvm, payFromNear, type PayToken } from "@/lib/client/pay";
+import { useWalletBalances } from "@/lib/client/balances";
+import { CHAIN_NAMES, TokenPicker } from "./TokenPicker";
 import type { BasketKey } from "@/lib/intents/keys";
 import { signIntents } from "@/lib/intents/payload";
 import type { BuyPreflight } from "@/lib/trade/preflight";
@@ -32,10 +34,6 @@ export interface BuyPanelBasket {
 
 type Phase = "form" | "review" | "working" | "order";
 
-const CHAIN_NAMES: Record<string, string> = {
-  near: "NEAR", eth: "Ethereum", arb: "Arbitrum", base: "Base", op: "Optimism", pol: "Polygon", bsc: "BNB Chain",
-  sol: "Solana", btc: "Bitcoin", zec: "Zcash", xrp: "XRP Ledger", doge: "Dogecoin", sui: "Sui", tron: "Tron",
-};
 const EVM = new Set(["eth", "arb", "base", "op", "pol", "bsc"]);
 const usd = (x: number) => `$${x.toFixed(2)}`;
 const units = (amount: string, decimals: number) => Number(amount) / 10 ** decimals;
@@ -72,26 +70,21 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const pickedToken = useRef(false); // the buyer chose a pay token; stop re-defaulting it
   const runRef = useRef<AbortController | null>(null);
 
-  const token = tokens.find((t) => t.assetId === payAsset);
+  const [userPicked, setUserPicked] = useState(false);
+  const wallet = useWalletBalances(user, tokens);
+  // Until the buyer picks a token, pay with whatever they hold most of (by value) on their wallet's chains.
+  const best = !userPicked && wallet.data?.size ? [...wallet.data].sort((a, b) => b[1].usd - a[1].usd)[0][0] : null;
+  const activeAsset = best ?? payAsset;
+  const token = tokens.find((t) => t.assetId === activeAsset);
   const canPayFrom = useCallback(
     (t: PayToken) => (user?.chain === "near" ? canPayFromNear(t) : user?.chain === "evm" ? canPayFromEvm(t) : false),
     [user?.chain],
   );
   // NEAR wallets pay wNEAR by wrapping native NEAR on the fly, so show it as NEAR.
   const tokenLabel = (t: PayToken) => (user?.chain === "near" && t.contract === "wrap.near" ? "NEAR" : t.symbol);
-  const balance = useQuery({
-    queryKey: ["near-balance", user?.address, token?.assetId],
-    enabled: user?.chain === "near" && !!token && canPayFromNear(token),
-    staleTime: 30_000,
-    queryFn: async () => {
-      const t = token!;
-      const raw = await nearFtBalance(t.contract!, user!.address);
-      const f = (x: bigint, d: number) => (Number(x) / 10 ** d).toLocaleString(undefined, { maximumFractionDigits: 4 });
-      if (t.contract !== "wrap.near") return `${f(raw, t.decimals)} ${t.symbol}`;
-      const native = await nearBalance(user!.address);
-      return `${f(native, 24)} NEAR${raw > 0n ? ` + ${f(raw, 24)} wNEAR` : ""}`;
-    },
-  });
+  const holding = token ? wallet.data?.get(token.assetId) : undefined;
+  // "Use max": the holding in USD, less a little for gas when paying with a chain's own coin, capped at $1,000.
+  const maxUsd = holding && token ? Math.max(0, Math.min(1000, Math.floor((holding.usd * (token.contract && token.chain !== "near" ? 1 : 0.98) - (token.contract ? 0 : 0.5)) * 100) / 100)) : 0;
   const amountNum = Number(amount);
 
   const elig = useQuery({
@@ -111,12 +104,8 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   }, [user?.chain]);
 
   // Refund address defaults to the signed-in wallet when the pay chain matches its family.
-  const defaultRefund = useMemo(() => {
-    if (!user || !token) return "";
-    if (user.chain === "evm" && EVM.has(token.chain)) return user.address;
-    if (user.chain === "near" && token.chain === "near") return user.address;
-    return "";
-  }, [user, token]);
+  const defaultRefund =
+    !user || !token ? "" : (user.chain === "evm" && EVM.has(token.chain)) || (user.chain === "near" && token.chain === "near") ? user.address : "";
   const refundAddress = refund || defaultRefund;
 
   const keyFor = useCallback(async () => {
@@ -305,12 +294,33 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
             }}
             className="input input-lg"
           />
-          <span className={`num text-[11px] ${tooSmall || tooBig ? "text-loss" : "text-faint"}`}>
-            Minimum ${basket.minBuyUsd} · maximum $1,000
+          <span className="flex items-center justify-between gap-2">
+            <span className={`num whitespace-nowrap text-[11px] ${tooSmall || tooBig ? "text-loss" : "text-faint"}`}>
+              Min ${basket.minBuyUsd} · max $1,000
+            </span>
+            {holding && token && (
+              <span className="num flex items-center gap-2 whitespace-nowrap text-[11px] text-faint">
+                <span title={`$${holding.usd.toFixed(2)}`}>
+                  {holding.amount.toLocaleString(undefined, { maximumFractionDigits: holding.amount < 1 ? 4 : 2 })} {tokenLabel(token)}
+                </span>
+                {maxUsd >= basket.minBuyUsd && (
+                  <button
+                    type="button"
+                    className="chip !h-6 !px-2 text-[11px]"
+                    onClick={() => {
+                      setAmount(maxUsd.toFixed(2));
+                      setPhase("form");
+                    }}
+                  >
+                    Use max
+                  </button>
+                )}
+              </span>
+            )}
           </span>
         </label>
 
-        <label className="field">
+        <div className="field">
           <span className="label">Pay with</span>
           {tokens.length === 0 ? (
             <div role="status" className="input flex items-center">
@@ -318,40 +328,24 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
               <Skeleton className="h-3 w-40" />
             </div>
           ) : (
-          <select
-            id="buy-token"
-            value={payAsset}
-            onChange={(e) => {
+          <TokenPicker
+            tokens={tokens}
+            value={activeAsset}
+            onChange={(id) => {
               pickedToken.current = true;
-              setPayAsset(e.target.value);
+              setUserPicked(true);
+              setPayAsset(id);
               setRefund("");
               setPhase("form");
             }}
-            className="input num"
-          >
-            {[
-              ["Pay from your wallet", tokens.filter((t) => canPayFrom(t))],
-              ["Send from anywhere", tokens.filter((t) => !canPayFrom(t))],
-            ].map(([label, list]) =>
-              (list as PayToken[]).length ? (
-                <optgroup key={label as string} label={label as string}>
-                  {(list as PayToken[]).map((t) => (
-                    <option key={t.assetId} value={t.assetId}>
-                      {tokenLabel(t)} on {CHAIN_NAMES[t.chain] ?? t.chain}
-                    </option>
-                  ))}
-                </optgroup>
-              ) : null,
-            )}
-          </select>
+            canPayFrom={user ? canPayFrom : undefined}
+            balances={wallet.data}
+            label={tokenLabel}
+            idPrefix="buy"
+          />
           )}
-          {balance.isPending && balance.fetchStatus === "fetching" && <Skeleton className="h-3 w-32" />}
-          {balance.data && (
-            <span className="num text-[11px] text-faint">
-              In your wallet: {balance.data}
-            </span>
-          )}
-        </label>
+          {wallet.isFetching && !wallet.data && <Skeleton className="h-3 w-32" />}
+        </div>
 
         {token && !defaultRefund && (
           <label className="field">

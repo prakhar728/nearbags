@@ -12,7 +12,8 @@ export const wagmiConfig = createConfig({
   chains: [mainnet, arbitrum, base, optimism, polygon, bsc],
   connectors: [
     injected({ shimDisconnect: true }),
-    ...(projectId ? [walletConnect({ projectId, showQrModal: true, metadata })] : []),
+    // Browser only: WalletConnect touches indexedDB as soon as it is created, which crashes server rendering.
+    ...(projectId && typeof window !== "undefined" ? [walletConnect({ projectId, showQrModal: true, metadata })] : []),
   ],
   transports: {
     [mainnet.id]: http(),

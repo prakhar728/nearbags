@@ -6,12 +6,9 @@ import { ASSETS } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
 import { driveOrder } from "@/lib/client/order-runner";
 import type { PayToken } from "@/lib/client/pay";
+import { CHAIN_NAMES, TokenPicker } from "./TokenPicker";
 import type { OrderView } from "@/lib/trade/orders";
 
-const CHAIN_NAMES: Record<string, string> = {
-  near: "NEAR", eth: "Ethereum", arb: "Arbitrum", base: "Base", op: "Optimism", pol: "Polygon", bsc: "BNB Chain",
-  sol: "Solana", btc: "Bitcoin", zec: "Zcash", xrp: "XRP Ledger", doge: "Dogecoin", sui: "Sui", tron: "Tron",
-};
 const EVM = new Set(["eth", "arb", "base", "op", "pol", "bsc"]);
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -103,13 +100,7 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
         </p>
       )}
       {tokens.length ? (
-        <select id={`sell-token-${positionId}`} value={payout} onChange={(e) => (setPayout(e.target.value), setAddress(""))} className="input num">
-          {tokens.map((t) => (
-            <option key={t.assetId} value={t.assetId}>
-              Receive {t.symbol} on {CHAIN_NAMES[t.chain] ?? t.chain}
-            </option>
-          ))}
-        </select>
+        <TokenPicker tokens={tokens} value={payout} onChange={(id) => (setPayout(id), setAddress(""))} mode="receive" idPrefix={`sell-${positionId}`} />
       ) : (
         <div role="status" className="input flex items-center">
           <span className="sr-only">Loading payout tokens</span>
