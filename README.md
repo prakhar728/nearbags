@@ -82,6 +82,16 @@ NEP-413: OK (both keys added)
 - Dividends are reinvested net of 30% US withholding, the way Ondo tokens do. Price-only returns would understate income ETFs such as SGOV.
 - Stats: CAGR, max drawdown, volatility, Sharpe, per-asset contribution, correlations, diversification ratio. Code is in `src/lib/analytics/backtest.ts`, with tests next to it.
 
+## For AI agents
+
+nearbags runs a public, read-only MCP server at `https://nearbags.com/api/mcp`. Agents can list bags, read a bag's thesis, backtest and live return, check whether it can be bought right now, and see an AI agent bag's decisions with their proofs. No key or sign-in is needed, and nothing in it moves money.
+
+```
+claude mcp add --transport http nearbags https://nearbags.com/api/mcp
+```
+
+Tools and limits: [nearbags.com/docs/agents](https://nearbags.com/docs/agents). Code is in `src/app/api/mcp/route.ts` and `src/lib/mcp/tools.ts`.
+
 ## Investment thesis track
 
 The claim: people will buy US stocks through NEAR Intents, but only when an app packages it, and the demand fades when the push stops. That makes distribution, not rails, the gap nearbags fills.
