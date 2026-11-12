@@ -43,6 +43,13 @@
       "when": 1794314308302,
       "tag": "0005_orange_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794483051524,
+      "tag": "0006_agent_keys",
+      "breakpoints": true
     }
   ]
 }

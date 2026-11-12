@@ -247,6 +247,24 @@ export const auditLog = pgTable("audit_log", {
   createdAt: createdAt(),
 });
 
+// Keys a creator makes on their profile so an AI agent can manage their baskets through the MCP server. Only a
+// SHA-256 of the key is stored; the key itself is shown once. Revoked keys stay for the audit trail.
+export const agentKeys = pgTable(
+  "agent_keys",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id),
+    name: text("name").notNull(),
+    prefix: text("prefix").notNull(), // first characters of the key, shown so the owner can tell keys apart
+    hash: text("hash").notNull(),
+    scopes: text("scopes").array().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("agent_keys_hash_uq").on(t.hash), index("agent_keys_user_idx").on(t.userId)],
+);
+
 export const authNonces = pgTable("auth_nonces", {
   nonce: text("nonce").primaryKey(),
   expiresAt: bigint("expires_at", { mode: "number" }).notNull(),

@@ -232,5 +232,5 @@ export const TOOLS: Tool[] = [
 export const INSTRUCTIONS = [
   "nearbags (https://nearbags.com) sells bags: baskets of tokenized US stocks and ETFs (Ondo Global Markets), crypto and a few NEAR meme coins, bought in one payment with any token from any chain through NEAR Intents.",
   "Each holder's bag is their own NEAR Intents account that only their wallet controls. Some bags are rebalanced by an AI agent that runs in a TEE and publishes a proof for every decision.",
-  "These tools are read-only. To buy or sell, send the person to the bag's url. Backtests are historical, not forecasts, and nothing here is financial advice. Tokenized stocks aren't available to US persons.",
+  "These tools are read-only; a creator's agent key (made on their nearbags profile) adds tools to manage their own bags. To buy or sell, send the person to the bag's url. Backtests are historical, not forecasts, and nothing here is financial advice. Tokenized stocks aren't available to US persons.",
 ].join(" ");

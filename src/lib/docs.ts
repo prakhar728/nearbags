@@ -12,7 +12,7 @@ export const DOCS = [
   { slug: "fees", title: "Fees", audience: "Everyone", blurb: "What a buy and a sell cost, with a real example" },
   { slug: "safety", title: "Safety and custody", audience: "Everyone", blurb: "Who holds the money, and what happens if nearbags goes away" },
   { slug: "agent", title: "AI agent baskets", audience: "Everyone", blurb: "Pick a rule or write a strategy; how it rebalances, its limits, and how to check it" },
-  { slug: "agents", title: "For AI agents", audience: "Developers", blurb: "The public MCP server: add it to your agent and what each tool returns" },
+  { slug: "agents", title: "For AI agents", audience: "Developers", blurb: "The MCP server: browse bags, and manage your own with an agent key" },
   { slug: "data", title: "Prices and numbers", audience: "Everyone", blurb: "Where every number comes from, and what is live" },
   { slug: "architecture", title: "Architecture", audience: "Engineers", blurb: "Components, the order flow, database and API" },
   { slug: "operations", title: "Operations", audience: "Whoever runs it", blurb: "Settings, scheduled jobs, admin controls, fixing common problems" },
