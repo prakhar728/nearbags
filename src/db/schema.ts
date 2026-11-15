@@ -38,6 +38,13 @@ export const users = pgTable(
   (t) => [uniqueIndex("users_wallet_uq").on(t.walletChain, t.walletAddress), uniqueIndex("users_handle_uq").on(t.handle)],
 );
 
+/** A link that backs a claim about an asset in a basket. */
+export interface Source {
+  claim: string;
+  title: string;
+  url: string;
+}
+
 export interface AgentConfig {
   /** The creator's private prompt for the AI. Empty when the basket uses a template. */
   strategy: string;
@@ -80,6 +87,8 @@ export const basketAssets = pgTable(
     assetId: text("asset_id").notNull(),
     weightBps: integer("weight_bps").notNull(),
     why: text("why").notNull(),
+    // Links backing the why (claim, title, https url). Required for bags made by agents, optional on the site.
+    sources: jsonb("sources").$type<Source[]>(),
   },
   (t) => [primaryKey({ columns: [t.basketId, t.assetId] })],
 );

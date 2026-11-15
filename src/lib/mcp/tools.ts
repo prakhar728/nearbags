@@ -83,7 +83,7 @@ export const TOOLS: Tool[] = [
     name: "get_bag",
     title: "Get a bag",
     description:
-      "Everything public about one bag: thesis, risks, each asset's weight and why it's there, fees, the agent's public limits if it has one, historical backtest stats per window, the live return since it was published, and whether each asset can be bought and sold through NEAR Intents right now.",
+      "Everything public about one bag: thesis, risks, each asset's weight, why it's there and the sources behind that (when the creator gave any), fees, the agent's public limits if it has one, historical backtest stats per window, the live return since it was published, and whether each asset can be bought and sold through NEAR Intents right now.",
     input: z.object({ slug: z.string().min(1).max(80).describe("The bag's slug from list_bags, e.g. blue-chip-crypto") }),
     run: async ({ slug }) => {
       const page = await getBasketPage(slug);
@@ -120,7 +120,7 @@ export const TOOLS: Tool[] = [
         exitSignal: b.exitSignal,
         assets: b.assets.map((a) => {
           const asset = getAsset(a.assetId);
-          return { id: a.assetId, name: asset.name, kind: asset.kind, weightPct: bpsPct(a.weightBps), why: a.why };
+          return { id: a.assetId, name: asset.name, kind: asset.kind, weightPct: bpsPct(a.weightBps), why: a.why, ...(a.sources?.length ? { sources: a.sources } : {}) };
         }),
         agent: b.agent
           ? {
@@ -232,5 +232,5 @@ export const TOOLS: Tool[] = [
 export const INSTRUCTIONS = [
   "nearbags (https://nearbags.com) sells bags: baskets of tokenized US stocks and ETFs (Ondo Global Markets), crypto and a few NEAR meme coins, bought in one payment with any token from any chain through NEAR Intents.",
   "Each holder's bag is their own NEAR Intents account that only their wallet controls. Some bags are rebalanced by an AI agent that runs in a TEE and publishes a proof for every decision.",
-  "These tools are read-only; a creator's agent key (made on their nearbags profile) adds tools to manage their own bags. To buy or sell, send the person to the bag's url. Backtests are historical, not forecasts, and nothing here is financial advice. Tokenized stocks aren't available to US persons.",
+  "These tools are read-only; a creator's agent key (made on their nearbags profile) adds tools to manage their own bags. When you propose or create a bag for someone, back each asset with sources, keep sourced facts apart from your opinions, and tell them plainly which parts of their brief the available assets can't meet. To buy or sell, send the person to the bag's url. Backtests are historical, not forecasts, and nothing here is financial advice. Tokenized stocks aren't available to US persons.",
 ].join(" ");

@@ -255,6 +255,18 @@ function Holdings({ b }: { b: BasketView }) {
                 <div className="bar-fill bg-accent/70" style={{ left: 0, width: `${a.weightBps / 100}%` }} />
               </div>
               <p className="text-sm leading-relaxed text-muted">{a.why || "—"}</p>
+              {a.sources?.length ? (
+                <ul className="space-y-1 pt-1">
+                  {a.sources.map((src, i) => (
+                    <li key={i} className="text-xs leading-relaxed text-faint">
+                      {src.claim}{" "}
+                      <a href={src.url} target="_blank" rel="noopener noreferrer nofollow ugc" className="underline decoration-border-strong underline-offset-2 hover:text-text">
+                        {src.title}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           </div>
         );
@@ -305,7 +317,7 @@ function Cell({ k, children }: { k: string; children: React.ReactNode }) {
 async function EditLog({ edits, publishedAt }: { edits: BasketEdit[]; publishedAt: string | null }) {
   if (!edits.length) return null;
   await connection(); // "2d ago" is relative to now
-  const label = (f: string) => (f.startsWith("why:") ? `Why ${f.slice(4)}` : (FIELD_LABEL[f] ?? f));
+  const label = (f: string) => (f.startsWith("why:") ? `Why ${f.slice(4)}` : f.startsWith("sources:") ? `Sources for ${f.slice(8)}` : (FIELD_LABEL[f] ?? f));
   return (
     <details className="disclosure card card-pad group">
       <summary className="text-[13px] font-medium text-muted hover:text-text">

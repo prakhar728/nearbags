@@ -7,14 +7,16 @@ import { audit, type AgentActor } from "@/lib/agent-keys";
 import { agentRunsFor, runAgent } from "@/lib/agent/run";
 import { TEMPLATE_IDS, type TemplateId } from "@/lib/agent/templates";
 import { getAnalyticsView } from "@/lib/analytics/cached";
-import { minBuyUsd, validateWeights } from "@/lib/basket-rules";
-import { HORIZONS } from "@/lib/basket-text";
+import { getAsset } from "@/lib/assets";
+import { agentAssetProblem, minBuyUsd, validateWeights } from "@/lib/basket-rules";
+import { HORIZONS, LIMITS, missingSources, SourceSchema } from "@/lib/basket-text";
 import { listPendingByCreator } from "@/lib/basket-pages";
 import { listBasketsByCreator, platformFeeBpsFor } from "@/lib/baskets";
 import { HttpError } from "@/lib/auth/session";
 import { closeBasket, createBasket, editBasket } from "@/lib/creator/actions";
 import { creatorName } from "@/lib/format";
 import { rateLimit } from "@/lib/ratelimit";
+import { buyBlockReason, paused } from "@/lib/trade/availability";
 import { loadOwnBasket } from "@/lib/users";
 import { SITE } from "./tools";
 
@@ -37,10 +39,18 @@ function problems(errors: string[]): never {
   throw new HttpError(400, `Not saved. Fix these and try again: ${errors.join(" ")}`);
 }
 
-const weightsIn = z
-  .array(z.object({ asset: z.string().min(1).max(16).describe("Asset id from list_assets, e.g. NVDA or BTC"), weight_pct: z.number().int().describe("Whole percent") }))
-  .min(1)
-  .max(20);
+const sourceIn = z.object({
+  claim: z.string().min(1).max(LIMITS.sourceClaim).describe("The fact this link supports, in your own words, e.g. \"NVIDIA sells most AI training chips\""),
+  title: z.string().min(1).max(LIMITS.sourceTitle).describe("Where it's from, e.g. \"Reuters, Oct 2026\" or \"NVIDIA Q3 FY27 results\""),
+  url: z.string().min(1).max(LIMITS.sourceUrl).describe("Full https:// link to the page"),
+});
+const sourcesIn = z.array(sourceIn).max(LIMITS.sourcesPerAsset);
+
+/** Stocks and ETFs (Ondo) can't be bought from some countries; say so whenever a bag holds them. */
+const stockNote = (ids: string[]) =>
+  ids.some((id) => ["stock", "etf"].includes(getAsset(id).kind))
+    ? "Holds tokenized stocks: they can't be bought by US persons or from the US, Canada and a few other countries, and need an extra confirmation in the EEA, UK, Switzerland, Singapore, Hong Kong, Malaysia and Brazil. Tell the person if that may apply to them."
+    : null;
 
 const agentIn = z
   .object({
@@ -70,7 +80,7 @@ export const CREATOR_TOOLS: AuthedTool[] = [
       chain: a.user.walletChain,
       profile: `${SITE}/c/${encodeURIComponent(a.user.handle ?? a.user.walletAddress)}`,
       key: { name: a.keyName, starts: a.prefix, scopes: a.scopes },
-      canDo: "Create, edit and close your bags, preview weights, and run your AI-agent bags. It can't buy, sell, withdraw or sign anything.",
+      canDo: "Create, edit and close your bags (every asset in a new bag needs a source), preview weights, and run your AI-agent bags. It can't buy, sell, withdraw or sign anything.",
     }),
   }),
 
@@ -101,9 +111,18 @@ export const CREATOR_TOOLS: AuthedTool[] = [
     name: "preview_bag",
     title: "Preview weights",
     description:
-      "Check a set of assets and weights before creating a bag: whether they pass the rules (2 to 10 assets, 5% to 50% each, whole percents adding to 100), backtest stats per window, and the minimum buy. Limited to 20 previews an hour.",
+      "Check a set of assets and weights before creating a bag: what the rules won't allow (2 to 10 assets, 5% to 50% each, whole percents adding to 100, no meme coins with stocks), whether each asset can be bought and sold right now, country limits, missing or invalid sources, backtest stats per window, and the minimum buy. Tell the person about every item in cantMeet: never drop one of their constraints quietly. Limited to 20 previews an hour.",
     input: z.object({
-      assets: weightsIn,
+      assets: z
+        .array(
+          z.object({
+            asset: z.string().min(1).max(16).describe("Asset id from list_assets, e.g. NVDA or BTC"),
+            weight_pct: z.number().int().describe("Whole percent"),
+            sources: z.array(z.unknown()).optional().describe("Optional: the sources you plan to pass to create_bag, to check them"),
+          }),
+        )
+        .min(1)
+        .max(20),
       creator_fee_pct: z.number().min(0).max(1).default(0.5),
       agent: z.boolean().default(false).describe("Will it be AI-agent managed (changes the platform fee)"),
     }),
@@ -111,12 +130,33 @@ export const CREATOR_TOOLS: AuthedTool[] = [
     run: async ({ assets, creator_fee_pct, agent }, a) => {
       await rateLimit("mcp-preview", 20, 3600_000, String(a.keyId));
       const weights = assets.map((x) => ({ assetId: x.asset.toUpperCase(), weightBps: pctToBps(x.weight_pct) }));
-      const errors = validateWeights(weights);
-      if (errors.length) return { valid: false, errors };
-      const view = await getAnalyticsView(weights);
-      if ("error" in view) return { valid: false, errors: [view.error] };
+      const cantMeet = validateWeights(weights);
+      const agentProblem = agent ? agentAssetProblem(weights.map((w) => w.assetId)) : null;
+      if (agentProblem) cantMeet.push(agentProblem);
+      if (cantMeet.length) return { valid: false, cantMeet };
+
+      // Sources are only checked when sent here; create_bag requires at least one per asset.
+      const sourceProblems: string[] = [];
+      for (const x of assets) {
+        if (x.sources === undefined) continue;
+        const id = x.asset.toUpperCase();
+        if (!x.sources.length) sourceProblems.push(`Add a source for ${id}.`);
+        if (x.sources.length > LIMITS.sourcesPerAsset) sourceProblems.push(`${id}: up to ${LIMITS.sourcesPerAsset} sources.`);
+        x.sources.forEach((src, i) => {
+          const r = SourceSchema.safeParse(src);
+          if (!r.success) sourceProblems.push(`${id} source ${i + 1}: ${r.error.issues.map((e) => e.message).join(" ")}`);
+        });
+      }
+
+      const ids = weights.map((w) => w.assetId);
+      const [view, p] = await Promise.all([getAnalyticsView(weights), paused(ids).catch(() => null)]);
+      if ("error" in view) return { valid: false, cantMeet: [view.error] };
+      const blocked = p ? buyBlockReason(p) : null;
       return {
         valid: true,
+        cantMeet: [...(blocked ? [`Right now: ${blocked}`] : []), ...sourceProblems],
+        tradableNow: p ? { canBuy: !blocked, reason: blocked } : { canBuy: null, note: "Couldn't check right now." },
+        countryLimits: stockNote(ids),
         minBuyUsd: minBuyUsd(weights, pctToBps(creator_fee_pct) + platformFeeBpsFor(agent)),
         backtest: {
           note: "$1,000 bought at the start of each window and held. Historical, not a forecast.",
@@ -137,7 +177,7 @@ export const CREATOR_TOOLS: AuthedTool[] = [
     name: "create_bag",
     title: "Create a bag",
     description:
-      "Create a bag under your account. It starts as pending and goes live only after you buy it yourself on its page. After that, its name, assets, weights and fee can't change (an AI-agent bag's weights move only through its agent). Up to 5 new bags a day.",
+      "Create a bag under your account. Every asset needs at least one source (up to 5): a claim, where it's from, and an https link that backs it; keep facts with sources apart from your own opinions in the text. It starts as pending and goes live only after you buy it yourself on its page. After that, its name, assets, weights and fee can't change (an AI-agent bag's weights move only through its agent). Up to 5 new bags a day.",
     input: z.object({
       name: z.string().min(1).max(60),
       tagline: z.string().min(1).max(140),
@@ -152,6 +192,11 @@ export const CREATOR_TOOLS: AuthedTool[] = [
             asset: z.string().min(1).max(16),
             weight_pct: z.number().int(),
             why: z.string().min(1).describe("Why this asset is in the bag"),
+            sources: z
+              .array(sourceIn, { error: "Every asset needs sources: at least one { claim, title, url }." })
+              .min(1, "Every asset needs at least one source.")
+              .max(LIMITS.sourcesPerAsset)
+              .describe("At least one link backing the why"),
           }),
         )
         .min(2)
@@ -168,7 +213,7 @@ export const CREATOR_TOOLS: AuthedTool[] = [
         horizon: args.horizon,
         exitSignal: args.exit_signal,
         feeBps: pctToBps(args.creator_fee_pct),
-        assets: args.assets.map((x) => ({ assetId: x.asset.toUpperCase(), weightBps: pctToBps(x.weight_pct), why: x.why })),
+        assets: args.assets.map((x) => ({ assetId: x.asset.toUpperCase(), weightBps: pctToBps(x.weight_pct), why: x.why, sources: x.sources })),
         // The key's owner accepted the risk notice before they could make the key.
         acceptRisk: true,
         ...(args.agent
@@ -188,7 +233,9 @@ export const CREATOR_TOOLS: AuthedTool[] = [
       };
       if (args.agent?.rule && args.agent?.strategy) problems(["Give the agent a rule or a strategy, not both."]);
       if (args.agent && !args.agent.rule && !args.agent.strategy) problems(["Give the agent a rule or a strategy."]);
-      const r = await createBasket(a.user, body, { allowHouse: false });
+      const missing = missingSources(body.assets);
+      if (missing.length) problems(missing);
+      const r = await createBasket(a.user, body, { allowHouse: false, requireSources: true });
       if (!r.ok) problems(r.errors);
       await audit(a.user, a.prefix, "mcp.create_bag", r.value.slug, { name: args.name });
       return {
@@ -206,7 +253,7 @@ export const CREATOR_TOOLS: AuthedTool[] = [
     name: "edit_bag",
     title: "Edit a bag's text",
     description:
-      "Change the words on one of your bags: tagline, thesis, risks, exit signal, or why an asset is there. Every change is shown publicly in the bag's edit history. Name, assets, weights and fee can't change.",
+      "Change the words on one of your bags: tagline, thesis, risks, exit signal, why an asset is there, or an asset's sources (the new list replaces the old one and needs at least one). Every change is shown publicly in the bag's edit history. Name, assets, weights and fee can't change.",
     input: z.object({
       slug: z.string().min(1).max(80),
       tagline: z.string().min(1).optional(),
@@ -214,10 +261,12 @@ export const CREATOR_TOOLS: AuthedTool[] = [
       risks: z.string().min(1).optional(),
       exit_signal: z.string().optional().describe("Empty string removes it"),
       why: z.record(z.string(), z.string().min(1)).optional().describe("Asset id → new reason, e.g. { \"NVDA\": \"...\" }"),
+      sources: z.record(z.string(), sourcesIn.min(1, "Keep at least one source per asset.")).optional().describe("Asset id → its full new list of sources, e.g. { \"NVDA\": [{ claim, title, url }] }"),
     }),
     readOnly: false,
-    run: async ({ slug, exit_signal, ...rest }, a) => {
-      const body = { ...rest, ...(exit_signal !== undefined ? { exitSignal: exit_signal } : {}) };
+    run: async ({ slug, exit_signal, why, sources, ...rest }, a) => {
+      const upper = <T,>(r?: Record<string, T>) => r && Object.fromEntries(Object.entries(r).map(([k, v]) => [k.toUpperCase(), v]));
+      const body = { ...rest, ...(why ? { why: upper(why) } : {}), ...(sources ? { sources: upper(sources) } : {}), ...(exit_signal !== undefined ? { exitSignal: exit_signal } : {}) };
       const r = await editBasket(a.user.id, slug, body);
       if (!r.ok) problems(r.errors);
       if (r.value.changed.length) await audit(a.user, a.prefix, "mcp.edit_bag", slug, { changed: r.value.changed });

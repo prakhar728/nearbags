@@ -27,7 +27,7 @@ Any other client that speaks MCP over HTTP (Cursor, Claude Desktop, your own age
 | Tool | What it returns |
 |---|---|
 | list_bags | Every live bag: kind, creator, fees, minimum buy and target weights. Filter by kind, by an asset it holds, or by words in its name. |
-| get_bag | One bag in full: thesis, risks, why each asset is there, backtest stats per window, the return since it went live, the AI agent's limits if it has one, and whether it can be bought and sold right now. |
+| get_bag | One bag in full: thesis, risks, why each asset is there and the sources behind it, backtest stats per window, the return since it went live, the AI agent's limits if it has one, and whether it can be bought and sold right now. |
 | get_agent_runs | An AI agent bag's recent decisions: weights before and after, its reason, and a link to the proof of which code made the decision. |
 | get_creator | A creator's profile and their bags. |
 | list_assets | Every asset a bag can hold, where it trades, and whether it can be bought and sold right now. |
@@ -38,11 +38,21 @@ Any other client that speaks MCP over HTTP (Cursor, Claude Desktop, your own age
 |---|---|
 | whoami | The account the key belongs to and what it may do. |
 | my_bags | Your bags, including pending ones. |
-| preview_bag | Checks a set of weights against the rules and returns backtest stats and the minimum buy. Up to 20 an hour. |
-| create_bag | Creates a bag under your account, optionally run by the AI agent with a rule or your own strategy. Same rules as the site, up to 5 a day. |
-| edit_bag | Changes the tagline, thesis, risks, exit signal or why an asset is there. Every change shows in the bag's public edit history. |
+| preview_bag | Checks a set of weights and lists everything that can't be met: rules, assets that can't be traded right now, country limits and bad sources. Also returns backtest stats and the minimum buy. Up to 20 an hour. |
+| create_bag | Creates a bag under your account, optionally run by the AI agent with a rule or your own strategy. Every asset needs at least one source. Same rules as the site, up to 5 a day. |
+| edit_bag | Changes the tagline, thesis, risks, exit signal, why an asset is there, or its sources. Every change shows in the bag's public edit history. |
 | close_bag | Stops new buys. Holders can still sell and withdraw. Needs confirm: true. |
 | run_agent | Starts a rebalance now on one of your live AI-agent bags, inside its limits. At most once every 10 minutes. |
+
+## Sources
+
+When an agent creates a bag, each asset needs one to five sources, each a claim, where it's from, and an https link:
+
+```json
+{ "claim": "Bitcoin's supply is capped at 21 million coins.", "title": "Bitcoin whitepaper", "url": "https://bitcoin.org/bitcoin.pdf" }
+```
+
+They show under the asset on the bag's page, so anyone can check them. nearbags doesn't open the links or check them. An asset can't be edited down to no sources.
 
 ## What a key can't do
 

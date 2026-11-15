@@ -2,6 +2,7 @@
 import "server-only";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
+import type { Source } from "@/db/schema";
 import { minBuyUsd } from "@/lib/basket-rules";
 import type { WeightInput } from "@/lib/trade/types";
 import type { TemplateId } from "@/lib/agent/templates";
@@ -26,7 +27,7 @@ export interface BasketView {
   status: "draft" | "pending" | "live" | "closed" | "hidden";
   publishedAt: string | null;
   creator: { id: number; handle: string | null; address: string; chain: "near" | "evm" };
-  assets: (WeightInput & { why: string })[];
+  assets: (WeightInput & { why: string; sources: Source[] | null })[];
   minBuyUsd: number;
   /** Agent-managed: the public limits. The creator's strategy is never part of this view. */
   agent: {
@@ -45,7 +46,7 @@ async function hydrate(rows: BasketRow[]): Promise<BasketView[]> {
   const creators = await db().select().from(schema.users).where(inArray(schema.users.id, [...new Set(rows.map((r) => r.creatorId))]));
   const byCreator = new Map(creators.map((u) => [u.id, u]));
   return rows.map((r) => {
-    const a = assets.filter((x) => x.basketId === r.id).map((x) => ({ assetId: x.assetId, weightBps: x.weightBps, why: x.why }));
+    const a = assets.filter((x) => x.basketId === r.id).map((x) => ({ assetId: x.assetId, weightBps: x.weightBps, why: x.why, sources: x.sources ?? null }));
     const u = byCreator.get(r.creatorId)!;
     return {
       id: r.id,

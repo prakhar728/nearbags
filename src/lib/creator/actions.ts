@@ -7,7 +7,7 @@ import { db, schema } from "@/db";
 import { HttpError } from "@/lib/auth/session";
 import { sanitizeAgentConfig } from "@/lib/agent/config";
 import { agentAssetProblem, minBuyUsd, RULES } from "@/lib/basket-rules";
-import { createProblems, EDITABLE_FIELDS, markdownProblems, PatchBasketSchema, slugify } from "@/lib/basket-text";
+import { createProblems, EDITABLE_FIELDS, markdownProblems, PatchBasketSchema, slugify, type Source } from "@/lib/basket-text";
 import { revalidateBasket, revalidateProfiles } from "@/lib/basket-pages";
 import { platformFeeBpsFor } from "@/lib/baskets";
 import { isAdmin, loadOwnBasket, type UserRow } from "@/lib/users";
@@ -33,8 +33,8 @@ async function uniqueSlug(base: string): Promise<string> {
  * it). Admins may publish a House basket straight to "live" without a self-buy, but only from the website
  * (`allowHouse`), never through an agent key.
  */
-export async function createBasket(user: UserRow, body: unknown, opts: { allowHouse: boolean }) {
-  const { errors, data } = createProblems(body);
+export async function createBasket(user: UserRow, body: unknown, opts: { allowHouse: boolean; requireSources?: boolean }) {
+  const { errors, data } = createProblems(body, { requireSources: opts.requireSources });
   if (!data) return invalid(errors);
   // Agent-managed: the creator's strategy and limits. The strategy stays private to the creator and the agent.
   const rawAgent = (body as { agent?: unknown } | null)?.agent;
@@ -83,7 +83,7 @@ export async function createBasket(user: UserRow, body: unknown, opts: { allowHo
             publishedAt: house ? new Date() : null,
           })
           .returning();
-        await tx.insert(schema.basketAssets).values(data.assets.map((a) => ({ basketId: row.id, assetId: a.assetId, weightBps: a.weightBps, why: a.why })));
+        await tx.insert(schema.basketAssets).values(data.assets.map((a) => ({ basketId: row.id, assetId: a.assetId, weightBps: a.weightBps, why: a.why, sources: a.sources?.length ? a.sources : null })));
         return row;
       });
       revalidateBasket(slug);
@@ -115,7 +115,7 @@ export async function editBasket(userId: number, slug: string, body: unknown): P
   const errors = [...(patch.thesis ? markdownProblems("Thesis", patch.thesis) : []), ...(patch.deepDive ? markdownProblems("Deep dive", patch.deepDive) : [])];
   const assets = await db().select().from(schema.basketAssets).where(eq(schema.basketAssets.basketId, basket.id));
   const byAsset = new Map(assets.map((a) => [a.assetId, a]));
-  for (const id of Object.keys(patch.why ?? {})) if (!byAsset.has(id)) errors.push(`${id} isn't in this basket.`);
+  for (const id of new Set([...Object.keys(patch.why ?? {}), ...Object.keys(patch.sources ?? {})])) if (!byAsset.has(id)) errors.push(`${id} isn't in this basket.`);
   if (errors.length) return invalid(errors);
 
   const changes: { field: string; oldValue: string | null; newValue: string | null }[] = [];
@@ -131,6 +131,10 @@ export async function editBasket(userId: number, slug: string, body: unknown): P
   }
   const whyChanges = Object.entries(patch.why ?? {}).filter(([id, v]) => byAsset.get(id)!.why !== v);
   for (const [id, v] of whyChanges) changes.push({ field: `why:${id}`, oldValue: byAsset.get(id)!.why, newValue: v });
+  // Sources are logged as readable text ("title: url"), one per line, so the public edit history stays legible.
+  const sourcesText = (list: Source[] | null | undefined) => (list?.length ? list.map((x) => `${x.title}: ${x.url}`).join("\n") : null);
+  const sourceChanges = Object.entries(patch.sources ?? {}).filter(([id, v]) => JSON.stringify(byAsset.get(id)!.sources ?? []) !== JSON.stringify(v));
+  for (const [id, v] of sourceChanges) changes.push({ field: `sources:${id}`, oldValue: sourcesText(byAsset.get(id)!.sources), newValue: sourcesText(v) });
 
   if (!changes.length) return { ok: true, value: { changed: [] } };
 
@@ -140,6 +144,12 @@ export async function editBasket(userId: number, slug: string, body: unknown): P
       await tx
         .update(schema.basketAssets)
         .set({ why: v })
+        .where(and(eq(schema.basketAssets.basketId, basket.id), eq(schema.basketAssets.assetId, id)));
+    }
+    for (const [id, v] of sourceChanges) {
+      await tx
+        .update(schema.basketAssets)
+        .set({ sources: v })
         .where(and(eq(schema.basketAssets.basketId, basket.id), eq(schema.basketAssets.assetId, id)));
     }
     await tx.insert(schema.basketEdits).values(changes.map((c) => ({ basketId: basket.id, ...c })));

@@ -1,0 +1,1 @@
+ALTER TABLE "basket_assets" ADD COLUMN "sources" jsonb;

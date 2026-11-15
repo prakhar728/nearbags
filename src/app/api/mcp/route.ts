@@ -69,7 +69,7 @@ async function handleOne(m: Msg, actor: AgentActor | null): Promise<object | nul
       return ok(id, {
         protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0],
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "nearbags", title: "nearbags", version: "0.2.0" },
+        serverInfo: { name: "nearbags", title: "nearbags", version: "0.3.0" },
         instructions: INSTRUCTIONS + (actor ? KEY_NOTE : ""),
       });
     }

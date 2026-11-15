@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createProblems, markdownProblems, slugify } from "./basket-text";
+import { createProblems, markdownProblems, missingSources, PatchBasketSchema, slugify } from "./basket-text";
 import { liveReturn } from "./analytics/live-return";
 import { sampleIndices } from "./analytics/view";
 
@@ -80,5 +80,40 @@ describe("sampleIndices", () => {
     expect(idx.at(-1)).toBe(999);
     expect(idx.length).toBeLessThanOrEqual(401);
     expect(sampleIndices(10, 400)).toHaveLength(10);
+  });
+});
+
+describe("sources", () => {
+  const src = { claim: "Most AI training chips are NVIDIA's.", title: "Reuters, Oct 2026", url: "https://www.reuters.com/x" };
+  const withSources = { ...valid, assets: valid.assets.map((a) => ({ ...a, sources: [src] })) };
+
+  it("are optional on the site and required for agents", () => {
+    expect(createProblems(valid).errors).toEqual([]);
+    expect(createProblems(valid, { requireSources: true }).errors).toEqual(["Add a source for NVDA.", "Add a source for MSFT."]);
+    expect(createProblems(withSources, { requireSources: true }).errors).toEqual([]);
+    expect(createProblems(withSources).data?.assets[0].sources).toEqual([src]);
+  });
+
+  it("need a full https link", () => {
+    for (const url of ["http://reuters.com/x", "reuters.com/x", "javascript:alert(1)", "https://user:pw@reuters.com/x", "https://localhost/x"]) {
+      const r = createProblems({ ...valid, assets: [{ ...valid.assets[0], sources: [{ ...src, url }] }, valid.assets[1]] });
+      expect(r.errors).toContain("Sources for asset 1: Source link must be a full https:// link.");
+    }
+  });
+
+  it("are capped at 5 per asset and need a claim and a title", () => {
+    const six = { ...valid, assets: [{ ...valid.assets[0], sources: Array(6).fill(src) }, valid.assets[1]] };
+    expect(createProblems(six).errors).toContain("Sources for asset 1: Up to 5 sources per asset.");
+    const blank = { ...valid, assets: [{ ...valid.assets[0], sources: [{ ...src, claim: " " }] }, valid.assets[1]] };
+    expect(createProblems(blank).errors).toContain("Sources for asset 1: Source claim is required.");
+  });
+
+  it("can't be edited down to none", () => {
+    expect(PatchBasketSchema.safeParse({ sources: { NVDA: [src] } }).success).toBe(true);
+    expect(PatchBasketSchema.safeParse({ sources: { NVDA: [] } }).success).toBe(false);
+  });
+
+  it("missingSources names each asset without one", () => {
+    expect(missingSources([{ assetId: "BTC", sources: [src] }, { assetId: "ETH" }, { assetId: "SOL", sources: [] }])).toEqual(["Add a source for ETH.", "Add a source for SOL."]);
   });
 });
