@@ -183,3 +183,22 @@ On every ship day, also:
 - Gift expiry with real money. The shortest expiry is 7 days, and the expiry refusals are unit-tested.
 - Gifts of agent bags. The opt-in at claim was only tested locally without money.
 - A claim that merges into a position the recipient already holds. It's the same transfer to the same account, but it hasn't moved real money.
+
+---
+
+## Results
+
+**2026-11-16, Round 1 setup and free checks (Claude):**
+
+- **Setup:**
+  - Servers restarted; 3091 and 3092 stopped.
+  - Leftover test data cleared. Positions 5 and 7 were checked empty on chain before deleting.
+  - `scratchpad/agent-trade.mjs` written and smoke-tested.
+- **Sources:** 1.1–1.5 and 1.7 pass. 1.6 failed, then passed after the fix in `f116d3c`. Problems found:
+  - six sources were refused with the wrong reason;
+  - refusals named "asset 1" instead of the ticker;
+  - `preview_bag` hid every problem after the first.
+- **Builder:** 2.1–2.5 pass.
+  - On a cold server, the "paused" chips appear a few seconds after the page loads.
+  - SLV was no longer paused, so 2.2 used GLD.
+- **Still to do:** step 0.4 (you sign in with A, B and C), then steps 3–6.
