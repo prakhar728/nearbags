@@ -142,6 +142,7 @@ export function PortfolioView() {
                       <div className="min-w-0">
                         <div className="display truncate text-xl">{r.basket.name}</div>
                         <div className="num mt-1 text-[11px] text-faint">
+                          {r.via ? `via ${r.via} · ` : ""}
                           {r.boughtAt ? `bought ${new Date(r.boughtAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}` : "no completed buy yet"}
                         </div>
                       </div>
@@ -207,15 +208,24 @@ export function PortfolioView() {
                         <div className="fine break-all">
                           Basket account {r.accountId} on intents.near{r.recoveryKeyAdded ? " · your wallet is its recovery key" : ""}
                         </div>
-                        <ManagePanel positionId={r.positionId} basketId={r.basket.id} onDone={load} />
+                        {r.via ? (
+                          <p className="text-sm text-muted">
+                            Your agent key &ldquo;{r.via}&rdquo; trades this account with its own key. Sale money goes to your wallet. To stop it, turn its trading off or revoke the key on
+                            your profile.
+                          </p>
+                        ) : (
+                          <ManagePanel positionId={r.positionId} basketId={r.basket.id} onDone={load} />
+                        )}
                         <Link href={`/b/${r.basket.slug}`} className="btn btn-ghost btn-sm w-fit px-0 normal-case tracking-normal hover:px-3">
                           Open basket →
                         </Link>
                       </div>
-                      <div className="well p-4 sm:p-5">
-                        <div className="label mb-3">Sell</div>
-                        <SellPanel positionId={r.positionId} basketId={r.basket.id} holdings={r.holdings} onDone={load} />
-                      </div>
+                      {!r.via && (
+                        <div className="well p-4 sm:p-5">
+                          <div className="label mb-3">Sell</div>
+                          <SellPanel positionId={r.positionId} basketId={r.basket.id} holdings={r.holdings} onDone={load} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

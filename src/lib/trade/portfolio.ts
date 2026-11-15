@@ -48,7 +48,14 @@ export interface Holding {
 }
 
 export async function portfolio(userId: number) {
-  const positions = await db().select().from(schema.positions).where(and(eq(schema.positions.userId, userId), eq(schema.positions.kind, "own")));
+  // Your own bags plus the ones your agent keys hold for you (gifts you sent are listed separately).
+  const positions = await db()
+    .select()
+    .from(schema.positions)
+    .where(and(eq(schema.positions.userId, userId), inArray(schema.positions.kind, ["own", "agent"])));
+  const keyNames = new Map(
+    (await db().select({ id: schema.agentKeys.id, name: schema.agentKeys.name }).from(schema.agentKeys).where(eq(schema.agentKeys.userId, userId))).map((k) => [k.id, k.name]),
+  );
   const orders = positions.length
     ? await db().select().from(schema.orders).where(inArray(schema.orders.positionId, positions.map((p) => p.id))).orderBy(asc(schema.orders.createdAt))
     : [];
@@ -88,6 +95,8 @@ export async function portfolio(userId: number) {
       positionId: p.id,
       accountId: p.accountId,
       recoveryKeyAdded: Boolean(p.recoveryKeyAddedAt),
+      // Held by one of your agent keys: it trades this account with its own key; your wallet is the recovery key.
+      via: p.kind === "agent" ? (keyNames.get(p.agentKeyId ?? 0) ?? "an agent key") : null,
       basket: { id: basket.id, slug: basket.slug, name: basket.name, status: basket.status },
       holdings,
       valueUsd: value,

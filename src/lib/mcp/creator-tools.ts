@@ -80,7 +80,8 @@ export const CREATOR_TOOLS: AuthedTool[] = [
       chain: a.user.walletChain,
       profile: `${SITE}/c/${encodeURIComponent(a.user.handle ?? a.user.walletAddress)}`,
       key: { name: a.keyName, starts: a.prefix, scopes: a.scopes },
-      canDo: "Create, edit and close your bags (every asset in a new bag needs a source), preview weights, and run your AI-agent bags. It can't buy, sell, withdraw or sign anything.",
+      canDo:
+        "Create, edit and close your bags (every asset in a new bag needs a source), preview weights, and run your AI-agent bags. If you turned trading on for this key, it can also buy and sell with its own key and wallet inside your limits (see trading_status). It can never withdraw.",
     }),
   }),
 

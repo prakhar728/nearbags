@@ -11,6 +11,14 @@ interface Key {
   prefix: string;
   createdAt: string;
   lastUsedAt: string | null;
+  trading: Trading;
+}
+
+interface Trading {
+  enabled: boolean;
+  dailyUsd: number;
+  anyBag: boolean;
+  basketIds: number[];
 }
 
 const MCP_URL = "https://nearbags.com/api/mcp";
@@ -24,6 +32,7 @@ export function AgentKeys() {
   const [fresh, setFresh] = useState<{ key: string; name: string } | null>(null);
   const [confirming, setConfirming] = useState<number | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [tradingFor, setTradingFor] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const r = await fetch("/api/agent-keys", { cache: "no-store" });
@@ -91,7 +100,8 @@ export function AgentKeys() {
           <Link href="/docs/agents" className="underline underline-offset-2 hover:text-text">
             nearbags MCP server
           </Link>
-          . It can&apos;t buy, sell or move money, and a new bag still goes live only after you buy it yourself.
+          . A new bag still goes live only after you buy it yourself. Buying and selling is off unless you turn it on for a key: then it trades with its own wallet, inside your
+          limits, and sale money comes to your wallet. It can never withdraw.
         </p>
       </div>
 
@@ -130,8 +140,19 @@ export function AgentKeys() {
             <div className="min-w-0">
               <div className="text-sm font-medium">{k.name}</div>
               <div className="text-xs text-faint">
-                <span className="font-mono">{k.prefix}…</span> · made {ago(k.createdAt)} · {k.lastUsedAt ? `used ${ago(k.lastUsedAt)}` : "never used"}
+                <span className="font-mono">{k.prefix}…</span> · made {ago(k.createdAt)} · {k.lastUsedAt ? `used ${ago(k.lastUsedAt)}` : "never used"} ·{" "}
+                {k.trading.enabled ? `trades up to $${k.trading.dailyUsd} a day` : "no trading"}
               </div>
+              {tradingFor === k.id && (
+                <TradingForm
+                  k={k}
+                  onSaved={() => {
+                    setTradingFor(null);
+                    void load();
+                  }}
+                  onCancel={() => setTradingFor(null)}
+                />
+              )}
             </div>
             {confirming === k.id ? (
               <div className="flex items-center gap-2">
@@ -143,9 +164,16 @@ export function AgentKeys() {
                 </button>
               </div>
             ) : (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirming(k.id)}>
-                Revoke
-              </button>
+              <div className="flex items-center gap-2">
+                {tradingFor !== k.id && (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTradingFor(k.id)}>
+                    Trading
+                  </button>
+                )}
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirming(k.id)}>
+                  Revoke
+                </button>
+              </div>
             )}
           </div>
         ))}
@@ -164,5 +192,90 @@ export function AgentKeys() {
       </div>
       {err && <p className="text-xs text-loss">{err}</p>}
     </section>
+  );
+}
+
+/** Turn trading on or off for one key: a daily buy limit and which bags it may trade. */
+function TradingForm({ k, onSaved, onCancel }: { k: Key; onSaved: () => void; onCancel: () => void }) {
+  const [t, setT] = useState<Trading>(k.trading);
+  const [bags, setBags] = useState<{ id: number; slug: string; name: string }[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch("/api/baskets")
+      .then((r) => r.json())
+      .then((j) => live && setBags(j.baskets ?? []))
+      .catch(() => live && setBags([]));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const save = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch(`/api/agent-keys/${k.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trading: t }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error ?? "Couldn't save.");
+      onSaved();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 space-y-3 rounded-[var(--r-sm)] border border-[var(--line)] p-3">
+      <label className="flex cursor-pointer items-start gap-3 text-sm">
+        <input type="checkbox" className="check mt-0.5" checked={t.enabled} onChange={(e) => setT({ ...t, enabled: e.target.checked })} />
+        <span>Let this key buy and sell bags with its own wallet. Sale money comes to your wallet. It can never withdraw.</span>
+      </label>
+      {t.enabled && (
+        <>
+          <label className="field">
+            <span className="label">Most it can buy in 24 hours (USD, up to 1,000)</span>
+            <input
+              className="input num w-32"
+              inputMode="numeric"
+              value={String(t.dailyUsd)}
+              onChange={(e) => setT({ ...t, dailyUsd: Number(e.target.value.replace(/[^0-9]/g, "")) || 0 })}
+            />
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 text-sm">
+            <input type="checkbox" className="check" checked={t.anyBag} onChange={(e) => setT({ ...t, anyBag: e.target.checked })} />
+            Any live bag
+          </label>
+          {!t.anyBag && (
+            <div className="max-h-48 space-y-1.5 overflow-y-auto">
+              {bags === null && <p className="text-xs text-muted">Loading bags…</p>}
+              {bags?.map((b) => (
+                <label key={b.id} className="flex cursor-pointer items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="check"
+                    checked={t.basketIds.includes(b.id)}
+                    onChange={(e) => setT({ ...t, basketIds: e.target.checked ? [...t.basketIds, b.id] : t.basketIds.filter((x) => x !== b.id) })}
+                  />
+                  {b.name}
+                </label>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {err && <p className="text-xs text-loss">{err}</p>}
+      <div className="flex gap-2">
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={save}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }

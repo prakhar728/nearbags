@@ -1,6 +1,7 @@
 // Agent keys: a creator makes one on their profile and gives it to an AI agent, which sends it to the MCP server as
-// "Authorization: Bearer nbk_...". The key can manage that creator's baskets (create, edit, close, run its agent)
-// and nothing else: it can't buy, sell, withdraw or sign anything. Only a SHA-256 of the key is stored.
+// "Authorization: Bearer nbk_...". The key can manage that creator's baskets (create, edit, close, run its agent).
+// If the owner turns trading on for it, it can also buy and sell with its own key and wallet (lib/agent-trading.ts),
+// inside their limits. It can never withdraw, and nearbags never holds its signing key. Only a SHA-256 of the key is stored.
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { and, count, desc, eq, isNull } from "drizzle-orm";
@@ -23,6 +24,7 @@ export interface AgentKeyView {
   scopes: string[];
   createdAt: string;
   lastUsedAt: string | null;
+  trading: { enabled: boolean; dailyUsd: number; anyBag: boolean; basketIds: number[] };
 }
 
 const view = (k: typeof schema.agentKeys.$inferSelect): AgentKeyView => ({
@@ -32,6 +34,7 @@ const view = (k: typeof schema.agentKeys.$inferSelect): AgentKeyView => ({
   scopes: k.scopes,
   createdAt: k.createdAt.toISOString(),
   lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
+  trading: { enabled: k.tradeEnabled, dailyUsd: k.tradeDailyUsd, anyBag: k.tradeAnyBag, basketIds: k.tradeBasketIds },
 });
 
 export async function listKeys(userId: number): Promise<AgentKeyView[]> {

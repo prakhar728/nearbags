@@ -1,6 +1,6 @@
 # For AI agents
 
-nearbags runs a public MCP server, so an AI agent can browse bags the same way a person does on the site. With an agent key from your profile, it can also create and manage your own bags. It can never buy, sell or move money.
+nearbags runs a public MCP server, so an AI agent can browse bags the same way a person does on the site. With an agent key from your profile, it can also create and manage your own bags. If you turn trading on for a key, it can also buy and sell bags with its own wallet, inside limits you set. It can never withdraw.
 
 ```
 https://nearbags.com/api/mcp
@@ -54,19 +54,85 @@ When an agent creates a bag, each asset needs one to five sources, each a claim,
 
 They show under the asset on the bag's page, so anyone can check them. nearbags doesn't open the links or check them. An asset can't be edited down to no sources.
 
+## Trading
+
+Off for every key until you turn it on under **Agent keys → Trading** on your profile. There you set:
+
+- the most it can buy in 24 hours (from $1 to $1,000; $100 to start),
+- which bags it may trade, or any live bag.
+
+How it works:
+
+- **The agent holds its own key.** It makes an ed25519 key on its own machine. Its account for a bag is that key's NEAR Intents account. nearbags never sees the private key.
+- **Your wallet can always take over.** Before the first buy, the agent signs one intent that adds your sign-in wallet as a recovery key on its account.
+- **It pays from its own wallet,** to a deposit address, with any token 1Click supports.
+- **Sale money goes to your wallet,** the one you sign in with. The agent can't choose another address, and it can't withdraw.
+- **At most 5 sells a day per bag.**
+- Bags it holds show in your portfolio as "via <key name>".
+
+| Tool | What it does |
+|---|---|
+| trading_status | Whether the key may trade, the daily limit and what's left, its bags, and open orders. |
+| open_account | Registers the agent's account for a bag and returns the recovery-key intent to sign. Call again with it signed. |
+| buy | Starts a buy and returns where to send the payment. |
+| sell | Starts a sale of 25, 50, 75 or 100%. |
+| order_next | Moves an order on and says what's next: pay, sign intents (fees), sign payloads (swaps), wait, or done. |
+| order_sign | Sends the signatures order_next asked for. |
+
+Clients ask the person before `buy`, `sell` and `order_sign`: they're marked as tools that move money.
+
+### Signing
+
+nearbags gives the agent either `intents` to wrap in a payload or a ready `payload` string. Both are signed the same way. This Node sample uses `@noble/curves` and `@scure/base`:
+
+```js
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { base58 } from "@scure/base";
+import { randomBytes } from "node:crypto";
+
+const secret = /* your 32-byte key, kept by the agent */;
+const pub = ed25519.getPublicKey(secret);
+const accountId = Buffer.from(pub).toString("hex"); // send this as account_id
+
+// For `intents` (open_account, fees): build the payload yourself.
+function payloadFor(intents) {
+  return JSON.stringify({
+    signer_id: accountId,
+    verifying_contract: "intents.near",
+    deadline: new Date(Date.now() + 5 * 60_000).toISOString(),
+    nonce: randomBytes(32).toString("base64"),
+    intents,
+  });
+}
+
+// For a `payload` (swaps): sign the string exactly as given.
+function sign(payload) {
+  return {
+    standard: "raw_ed25519",
+    payload,
+    public_key: "ed25519:" + base58.encode(pub),
+    signature: "ed25519:" + base58.encode(ed25519.sign(new TextEncoder().encode(payload), secret)),
+  };
+}
+```
+
+A buy, start to finish:
+
+1. `open_account { bag, account_id }`, then sign `signThis.intents` with `sign(payloadFor(...))` and call it again with `signed`.
+2. `buy { bag, usd, pay_asset, refund_address }`, then send exactly `pay.amount` of `pay.token` to `pay.to` from the agent's wallet.
+3. Call `order_next` until it asks for signatures. Send them with `order_sign`: `fees: sign(payloadFor(intents))`, and for swaps `legs: [{ seq, signed: sign(payload) }]`.
+4. Keep calling `order_next` until it says `done`.
+
 ## What a key can't do
 
-- It can't buy, sell, withdraw or sign anything.
+- It can't withdraw, or send sale money anywhere but your own wallet.
+- It can't buy or sell unless you turned trading on for it, and only inside your limits.
 - A bag an agent creates starts as pending. It goes live only after you buy it yourself, with your wallet, on its page.
 - After a bag goes live, its name, assets, weights and fee can't change. An AI-agent bag's weights move only through its agent, inside the limits set when it was created.
-- It can't make other keys or touch other people's bags.
+- It can't make other keys, or touch other people's bags or your own holdings.
 
 Only a fingerprint of each key is stored. Your profile shows when each key was last used, and revoking one stops it on the next request. Every change made with a key is recorded with the key's name.
 
 ## Limits
 
 About 60 requests a minute per key or address. Numbers are cached the same way as the site's, so they can be a few minutes old.
-
-## Coming next
-
-Buying and selling through an agent that signs with its own wallet. nearbags never holds an agent's key.

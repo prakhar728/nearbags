@@ -91,7 +91,7 @@ async function assertSignedByAccount(signed: SignedRawEd25519, accountId: string
 
 export async function createBuyOrder(
   s: Session,
-  p: { basketId: number; usd: number; payAssetId: string; refundAddress: string; giftCode?: string },
+  p: { basketId: number; usd: number; payAssetId: string; refundAddress: string; giftCode?: string; agentKeyId?: number },
   geo: { country: string | null; region: string | null },
 ) {
   const basket = await getBasketById(p.basketId);
@@ -119,6 +119,12 @@ export async function createBuyOrder(
       .where(and(eq(schema.gifts.code, p.giftCode), eq(schema.gifts.senderUserId, s.userId), eq(schema.gifts.basketId, basket.id)));
     if (!g || g.status !== "funding") throw new HttpError(409, "That gift can't take a payment now.");
     [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, g.positionId));
+  } else if (p.agentKeyId) {
+    // An agent key buys into the account it holds the key for (registered through the MCP, owner's wallet as recovery).
+    [position] = await db()
+      .select()
+      .from(schema.positions)
+      .where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.basketId, basket.id), eq(schema.positions.kind, "agent"), eq(schema.positions.agentKeyId, p.agentKeyId)));
   } else {
     [position] = await db()
       .select()

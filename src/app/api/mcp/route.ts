@@ -8,6 +8,7 @@ import { resolveKey, type AgentActor } from "@/lib/agent-keys";
 import { HttpError } from "@/lib/auth/session";
 import { CREATOR_TOOLS } from "@/lib/mcp/creator-tools";
 import { INSTRUCTIONS, TOOLS } from "@/lib/mcp/tools";
+import { MONEY_TOOLS, TRADE_TOOLS } from "@/lib/mcp/trade-tools";
 import { rateLimit } from "@/lib/ratelimit";
 
 export const maxDuration = 300; // run_agent waits for the agent's decision and swaps
@@ -39,18 +40,19 @@ const PUBLIC = TOOLS.map((t) => ({
   inputSchema: schemaOf(t.input),
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
 }));
-const CREATOR = CREATOR_TOOLS.map((t) => ({
+const KEYED = [...CREATOR_TOOLS, ...TRADE_TOOLS];
+const CREATOR = KEYED.map((t) => ({
   name: t.name,
   title: t.title,
   description: t.description,
   inputSchema: schemaOf(t.input),
   annotations: t.readOnly
     ? { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
-    : { readOnlyHint: false, destructiveHint: t.name === "close_bag", idempotentHint: false, openWorldHint: t.name === "run_agent" },
+    : { readOnlyHint: false, destructiveHint: t.name === "close_bag" || MONEY_TOOLS.has(t.name), idempotentHint: false, openWorldHint: t.name === "run_agent" || MONEY_TOOLS.has(t.name) },
 }));
 
 const KEY_NOTE =
-  " With this agent key you can also manage the key owner's own bags: whoami, my_bags, preview_bag, create_bag, edit_bag, close_bag and run_agent. New bags go live only after the owner buys them on the site; nothing here can buy, sell or move money.";
+  " With this agent key you can also manage the key owner's own bags: whoami, my_bags, preview_bag, create_bag, edit_bag, close_bag and run_agent. New bags go live only after the owner buys them on the site. If the owner turned trading on for this key, you can also buy and sell bags with your own key and wallet (trading_status, open_account, buy, sell, order_next, order_sign), within their daily limit and chosen bags; sale money always goes to the owner's wallet and nothing can be withdrawn. Ask the person before every buy or sell.";
 
 /** Messages we wrote for people (HttpError, "No bag ...") go to the agent; anything else stays generic. */
 function errorText(e: unknown) {
@@ -69,7 +71,7 @@ async function handleOne(m: Msg, actor: AgentActor | null): Promise<object | nul
       return ok(id, {
         protocolVersion: SUPPORTED.includes(asked) ? asked : SUPPORTED[0],
         capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: "nearbags", title: "nearbags", version: "0.3.0" },
+        serverInfo: { name: "nearbags", title: "nearbags", version: "0.4.0" },
         instructions: INSTRUCTIONS + (actor ? KEY_NOTE : ""),
       });
     }
@@ -80,7 +82,7 @@ async function handleOne(m: Msg, actor: AgentActor | null): Promise<object | nul
     case "tools/call": {
       const name = m.params?.name;
       const pub = TOOLS.find((x) => x.name === name);
-      const own = CREATOR_TOOLS.find((x) => x.name === name);
+      const own = KEYED.find((x) => x.name === name);
       const t = pub ?? own;
       if (!t) return fail(id, -32602, `Unknown tool: ${String(name)}`);
       if (own && !actor) return ok(id, text(`${own.name} needs an agent key. Make one on your nearbags profile and send it as "Authorization: Bearer nbk_...".`, true));

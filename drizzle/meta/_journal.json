@@ -71,6 +71,13 @@
       "when": 1794756734988,
       "tag": "0009_gifts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794757219823,
+      "tag": "0010_agent_trading",
+      "breakpoints": true
     }
   ]
 }

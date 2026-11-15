@@ -115,13 +115,16 @@ export const positions = pgTable(
     agentKeyAddedAt: timestamp("agent_key_added_at", { withTimezone: true }),
     agentPublicKey: text("agent_public_key"),
     // "own": the user's own holding (one per user and basket). "gift": a bag they bought for someone else; it stays
-    // theirs until claimed (see gifts). Gift accounts have a random key and never count as the user's holding.
-    kind: text("kind", { enum: ["own", "gift"] }).notNull().default("own"),
+    // theirs until claimed (see gifts). "agent": bought by one of the user's agent keys, on an account whose key the
+    // agent holds; the user's wallet is its recovery key. Gift and agent accounts never count as the user's own holding.
+    kind: text("kind", { enum: ["own", "gift", "agent"] }).notNull().default("own"),
+    agentKeyId: integer("agent_key_id").references(() => agentKeys.id),
     createdAt: createdAt(),
   },
   (t) => [
     uniqueIndex("positions_account_uq").on(t.accountId),
     uniqueIndex("positions_user_basket_uq").on(t.userId, t.basketId).where(sql`${t.kind} = 'own'`),
+    uniqueIndex("positions_agent_basket_uq").on(t.agentKeyId, t.basketId).where(sql`${t.kind} = 'agent'`),
   ],
 );
 
@@ -273,6 +276,12 @@ export const agentKeys = pgTable(
     prefix: text("prefix").notNull(), // first characters of the key, shown so the owner can tell keys apart
     hash: text("hash").notNull(),
     scopes: text("scopes").array().notNull(),
+    // Trading (plan feature 5): off until the owner turns it on. Buys count against a daily USD limit; the key may
+    // trade only the listed baskets, or any live one. Sale money always goes to the owner's own wallet.
+    tradeEnabled: boolean("trade_enabled").notNull().default(false),
+    tradeDailyUsd: integer("trade_daily_usd").notNull().default(100),
+    tradeAnyBag: boolean("trade_any_bag").notNull().default(false),
+    tradeBasketIds: integer("trade_basket_ids").array().notNull().default(sql`'{}'::integer[]`),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: createdAt(),
