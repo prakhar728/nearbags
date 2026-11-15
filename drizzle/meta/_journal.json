@@ -57,6 +57,13 @@
       "when": 1794747637382,
       "tag": "0007_asset_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794756457589,
+      "tag": "0008_treasury",
+      "breakpoints": true
     }
   ]
 }

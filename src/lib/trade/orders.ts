@@ -9,7 +9,8 @@ import { db, schema } from "@/db";
 import { ASSETS, getAsset, USDC, withdrawTarget } from "@/lib/assets";
 import { isNearAccountId, RheaNoLiquidity } from "@/lib/rhea";
 import { minBuyUsd, RULES } from "@/lib/basket-rules";
-import { creatorFeeAccount, getBasketById, platformFeeBpsFor, type BasketView } from "@/lib/baskets";
+import { getBasketById, platformFeeBpsFor, type BasketView } from "@/lib/baskets";
+import { creatorFeeRecipient } from "@/lib/treasury";
 import { revalidateBasket } from "@/lib/basket-pages";
 import { eligibility } from "@/lib/compliance";
 import { getSettings } from "@/lib/settings";
@@ -189,7 +190,7 @@ export async function markFunded(order: Order, position: Position, grossUsdc: bi
     }),
   );
   const feeRows = [
-    fees.creatorFee > 0n ? { orderId: order.id, recipientKind: "creator" as const, recipientAccount: creatorFeeAccount(basket.creator), asset: USDC.intentsAssetId, amount: fees.creatorFee.toString() } : null,
+    fees.creatorFee > 0n ? { orderId: order.id, recipientKind: "creator" as const, recipientAccount: await creatorFeeRecipient(basket.creator), asset: USDC.intentsAssetId, amount: fees.creatorFee.toString() } : null,
     fees.platformFee > 0n ? { orderId: order.id, recipientKind: "platform" as const, recipientAccount: pf.account!, asset: USDC.intentsAssetId, amount: fees.platformFee.toString() } : null,
   ].filter((x): x is NonNullable<typeof x> => x !== null);
   if (feeRows.length) await db().insert(schema.feeEvents).values(feeRows);

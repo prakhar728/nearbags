@@ -90,6 +90,8 @@ export interface CreatorProfile {
   xUrl: string | null;
   createdAt: string;
   baskets: BasketView[];
+  /** They made one of their bags a public treasury (/t/<handle>). */
+  hasTreasury: boolean;
 }
 
 /** Look up by handle (case-insensitive), falling back to the wallet address for creators without one. */
@@ -113,6 +115,7 @@ export async function getCreatorProfile(handleOrAddress: string): Promise<Creato
     xUrl: u.xUrl,
     createdAt: u.createdAt.toISOString(),
     baskets: (await listBasketsByCreator(u.id)).filter(wasPublished),
+    hasTreasury: (await db().select({ id: schema.treasuries.id }).from(schema.treasuries).where(eq(schema.treasuries.userId, u.id))).length > 0,
   };
 }
 

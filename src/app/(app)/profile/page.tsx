@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/ui/Primitives";
 import type { Metadata } from "next";
 import { AgentKeys } from "./AgentKeys";
 import { ProfileForm } from "./ProfileForm";
+import { Treasury } from "./Treasury";
 
 export const metadata: Metadata = { title: "Your profile · nearbags" };
 
@@ -18,6 +19,7 @@ export default function ProfileEditPage() {
         description="Shown on your baskets and at /c/your-handle."
       />
       <ProfileForm />
+      <Treasury />
       <AgentKeys />
     </div>
   );

@@ -300,3 +300,19 @@ export const agentRuns = pgTable(
   },
   (t) => [index("agent_runs_basket_idx").on(t.basketId, t.createdAt)],
 );
+
+// A creator's public treasury: one of their own positions, shown to anyone at /t/<handle> with every fee received
+// and every purchase. When routeFees is on, the creator fees their bags earn go into this account instead of their
+// wallet. Only the owner's keys can spend it, as with any position.
+export const treasuries = pgTable(
+  "treasuries",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").notNull().references(() => users.id),
+    positionId: integer("position_id").notNull().references(() => positions.id),
+    routeFees: boolean("route_fees").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("treasuries_user_uq").on(t.userId), uniqueIndex("treasuries_position_uq").on(t.positionId)],
+);

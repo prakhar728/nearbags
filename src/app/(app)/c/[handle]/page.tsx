@@ -41,6 +41,11 @@ export default async function ProfilePage({ params }: PageProps<"/c/[handle]">) 
         </div>
         <div className="relative mt-5 flex flex-wrap gap-1.5">
           <span className="chip max-w-full truncate">{p.address}</span>
+          {p.hasTreasury && (
+            <Link href={`/t/${encodeURIComponent(p.handle ?? p.address)}`} className="chip">
+              Treasury
+            </Link>
+          )}
           {p.xUrl && (
             <a href={p.xUrl} target="_blank" rel="noopener noreferrer nofollow" className="chip">
               {p.xUrl.replace("https://", "")} <span className="text-faint">(unverified)</span>
