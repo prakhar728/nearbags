@@ -168,6 +168,7 @@ export function getAsset(id: string): Asset {
 export const isMarketAsset = (a: Asset) => a.kind === "stock" || a.kind === "etf";
 export const isRhea = (a: Asset) => a.venue === "rhea";
 export const isMeme = (id: string) => byId.get(id)?.kind === "meme";
+export const isListed = (id: string) => byId.has(id);
 
 const byIntents = new Map(ASSETS.map((a) => [a.intentsAssetId, a]));
 export const assetByIntentsId = (intentsAssetId: string): Asset | undefined => byIntents.get(intentsAssetId);

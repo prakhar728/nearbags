@@ -7,7 +7,7 @@ import { audit, type AgentActor } from "@/lib/agent-keys";
 import { agentRunsFor, runAgent } from "@/lib/agent/run";
 import { TEMPLATE_IDS, type TemplateId } from "@/lib/agent/templates";
 import { getAnalyticsView } from "@/lib/analytics/cached";
-import { getAsset } from "@/lib/assets";
+import { getAsset, isListed } from "@/lib/assets";
 import { agentAssetProblem, minBuyUsd, validateWeights } from "@/lib/basket-rules";
 import { HORIZONS, LIMITS, missingSources, SourceSchema } from "@/lib/basket-text";
 import { listPendingByCreator } from "@/lib/basket-pages";
@@ -131,10 +131,9 @@ export const CREATOR_TOOLS: AuthedTool[] = [
     run: async ({ assets, creator_fee_pct, agent }, a) => {
       await rateLimit("mcp-preview", 20, 3600_000, String(a.keyId));
       const weights = assets.map((x) => ({ assetId: x.asset.toUpperCase(), weightBps: pctToBps(x.weight_pct) }));
-      const cantMeet = validateWeights(weights);
+      const ruleProblems = validateWeights(weights);
       const agentProblem = agent ? agentAssetProblem(weights.map((w) => w.assetId)) : null;
-      if (agentProblem) cantMeet.push(agentProblem);
-      if (cantMeet.length) return { valid: false, cantMeet };
+      if (agentProblem) ruleProblems.push(agentProblem);
 
       // Sources are only checked when sent here; create_bag requires at least one per asset.
       const sourceProblems: string[] = [];
@@ -149,15 +148,23 @@ export const CREATOR_TOOLS: AuthedTool[] = [
         });
       }
 
-      const ids = weights.map((w) => w.assetId);
-      const [view, p] = await Promise.all([getAnalyticsView(weights), paused(ids).catch(() => null)]);
-      if ("error" in view) return { valid: false, cantMeet: [view.error] };
+      // Every problem at once, so the agent can pass all of them on: listed assets only past this point.
+      const ids = weights.map((w) => w.assetId).filter(isListed);
+      const p = await paused(ids).catch(() => null);
       const blocked = p ? buyBlockReason(p) : null;
-      return {
-        valid: true,
-        cantMeet: [...(blocked ? [`Right now: ${blocked}`] : []), ...sourceProblems],
+      const now = {
         tradableNow: p ? { canBuy: !blocked, reason: blocked } : { canBuy: null, note: "Couldn't check right now." },
         countryLimits: stockNote(ids),
+      };
+      const later = [...(blocked ? [`Right now: ${blocked}`] : []), ...sourceProblems];
+      if (ruleProblems.length) return { valid: false, cantMeet: [...ruleProblems, ...later], ...now };
+
+      const view = await getAnalyticsView(weights);
+      if ("error" in view) return { valid: false, cantMeet: [view.error, ...later], ...now };
+      return {
+        valid: true,
+        cantMeet: later,
+        ...now,
         minBuyUsd: minBuyUsd(weights, pctToBps(creator_fee_pct) + platformFeeBpsFor(agent)),
         backtest: {
           note: "$1,000 bought at the start of each window and held. Historical, not a forecast.",
@@ -196,7 +203,7 @@ export const CREATOR_TOOLS: AuthedTool[] = [
             sources: z
               .array(sourceIn, { error: "Every asset needs sources: at least one { claim, title, url }." })
               .min(1, "Every asset needs at least one source.")
-              .max(LIMITS.sourcesPerAsset)
+              .max(LIMITS.sourcesPerAsset, `Up to ${LIMITS.sourcesPerAsset} sources per asset.`)
               .describe("At least one link backing the why"),
           }),
         )

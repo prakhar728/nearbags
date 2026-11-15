@@ -107,7 +107,7 @@ export type CreateBasketInput = z.input<typeof CreateBasketSchema>;
 /** Every problem with a create request, in plain words. Empty = OK. */
 export function createProblems(body: unknown, opts: { requireSources?: boolean } = {}): { errors: string[]; data?: z.output<typeof CreateBasketSchema> } {
   const p = CreateBasketSchema.safeParse(body);
-  if (!p.success) return { errors: [...new Set(p.error.issues.map(issueText))] };
+  if (!p.success) return { errors: [...new Set(p.error.issues.map((i) => issueText(i, body)))] };
   const d = p.data;
   const errors = [
     ...validateWeights(d.assets),
@@ -118,12 +118,19 @@ export function createProblems(body: unknown, opts: { requireSources?: boolean }
   return errors.length ? { errors } : { errors, data: d };
 }
 
+/** "BTC" when the body names asset `index`, else "asset 2". */
+export function assetLabel(body: unknown, index: number): string {
+  const x = (body as { assets?: { assetId?: unknown; asset?: unknown }[] } | null)?.assets?.[index];
+  const id = x?.assetId ?? x?.asset;
+  return typeof id === "string" && id.trim() ? id.trim().toUpperCase() : `asset ${index + 1}`;
+}
+
 /** Name the asset in per-asset problems: "Why for asset 2: …", "Source for asset 1: …". */
-function issueText(i: z.core.$ZodIssue): string {
+function issueText(i: z.core.$ZodIssue, body?: unknown): string {
   if (i.path[0] !== "assets" || typeof i.path[1] !== "number") return i.message;
-  const n = i.path[1] + 1;
-  if (i.path[2] === "why") return `Why for asset ${n}: ${i.message.replace(/^Why:? ?/, "")}`;
-  if (i.path[2] === "sources") return `Sources for asset ${n}: ${i.message}`;
+  const n = assetLabel(body, i.path[1]);
+  if (i.path[2] === "why") return `Why for ${n}: ${i.message.replace(/^Why:? ?/, "")}`;
+  if (i.path[2] === "sources") return `Sources for ${n}: ${i.message}`;
   return i.message;
 }
 

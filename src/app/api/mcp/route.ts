@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { resolveKey, type AgentActor } from "@/lib/agent-keys";
 import { HttpError } from "@/lib/auth/session";
+import { assetLabel } from "@/lib/basket-text";
 import { CREATOR_TOOLS } from "@/lib/mcp/creator-tools";
 import { INSTRUCTIONS, TOOLS } from "@/lib/mcp/tools";
 import { MONEY_TOOLS, TRADE_TOOLS } from "@/lib/mcp/trade-tools";
@@ -30,6 +31,12 @@ interface Msg {
 
 const ok = (id: Id, result: unknown) => ({ jsonrpc: "2.0", id, result });
 const fail = (id: Id, code: number, message: string) => ({ jsonrpc: "2.0", id, error: { code, message } });
+
+/** "assets.0.sources" → "BTC sources", so the agent knows which asset to fix. */
+function argPath(path: PropertyKey[], raw: unknown): string {
+  if (path[0] === "assets" && typeof path[1] === "number") return [assetLabel(raw, path[1]), ...path.slice(2)].join(".");
+  return path.map(String).join(".") || "input";
+}
 const text = (data: unknown, isError = false) => ({ content: [{ type: "text", text: typeof data === "string" ? data : JSON.stringify(data, null, 2) }], ...(isError ? { isError } : {}) });
 
 const schemaOf = (input: z.ZodType) => z.toJSONSchema(input, { io: "input" });
@@ -87,7 +94,7 @@ async function handleOne(m: Msg, actor: AgentActor | null): Promise<object | nul
       if (!t) return fail(id, -32602, `Unknown tool: ${String(name)}`);
       if (own && !actor) return ok(id, text(`${own.name} needs an agent key. Make one on your nearbags profile and send it as "Authorization: Bearer nbk_...".`, true));
       const args = t.input.safeParse(m.params?.arguments ?? {});
-      if (!args.success) return ok(id, text(`Invalid arguments: ${args.error.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ")}`, true));
+      if (!args.success) return ok(id, text(`Invalid arguments: ${args.error.issues.map((i) => `${argPath(i.path, m.params?.arguments)}: ${i.message}`).join("; ")}`, true));
       try {
         const out = own ? await own.run(args.data, actor!) : await pub!.run(args.data);
         return ok(id, text(out));

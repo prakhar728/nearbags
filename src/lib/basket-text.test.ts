@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createProblems, markdownProblems, missingSources, PatchBasketSchema, slugify } from "./basket-text";
+import { assetLabel, createProblems, markdownProblems, missingSources, PatchBasketSchema, slugify } from "./basket-text";
 import { liveReturn } from "./analytics/live-return";
 import { sampleIndices } from "./analytics/view";
 
@@ -39,7 +39,7 @@ describe("basket text", () => {
     expect(createProblems({ ...valid, assets: [{ ...valid.assets[0], weightBps: 6000 }, { ...valid.assets[1], weightBps: 4000 }] }).errors).toContain(
       "NVDA: weight must be 5–50%.",
     );
-    expect(createProblems({ ...valid, assets: [valid.assets[0], { ...valid.assets[1], why: " " }] }).errors[0]).toMatch(/Why for asset 2/);
+    expect(createProblems({ ...valid, assets: [valid.assets[0], { ...valid.assets[1], why: " " }] }).errors[0]).toMatch(/Why for MSFT/);
     expect(createProblems({ ...valid, acceptRisk: false }).errors).toContain("Tick the risk acknowledgement.");
   });
 
@@ -97,15 +97,15 @@ describe("sources", () => {
   it("need a full https link", () => {
     for (const url of ["http://reuters.com/x", "reuters.com/x", "javascript:alert(1)", "https://user:pw@reuters.com/x", "https://localhost/x"]) {
       const r = createProblems({ ...valid, assets: [{ ...valid.assets[0], sources: [{ ...src, url }] }, valid.assets[1]] });
-      expect(r.errors).toContain("Sources for asset 1: Source link must be a full https:// link.");
+      expect(r.errors).toContain("Sources for NVDA: Source link must be a full https:// link.");
     }
   });
 
   it("are capped at 5 per asset and need a claim and a title", () => {
     const six = { ...valid, assets: [{ ...valid.assets[0], sources: Array(6).fill(src) }, valid.assets[1]] };
-    expect(createProblems(six).errors).toContain("Sources for asset 1: Up to 5 sources per asset.");
+    expect(createProblems(six).errors).toContain("Sources for NVDA: Up to 5 sources per asset.");
     const blank = { ...valid, assets: [{ ...valid.assets[0], sources: [{ ...src, claim: " " }] }, valid.assets[1]] };
-    expect(createProblems(blank).errors).toContain("Sources for asset 1: Source claim is required.");
+    expect(createProblems(blank).errors).toContain("Sources for NVDA: Source claim is required.");
   });
 
   it("can't be edited down to none", () => {
@@ -115,5 +115,14 @@ describe("sources", () => {
 
   it("missingSources names each asset without one", () => {
     expect(missingSources([{ assetId: "BTC", sources: [src] }, { assetId: "ETH" }, { assetId: "SOL", sources: [] }])).toEqual(["Add a source for ETH.", "Add a source for SOL."]);
+  });
+});
+
+describe("assetLabel", () => {
+  it("names the asset when the body has it, else its position", () => {
+    expect(assetLabel({ assets: [{ asset: "btc" }] }, 0)).toBe("BTC");
+    expect(assetLabel({ assets: [{ assetId: "NVDA" }] }, 0)).toBe("NVDA");
+    expect(assetLabel({ assets: [{}] }, 0)).toBe("asset 1");
+    expect(assetLabel(null, 2)).toBe("asset 3");
   });
 });
