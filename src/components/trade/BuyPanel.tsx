@@ -14,7 +14,11 @@ import { canPayFromEvm, canPayFromNear, payFromEvm, payFromNear, type PayToken }
 import { useWalletBalances } from "@/lib/client/balances";
 import { CHAIN_NAMES, TokenPicker } from "./TokenPicker";
 import type { BasketKey } from "@/lib/intents/keys";
+import { randomBasketKey } from "@/lib/intents/keys";
 import { signIntents } from "@/lib/intents/payload";
+import { saveGiftKey } from "@/lib/client/keystore";
+import { giftLink } from "@/lib/client/gift";
+import { GIFT } from "@/lib/gift-rules";
 import type { BuyPreflight } from "@/lib/trade/preflight";
 import type { OrderView } from "@/lib/trade/orders";
 import type { WeightInput } from "@/lib/trade/types";
@@ -56,6 +60,9 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const [phase, setPhase] = useState<Phase>("form");
   const [pre, setPre] = useState<BuyPreflight | null>(null);
   const [view, setView] = useState<OrderView | null>(null);
+  // Buying as a gift: the bag goes into a new account whose key travels in the claim link.
+  const [gift, setGift] = useState({ on: false, message: "", days: GIFT.defaultDays as number });
+  const [giftMade, setGiftMade] = useState<{ code: string; link: string } | null>(null);
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [legErrs, setLegErrs] = useState<Record<number, string>>({});
@@ -175,7 +182,41 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     }
   }
 
+  async function buyGift() {
+    if (!user || !token) return;
+    setErr(null);
+    setPhase("working");
+    try {
+      setStep("Making the gift's account…");
+      const k = randomBasketKey();
+      const made = await api<{ code: string }>("/api/gifts", {
+        method: "POST",
+        body: JSON.stringify({ basketId: basket.id, accountId: k.accountId, message: gift.message.trim() || null, days: gift.days }),
+      });
+      await saveGiftKey(user.address, made.code, k);
+      keyRef.current = k;
+      if (!user.walletPubkey) throw new Error("No wallet key on file. Sign out and in again.");
+      setStep("Adding your wallet as the recovery key…");
+      await api("/api/relay/recovery", { method: "POST", body: JSON.stringify({ signed: signIntents(k, [{ intent: "add_public_key", public_key: user.walletPubkey }]) }) });
+      setStep("Getting a deposit address…");
+      const v = await api<OrderView>("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({ basketId: basket.id, usd: amountNum, payAssetId: token.assetId, refundAddress, giftCode: made.code }),
+      });
+      setGiftMade({ code: made.code, link: giftLink(made.code, k) });
+      setView(v);
+      setPhase("order");
+      void run(v.order.id, k);
+    } catch (e) {
+      setErr((e as Error).message);
+      setPhase("review");
+    } finally {
+      setStep(null);
+    }
+  }
+
   async function buy() {
+    if (gift.on) return buyGift();
     if (!user || !token) return;
     setErr(null);
     setPhase("working");
@@ -270,7 +311,17 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   const walletCanPay = !!token && (user?.chain === "near" ? canPayFromNear(token) : canPayFromEvm(token));
   // "Sent. Waiting for it to arrive…" belongs to the deposit step only.
   const orderStep = step?.startsWith("Sent.") && view && view.order.status !== "awaiting_deposit" ? null : step;
-  if (phase === "order" && view) return <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={orderStep} err={err} legErrs={legErrs} />;
+  if (phase === "order" && view) {
+    const box = <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={orderStep} err={err} legErrs={legErrs} />;
+    if (!giftMade) return box;
+    const done = view.order.status === "complete" || view.order.status === "partial";
+    return (
+      <div className="grid gap-4">
+        <GiftLinkBox link={giftMade.link} ready={done} />
+        {box}
+      </div>
+    );
+  }
 
   if (elig.data?.status === "needs") {
     return <Attest needs={elig.data.needs} text={elig.data.text} onDone={() => void elig.refetch()} />;
@@ -354,6 +405,44 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
           </label>
         )}
 
+        {basket.status === "live" && (
+          <div className="grid gap-3">
+            <label className="flex cursor-pointer items-center gap-3 text-sm">
+              <input type="checkbox" className="check" checked={gift.on} onChange={(e) => setGift({ ...gift, on: e.target.checked })} />
+              Buy it as a gift
+            </label>
+            {gift.on && (
+              <div className="grid gap-3 rounded-[var(--r-sm)] border border-[var(--line)] p-3">
+                <label className="field">
+                  <span className="label">Message (optional)</span>
+                  <textarea
+                    rows={2}
+                    maxLength={GIFT.messageMax}
+                    value={gift.message}
+                    onChange={(e) => setGift({ ...gift, message: e.target.value })}
+                    className="input py-2"
+                    placeholder="Happy birthday!"
+                  />
+                </label>
+                <label className="field">
+                  <span className="label">Claim within</span>
+                  <select className="input" value={gift.days} onChange={(e) => setGift({ ...gift, days: Number(e.target.value) })}>
+                    {[7, 14, 30, 60, 90].map((d) => (
+                      <option key={d} value={d}>
+                        {d} days
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="fine">
+                  You get a link to send. Whoever opens it and signs in with a wallet gets the bag. Treat the link like cash. Until it&apos;s claimed the bag is still yours, and you can take it back
+                  from your portfolio at any time.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {phase === "review" && pre && <Review pre={pre} usdIn={amountNum} />}
 
         {err && <p className="callout callout-warn text-xs text-loss">{err}</p>}
@@ -380,7 +469,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
             onClick={buy}
             className="btn btn-primary btn-block"
           >
-            Bag it · {usd(amountNum)}
+            {gift.on ? "Gift it" : "Bag it"} · {usd(amountNum)}
           </button>
         )}
         <p className="fine">
@@ -395,6 +484,33 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
           )}
         </p>
       </div>
+    </Box>
+  );
+}
+
+function GiftLinkBox({ link, ready }: { link: string; ready: boolean }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Box title="Your gift link">
+      {ready ? (
+        <div className="grid gap-3">
+          <code className="break-all rounded-[var(--r-sm)] bg-[var(--surface-2)] px-3 py-2 font-mono text-[12px]">{link}</code>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            onClick={async () => {
+              await navigator.clipboard.writeText(link).catch(() => {});
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+          >
+            {copied ? "Copied" : "Copy link"}
+          </button>
+          <p className="fine">Anyone with this link can claim the gift, so send it only to them. You can copy it again from your portfolio on this device.</p>
+        </div>
+      ) : (
+        <p className="text-sm text-muted">The link appears here once the buy finishes.</p>
+      )}
     </Box>
   );
 }

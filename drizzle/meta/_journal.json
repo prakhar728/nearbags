@@ -64,6 +64,13 @@
       "when": 1794756457589,
       "tag": "0008_treasury",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794756734988,
+      "tag": "0009_gifts",
+      "breakpoints": true
     }
   ]
 }

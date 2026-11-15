@@ -12,6 +12,7 @@ const Body = z.object({
   usd: z.number().positive(),
   payAssetId: z.string().min(3),
   refundAddress: z.string().min(2).max(128),
+  giftCode: z.string().min(8).max(32).optional(),
 });
 
 export async function POST(request: Request) {
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     const [position] = await db()
       .select()
       .from(schema.positions)
-      .where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.basketId, basketId)));
+      .where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.basketId, basketId), eq(schema.positions.kind, "own")));
     if (!position) return Response.json({ position: null, open: null });
     const [open] = await db()
       .select()

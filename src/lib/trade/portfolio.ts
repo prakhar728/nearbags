@@ -1,7 +1,7 @@
 // Portfolio (spec §5.7). Holdings come from intents.near (source of truth); the database only says which accounts are
 // whose. Value = reference prices; exit value = what dry sell quotes would actually pay (cached 2 min).
 import "server-only";
-import { asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getAsset, USDC } from "@/lib/assets";
 import { getBasketById } from "@/lib/baskets";
@@ -48,7 +48,7 @@ export interface Holding {
 }
 
 export async function portfolio(userId: number) {
-  const positions = await db().select().from(schema.positions).where(eq(schema.positions.userId, userId));
+  const positions = await db().select().from(schema.positions).where(and(eq(schema.positions.userId, userId), eq(schema.positions.kind, "own")));
   const orders = positions.length
     ? await db().select().from(schema.orders).where(inArray(schema.orders.positionId, positions.map((p) => p.id))).orderBy(asc(schema.orders.createdAt))
     : [];

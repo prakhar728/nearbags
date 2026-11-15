@@ -91,7 +91,7 @@ async function assertSignedByAccount(signed: SignedRawEd25519, accountId: string
 
 export async function createBuyOrder(
   s: Session,
-  p: { basketId: number; usd: number; payAssetId: string; refundAddress: string },
+  p: { basketId: number; usd: number; payAssetId: string; refundAddress: string; giftCode?: string },
   geo: { country: string | null; region: string | null },
 ) {
   const basket = await getBasketById(p.basketId);
@@ -109,10 +109,22 @@ export async function createBuyOrder(
   const isCreator = basket.creator.id === s.userId;
   if (!(basket.status === "live" || (basket.status === "pending" && isCreator))) throw new HttpError(409, "This basket isn't open for buying.");
 
-  const [position] = await db()
-    .select()
-    .from(schema.positions)
-    .where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.basketId, basket.id)));
+  // A gift is bought into its own account (the sender's until claimed); a normal buy into the buyer's own position.
+  let position: Position | undefined;
+  if (p.giftCode) {
+    if (basket.status !== "live") throw new HttpError(409, "Only live baskets can be gifted.");
+    const [g] = await db()
+      .select()
+      .from(schema.gifts)
+      .where(and(eq(schema.gifts.code, p.giftCode), eq(schema.gifts.senderUserId, s.userId), eq(schema.gifts.basketId, basket.id)));
+    if (!g || g.status !== "funding") throw new HttpError(409, "That gift can't take a payment now.");
+    [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, g.positionId));
+  } else {
+    [position] = await db()
+      .select()
+      .from(schema.positions)
+      .where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.basketId, basket.id), eq(schema.positions.kind, "own")));
+  }
   if (!position) throw new HttpError(409, "Set up your basket account first.");
   if (!position.recoveryKeyAddedAt) throw new HttpError(409, "Add your wallet as recovery key first.");
 
@@ -602,6 +614,9 @@ export async function refreshOrder(s: Session, orderId: number) {
         ...(order.kind === "sell" && payout?.status === "success" ? { usdOut: Number(payout.amountIn) / 1e6 } : {}),
       });
       if (allOk && order.kind === "buy") await maybeGoLive(position);
+      // A gift is ready to claim once anything landed in it (a partial buy still holds most of the bag).
+      if (order.kind === "buy" && position.kind === "gift")
+        await db().update(schema.gifts).set({ status: "ready" }).where(and(eq(schema.gifts.positionId, position.id), eq(schema.gifts.status, "funding")));
     }
   }
   return orderView(orderId);
@@ -609,6 +624,7 @@ export async function refreshOrder(s: Session, orderId: number) {
 
 /** A pending basket goes live when its creator's own buy completes at or above the minimum (spec Q13). */
 async function maybeGoLive(position: Position) {
+  if (position.kind !== "own") return;
   const basket = await getBasketById(position.basketId);
   if (basket?.status === "pending" && basket.creator.id === position.userId) {
     await db().update(schema.baskets).set({ status: "live", publishedAt: new Date() }).where(eq(schema.baskets.id, basket.id));

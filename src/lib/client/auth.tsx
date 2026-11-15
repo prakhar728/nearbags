@@ -36,6 +36,7 @@ interface AuthValue {
    * a new browser key for the existing basket account, once.
    */
   keyForBasket: (basketId: number) => Promise<{ k: BasketKey; mode: KeyMode }>;
+  walletSign: (accountId: string, intents: Intent[]) => Promise<SignedErc191 | SignedNep413>;
   refresh: () => Promise<void>;
 }
 
@@ -199,9 +200,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user, ensureKeys, signMessageAsync],
   );
 
+  /** The wallet itself signs intents for one of the user's accounts (it is a recovery key there). */
+  const walletSign = useCallback(
+    async (accountId: string, intents: Intent[]): Promise<SignedErc191 | SignedNep413> => {
+      if (!user) throw new Error("Sign in first.");
+      if (user.chain === "evm") {
+        const payload = erc191Payload(accountId, intents);
+        return erc191Signed(payload, await signMessageAsync({ message: payload }));
+      }
+      const req = nep413Request(accountId, intents);
+      const s = await nearSignMessage(user.address, { message: req.message, recipient: req.recipient, nonce: req.nonce });
+      return nep413Signed(req, s.publicKey, s.signature);
+    },
+    [user, signMessageAsync],
+  );
+
   const value = useMemo(
-    () => ({ user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, refresh }),
-    [user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, refresh],
+    () => ({ user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, walletSign, refresh }),
+    [user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, walletSign, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

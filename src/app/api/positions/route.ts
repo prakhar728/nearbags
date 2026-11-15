@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const [existing] = await db()
       .select()
       .from(schema.positions)
-      .where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.basketId, basketId)));
+      .where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.basketId, basketId), eq(schema.positions.kind, "own")));
     if (existing) {
       if (existing.accountId !== accountId) throw new HttpError(409, "This basket already has a different account for you. Restore your keys first.");
       return Response.json({ position: existing });
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 export async function GET() {
   return handle(async () => {
     const s = await requireSession();
-    const rows = await db().select().from(schema.positions).where(eq(schema.positions.userId, s.userId));
+    const rows = await db().select().from(schema.positions).where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.kind, "own")));
     return Response.json({ positions: rows });
   });
 }

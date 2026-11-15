@@ -114,9 +114,15 @@ export const positions = pgTable(
     // When the holder added the agent's key to this account (agent-managed baskets), and which key it was.
     agentKeyAddedAt: timestamp("agent_key_added_at", { withTimezone: true }),
     agentPublicKey: text("agent_public_key"),
+    // "own": the user's own holding (one per user and basket). "gift": a bag they bought for someone else; it stays
+    // theirs until claimed (see gifts). Gift accounts have a random key and never count as the user's holding.
+    kind: text("kind", { enum: ["own", "gift"] }).notNull().default("own"),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("positions_account_uq").on(t.accountId), uniqueIndex("positions_user_basket_uq").on(t.userId, t.basketId)],
+  (t) => [
+    uniqueIndex("positions_account_uq").on(t.accountId),
+    uniqueIndex("positions_user_basket_uq").on(t.userId, t.basketId).where(sql`${t.kind} = 'own'`),
+  ],
 );
 
 export const ORDER_STATUSES = [
@@ -315,4 +321,27 @@ export const treasuries = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("treasuries_user_uq").on(t.userId), uniqueIndex("treasuries_position_uq").on(t.positionId)],
+);
+
+// A bag bought as a gift (plan feature 2). The position belongs to the sender until someone claims it: the claim moves
+// every balance into the claimer's own position for the same bag. The claim link carries the gift account's key after
+// the #, so our server never sees it; expiry is enforced by our relay only (the page says so).
+export const gifts = pgTable(
+  "gifts",
+  {
+    id: serial("id").primaryKey(),
+    code: text("code").notNull(), // public id in the link: /g/<code>
+    senderUserId: integer("sender_user_id").notNull().references(() => users.id),
+    positionId: integer("position_id").notNull().references(() => positions.id),
+    basketId: integer("basket_id").notNull().references(() => baskets.id),
+    message: text("message"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    status: text("status", { enum: ["funding", "ready", "claimed", "reclaimed"] }).notNull().default("funding"),
+    claimedByUserId: integer("claimed_by_user_id").references(() => users.id),
+    claimTx: text("claim_tx"),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("gifts_code_uq").on(t.code), uniqueIndex("gifts_position_uq").on(t.positionId), index("gifts_sender_idx").on(t.senderUserId)],
 );

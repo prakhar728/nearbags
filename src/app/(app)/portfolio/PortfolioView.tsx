@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/client/auth";
 import type { History } from "@/lib/trade/history";
 import type { PortfolioPosition } from "@/lib/trade/portfolio";
 import { ClosedBags, PnlChart, TradeHistory } from "./History";
+import { GiftsSent } from "./GiftsSent";
 import { AssetTag } from "@/components/AssetLogo";
 import { venueOf } from "@/lib/trade/paused";
 
@@ -224,6 +225,7 @@ export function PortfolioView() {
         )}
       </Section>
 
+      <GiftsSent />
       {hist && <ClosedBags closed={hist.closed} />}
       {hist && <TradeHistory trades={hist.trades} />}
     </div>

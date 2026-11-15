@@ -30,7 +30,7 @@ export async function creatorFeeRecipient(creator: BasketView["creator"]): Promi
 
 /** The owner's positions that can become their treasury, and the current choice. */
 export async function treasurySettings(userId: number) {
-  const positions = await db().select().from(schema.positions).where(eq(schema.positions.userId, userId));
+  const positions = await db().select().from(schema.positions).where(and(eq(schema.positions.userId, userId), eq(schema.positions.kind, "own")));
   const baskets = positions.length
     ? await db().select({ id: schema.baskets.id, name: schema.baskets.name, slug: schema.baskets.slug }).from(schema.baskets).where(inArray(schema.baskets.id, positions.map((p) => p.basketId)))
     : [];
@@ -53,7 +53,7 @@ export async function setTreasury(userId: number, p: { positionId: number | null
   const [pos] = await db()
     .select()
     .from(schema.positions)
-    .where(and(eq(schema.positions.id, p.positionId), eq(schema.positions.userId, userId)));
+    .where(and(eq(schema.positions.id, p.positionId), eq(schema.positions.userId, userId), eq(schema.positions.kind, "own")));
   if (!pos) throw new HttpError(404, "That bag isn't one of yours.");
   // Fees will pile up here: the owner's wallet must be able to recover the account on any device.
   if (!pos.recoveryKeyAddedAt) throw new HttpError(409, "Add your wallet as this bag's recovery key first (Portfolio → the bag → Recovery).");

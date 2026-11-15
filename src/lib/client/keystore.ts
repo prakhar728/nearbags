@@ -144,3 +144,17 @@ export async function confirmDeviceKey(wallet: string, basketId: number) {
 export async function forgetWallet(wallet: string) {
   await del(`seed:${walletNs(wallet)}`);
 }
+
+// ---------- gift keys ----------
+// A gift account has a random key that goes into its link. The sender's browser keeps a copy, so the link can be
+// copied again (on this device only) and the gift taken back without the wallet.
+const giftSlot = (wallet: string, code: string) => `gift:${walletNs(wallet)}:${code}`;
+
+export async function saveGiftKey(wallet: string, code: string, k: BasketKey) {
+  await put(giftSlot(wallet, code), await seal(k.secretKey));
+}
+
+export async function giftKey(wallet: string, code: string): Promise<BasketKey | null> {
+  const box = await get<Box>(giftSlot(wallet, code));
+  return box ? keyFromSecret(await open(box)) : null;
+}
