@@ -30,10 +30,10 @@ Four features taken from Base's "Stocks Maxxing" idea list. We stay on NEAR and 
 | # | Feature | Size | When |
 |---|---|---|---|
 | 1 | Sourced proposals (Base 2.2, first half) | Small | Built (`feat/sources`) |
-| 2 | Gift a bag, v1 (Base 1.4) | Medium | After judging |
-| 3 | Public treasury bag (Base 1.2) | Medium | After judging |
-| 4 | Builder check (Base 3.1) | Small | After judging |
-| 5 | Agents that buy and sell (Base 2.2, second half) | Large | After judging |
+| 2 | Gift a bag, v1 (Base 1.4) | Medium | Built (`feat/gifts`) |
+| 3 | Public treasury bag (Base 1.2) | Medium | Built (`feat/treasury`) |
+| 4 | Builder check (Base 3.1) | Small | Built (`feat/builder`) |
+| 5 | Agents that buy and sell (Base 2.2, second half) | Large | Built (`feat/agent-trading`) |
 | 6 | Gifts v2, with dates enforced by the TEE | Medium | Once gifts v1 is in use |
 
 ---
@@ -175,3 +175,12 @@ The OutLayer TEE holds the gift key, and its code enforces:
 - the eligibility check.
 
 The link carries only a claim code. The gift page shows the attestation proof.
+
+## Status (2026-11-15)
+
+Features 1 to 5 are built on `next` and checked locally (unit tests plus local end-to-end calls). None has run with real money yet. Migrations run in order on production: 0007 sources, 0008 treasury, 0009 gifts, 0010 agent trading.
+
+Still to test for real, by the user with small amounts:
+- A gift between two of the user's wallets: buy, claim, and take back.
+- One fee routed into a treasury.
+- An agent key's full buy and sell.
