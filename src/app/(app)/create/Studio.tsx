@@ -16,6 +16,7 @@ import { MemeNotice } from "@/components/basket/MemeNotice";
 import { HORIZON_LABEL, HORIZONS, LIMITS, markdownProblems, type Horizon } from "@/lib/basket-text";
 import { useAuth } from "@/lib/client/auth";
 import { feePct } from "@/lib/format";
+import { buyBlockReason, type Paused } from "@/lib/trade/paused";
 import { AssetLogo, AssetTag } from "@/components/AssetLogo";
 
 interface Choice {
@@ -78,6 +79,18 @@ export function Studio({ platformFeeBps: baseFeeBps, agentPlatformFeeBps }: { pl
   const hint = useMemo(() => (weightErrors.length ? null : minBuyHint(weights, feeBps + platformFeeBps)), [weights, weightErrors, feeBps, platformFeeBps]);
   const preview = usePreview(weightErrors.length ? null : weights);
   const hasMemes = picks.some((p) => getAsset(p.assetId).kind === "meme");
+  const pausedNow = usePaused();
+  const isPaused = (id: string) => Boolean(pausedNow && (pausedNow.cantBuy.includes(id) || pausedNow.cantSell.includes(id)));
+  // Same rule as the buy button, for the picked assets only. Building and creating still work; the first buy waits.
+  const pickedBlock = useMemo(() => {
+    if (!pausedNow) return null;
+    const ids = new Set(picks.map((p) => p.assetId));
+    return buyBlockReason({
+      cantBuy: pausedNow.cantBuy.filter((id) => ids.has(id)),
+      cantSell: pausedNow.cantSell.filter((id) => ids.has(id)),
+      why: pausedNow.why,
+    });
+  }, [pausedNow, picks]);
   // Agent baskets can't hold meme coins yet (the agent's signer only checks NEAR Intents swaps).
   const agentBlocked = agentAssetProblem(picks.map((p) => p.assetId));
   const agentActive = agentOn && !agentBlocked;
@@ -214,6 +227,11 @@ export function Studio({ platformFeeBps: baseFeeBps, agentPlatformFeeBps }: { pl
                           >
                             <AssetLogo id={a.id} size={18} />
                             {a.id}
+                            {isPaused(a.id) && (
+                              <span className="text-[10px] font-medium text-loss" title="Can't be traded right now">
+                                paused
+                              </span>
+                            )}
                           </button>
                         );
                       })}
@@ -285,6 +303,7 @@ export function Studio({ platformFeeBps: baseFeeBps, agentPlatformFeeBps }: { pl
                 </ul>
               )}
 
+              {pickedBlock && <PausedNote reason={pickedBlock} />}
               {hasMemes && <MemeNotice />}
               <MinBuy minBuy={minBuy} hint={hint} />
               <Nav next={canGo[0] ? () => setStep(1) : undefined} />
@@ -453,6 +472,7 @@ export function Studio({ platformFeeBps: baseFeeBps, agentPlatformFeeBps }: { pl
                   <span className="text-muted">of your basket. It stays pending until that buy completes.</span>
                 </p>
               )}
+              {pickedBlock && !(user?.isAdmin && house) && <PausedNote reason={pickedBlock} />}
 
               {publishErr && (
                 <ul className="callout callout-warn space-y-1 text-xs text-loss">
@@ -521,6 +541,28 @@ function Nav({ back, next }: { back?: () => void; next?: () => void }) {
         Next
       </button>
     </div>
+  );
+}
+
+/** Fetch once which assets can't be traded right now. null until it answers (or if it fails): show nothing. */
+function usePaused(): Paused | null {
+  const [p, setP] = useState<Paused | null>(null);
+  useEffect(() => {
+    const c = new AbortController();
+    fetch("/api/assets/paused", { signal: c.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => j && setP(j))
+      .catch(() => {});
+    return () => c.abort();
+  }, []);
+  return p;
+}
+
+function PausedNote({ reason }: { reason: string }) {
+  return (
+    <p className="callout callout-warn text-xs leading-relaxed">
+      {reason} You can still create the bag. It goes live with your first buy, which has to wait until trading is back.
+    </p>
   );
 }
 
