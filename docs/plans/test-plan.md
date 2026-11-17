@@ -239,4 +239,4 @@ On every ship day, also:
   - Sell order 17: A's treasury position paid 40.229913 USDC to testing69.near.
   - All test accounts are empty on chain.
   - Fee routing is off. The treasury row is still there, pointing at the now-empty position.
-- **Round 1 done:** all five features pass with real money. Net cost about $0.15.
+- **Round 1 done:** all five features pass with real money. Net cost about $0.14 on about $80.
