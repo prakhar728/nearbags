@@ -260,5 +260,5 @@ On every ship day, also:
 **Still to test:**
 
 - **Round 2:** on production after each deploy.
-- **In the browser on the local server:** the unpaid-gift notice ("Continue it" / "Cancel it"). It needs the gift key that only the user's browser holds.
+- ~~In the browser: the unpaid-gift notice.~~ Passed 2026-11-17: the notice showed, and "Cancel it" cancelled order 11.
 - **Not covered:** gift expiry with real money, and gifts of agent bags.
