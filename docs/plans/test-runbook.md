@@ -5,7 +5,7 @@ All on `http://localhost:3093` (local database, mainnet money). After each **Tel
 **Wallets**
 - **A** = `testing69.near`
 - **B** = `0x91BdF26D…A4a6` (EVM, pays with USDC on Arbitrum)
-- **C** = `rhea-test.near`
+- **C** = `chillguyy.near`
 
 **One bag for everything:** A's new BTC 50 / ETH 50 bag with a 1% creator fee. Crypto trades all week and nothing in it is paused.
 
@@ -123,7 +123,7 @@ In a terminal: `cd` to that scratchpad folder and set `T="node agent-trade.mjs"`
 
 ## Step 5: cleanup
 
-1. As **C**: sell 100% of A's bag. Payout USDC to `rhea-test.near`.
+1. As **C**: sell 100% of A's bag. Payout USDC to `chillguyy.near`.
 2. As **B**: sell 100% of A's bag. Payout USDC on Arbitrum.
 3. As **A**: Treasury → **No treasury** → Save. Then sell 100% of the bag.
 4. **Tell Claude** "cleaned up".

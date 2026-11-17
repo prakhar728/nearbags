@@ -19,7 +19,7 @@ Who does what:
 |---|---|---|---|
 | A | `testing69.near` | 9 | Creator. Owns the test bag, the treasury and the agent key. |
 | B | `0x91Bd…` (EVM) | 2 | Buyer. Sends both gifts, so creator fees flow to A's treasury. |
-| C | `rhea-test.near` | 12 | Receives gift 1. |
+| C | `chillguyy.near` | 14 | Receives gift 1. |
 
 C, not A, receives gift 1. If A claimed it, the gift would merge into A's own position for that bag, and that position is A's treasury.
 
