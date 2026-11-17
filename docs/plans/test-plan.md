@@ -216,3 +216,9 @@ On every ship day, also:
   - The treasury ledger doesn't list a gift received.
   - The portfolio shows a received gift as profit (+98.5%).
   - The gift page says "X sent you" to the sender.
+- **Step 4, gift 2:**
+  - Order 13 took 20.007068 USDC from Base.
+  - A second fee of 0.200070 USDC reached the treasury, which now holds 0.400137 USDC.
+  - B took gift 2 back (tx `FTSuujBs…`) into a new Test 1 account, `ff536794…`, with B's wallet key on it. The gift account is empty.
+  - Opening the link afterwards shows "The sender took this gift back."
+  - Gifts pass.
