@@ -234,3 +234,9 @@ On every ship day, also:
   - **Sell 100%, order 15:** 19.86141 USDC reached testing69.near (tx `EBtVw9HK…`), and the agent account is empty. The round trip cost $0.147.
   - **Script fix:** `agent-trade.mjs run` stopped at "pay" instead of waiting, now fixed.
   - **UX:** the "Trading" button reads like a status. The user wants a dropdown, e.g. "Manage bags only" / "Manage bags and trade".
+- **Step 6, cleanup:**
+  - Sell order 16: B got 19.790002 USDC on Base.
+  - Sell order 17: A's treasury position paid 40.229913 USDC to testing69.near.
+  - All test accounts are empty on chain.
+  - Fee routing is off. The treasury row is still there, pointing at the now-empty position.
+- **Round 1 done:** all five features pass with real money. Net cost about $0.15.
