@@ -222,3 +222,15 @@ On every ship day, also:
   - B took gift 2 back (tx `FTSuujBs…`) into a new Test 1 account, `ff536794…`, with B's wallet key on it. The gift account is empty.
   - Opening the link afterwards shows "The sender took this gift back."
   - Gifts pass.
+- **Step 5, agent trading:** key "Trade Test" (local 5).
+  - **Refusals, all correct:**
+    - while trading was off: status, buy and open all refused;
+    - a bag it isn't allowed;
+    - $30 over the $25 limit;
+    - $10 with $5 left;
+    - a sale paid out on Base.
+  - **Opening the account:** `129ccaef…` added only A's key (tx `AewDTAuK…`).
+  - **Buy, order 14:** 20.008643 USDC from Base, with only the platform fee (0.050018) and no creator fee, since A made the bag. Portfolio shows the bag "via Trade Test".
+  - **Sell 100%, order 15:** 19.86141 USDC reached testing69.near (tx `EBtVw9HK…`), and the agent account is empty. The round trip cost $0.147.
+  - **Script fix:** `agent-trade.mjs run` stopped at "pay" instead of waiting, now fixed.
+  - **UX:** the "Trading" button reads like a status. The user wants a dropdown, e.g. "Manage bags only" / "Manage bags and trade".
