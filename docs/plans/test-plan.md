@@ -202,3 +202,17 @@ On every ship day, also:
   - On a cold server, the "paused" chips appear a few seconds after the page loads.
   - SLV was no longer paused, so 2.2 used GLD.
 - **Still to do:** step 0.4 (you sign in with A, B and C), then steps 3–6.
+
+**2026-11-17, Round 1 money tests:**
+
+- **Step 3, treasury:** passes. Bag `test-1` (local 100007) was self-bought for $20 (order 9) and set as A's treasury. The cash check matched at $0.00.
+- **Step 4, gift 1:** B is `0x90f6…37Ed`, which paid on Base. A claimed it, not C.
+  - Order 12 paid 20.008283 USDC and 20.006754 arrived.
+  - The fee to the treasury was exactly 0.200067 USDC, and the cash check matched.
+  - A's claim merged into Test 1: on chain, the BTC and ETH add up exactly.
+- **Bugs found:**
+  - *Fixed in `83aaacc`:* "Connector not connected" on EVM Pay from wallet.
+  - Reloading during a gift buy starts a new gift: orders 10 and 11 were left unpaid, stuck at "funding".
+  - The treasury ledger doesn't list a gift received.
+  - The portfolio shows a received gift as profit (+98.5%).
+  - The gift page says "X sent you" to the sender.
