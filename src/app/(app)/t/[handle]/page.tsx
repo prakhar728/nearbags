@@ -24,7 +24,7 @@ const units = (intentsId: string | undefined, raw: string | undefined) => {
   const n = Number(raw) / 10 ** a.decimals;
   return n.toLocaleString("en-US", { maximumSignificantDigits: 4 });
 };
-const KIND: Record<TreasuryPage["ledger"][number]["kind"], string> = { fee: "Fee received", topup: "Added by owner", purchase: "Bought", sale: "Sold", out: "Paid out" };
+const KIND: Record<TreasuryPage["ledger"][number]["kind"], string> = { fee: "Fee received", topup: "Added by owner", gift: "Gift received", purchase: "Bought", sale: "Sold", out: "Paid out" };
 
 export default async function TreasuryPublicPage({ params }: PageProps<"/t/[handle]">) {
   const { handle } = await params;
@@ -133,6 +133,13 @@ export default async function TreasuryPublicPage({ params }: PageProps<"/t/[hand
                         </span>
                       )}
                       {e.kind === "out" && e.note && <span className="text-muted"> · {e.note}</span>}
+                      {e.kind === "gift" && (
+                        <span className="text-muted">
+                          {" "}
+                          {e.note}
+                          {e.items?.length ? ` · ${e.items.map(([id, v]) => `${units(id, v)} ${nameOf(id)}`).join(", ")}` : ""}
+                        </span>
+                      )}
                     </td>
                     <td className={`num px-4 py-2.5 text-right ${e.usdc >= 0 ? "text-gain" : "text-muted"}`}>
                       {e.usdc >= 0 ? "+" : "−"}

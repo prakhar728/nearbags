@@ -66,7 +66,7 @@ export function ClosedBags({ closed }: { closed: History["closed"] }) {
                 <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent-fg">
                   {c.basket.name}
                 </Link>
-                <div className="num mt-0.5 text-[11px] text-muted">closed {when(c.closedAt)}</div>
+                <div className="num mt-0.5 text-[11px] text-muted">{c.gift ? "gift, claimed" : "closed"} {when(c.closedAt)}</div>
               </div>
               <span className={`badge shrink-0 normal-case tracking-normal ${c.pnlUsd >= 0 ? "badge-gain" : "badge-loss"}`}>
                 {signed(c.pnlUsd)} · {((c.pnlUsd / c.usdIn) * 100).toFixed(1)}%
@@ -102,6 +102,7 @@ export function ClosedBags({ closed }: { closed: History["closed"] }) {
                   <Link href={`/b/${c.basket.slug}`} className="font-sans text-sm font-medium text-text hover:text-accent-fg">
                     {c.basket.name}
                   </Link>
+                  {c.gift && <span className="ml-1.5 text-[11px] text-muted">gift</span>}
                 </td>
                 <td className="r">{usd(c.usdIn)}</td>
                 <td className="r">{usd(c.usdOut)}</td>

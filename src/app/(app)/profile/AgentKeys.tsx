@@ -72,6 +72,19 @@ export function AgentKeys() {
     }
   };
 
+  // Access dropdown: "Manage bags only" turns trading off at once (limits are kept for next time); "Manage bags and
+  // trade" opens the limits to save. Asked for in the round 1 test: a "Trading" button read like a status.
+  const setAccess = async (k: Key, access: string) => {
+    if (access === "trade") return setTradingFor(k.id);
+    setTradingFor(null);
+    if (!k.trading.enabled) return;
+    setErr(null);
+    const r = await fetch(`/api/agent-keys/${k.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trading: { ...k.trading, enabled: false } }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) setErr(j.error ?? "Couldn't save.");
+    void load();
+  };
+
   const revoke = async (id: number) => {
     setErr(null);
     const r = await fetch(`/api/agent-keys/${id}`, { method: "DELETE" });
@@ -140,8 +153,8 @@ export function AgentKeys() {
             <div className="min-w-0">
               <div className="text-sm font-medium">{k.name}</div>
               <div className="text-xs text-faint">
-                <span className="font-mono">{k.prefix}…</span> · made {ago(k.createdAt)} · {k.lastUsedAt ? `used ${ago(k.lastUsedAt)}` : "never used"} ·{" "}
-                {k.trading.enabled ? `trades up to $${k.trading.dailyUsd} a day` : "no trading"}
+                <span className="font-mono">{k.prefix}…</span> · made {ago(k.createdAt)} · {k.lastUsedAt ? `used ${ago(k.lastUsedAt)}` : "never used"}
+                {k.trading.enabled && ` · up to $${k.trading.dailyUsd} a day, ${k.trading.anyBag ? "any live bag" : `${k.trading.basketIds.length} bag${k.trading.basketIds.length === 1 ? "" : "s"}`}`}
               </div>
               {tradingFor === k.id && (
                 <TradingForm
@@ -165,9 +178,21 @@ export function AgentKeys() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                {tradingFor !== k.id && (
+                <label className="sr-only" htmlFor={`access-${k.id}`}>
+                  What {k.name} can do
+                </label>
+                <select
+                  id={`access-${k.id}`}
+                  className="input py-1.5 text-sm"
+                  value={tradingFor === k.id || k.trading.enabled ? "trade" : "manage"}
+                  onChange={(e) => void setAccess(k, e.target.value)}
+                >
+                  <option value="manage">Manage bags only</option>
+                  <option value="trade">Manage bags and trade</option>
+                </select>
+                {k.trading.enabled && tradingFor !== k.id && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTradingFor(k.id)}>
-                    Trading
+                    Limits
                   </button>
                 )}
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => setConfirming(k.id)}>
@@ -197,7 +222,7 @@ export function AgentKeys() {
 
 /** Turn trading on or off for one key: a daily buy limit and which bags it may trade. */
 function TradingForm({ k, onSaved, onCancel }: { k: Key; onSaved: () => void; onCancel: () => void }) {
-  const [t, setT] = useState<Trading>(k.trading);
+  const [t, setT] = useState<Trading>({ ...k.trading, enabled: true });
   const [bags, setBags] = useState<{ id: number; slug: string; name: string }[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -230,10 +255,7 @@ function TradingForm({ k, onSaved, onCancel }: { k: Key; onSaved: () => void; on
 
   return (
     <div className="mt-3 space-y-3 rounded-[var(--r-sm)] border border-[var(--line)] p-3">
-      <label className="flex cursor-pointer items-start gap-3 text-sm">
-        <input type="checkbox" className="check mt-0.5" checked={t.enabled} onChange={(e) => setT({ ...t, enabled: e.target.checked })} />
-        <span>Let this key buy and sell bags with its own wallet. Sale money comes to your wallet. It can never withdraw.</span>
-      </label>
+      <p className="text-sm text-muted">It buys and sells bags with its own wallet. Sale money comes to your wallet. It can never withdraw.</p>
       {t.enabled && (
         <>
           <label className="field">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { claimProblem, giftCode, reclaimProblem, sameIntents, shownStatus, transferAll } from "./gift-rules";
+import { cancelProblem, claimProblem, giftCode, reclaimProblem, sameIntents, shownStatus, transferAll } from "./gift-rules";
 
 const now = new Date("2026-12-01T00:00:00Z");
 const later = new Date("2026-12-20T00:00:00Z");
@@ -47,5 +47,27 @@ describe("gift rules", () => {
   it("makes 12-character codes from the safe alphabet", () => {
     const c = giftCode((n) => new Uint8Array(n).map((_, i) => i * 37));
     expect(c).toMatch(/^[a-km-z2-9]{12}$/);
+  });
+});
+
+describe("cancelProblem", () => {
+  const g = { status: "funding" as const, senderUserId: 1 };
+  const clean = { lastOrderStatus: "awaiting_deposit", depositSeen: false, holds: false };
+  it("cancels an unpaid gift nothing reached", () => {
+    expect(cancelProblem(g, 1, clean)).toBeNull();
+    expect(cancelProblem(g, 1, { ...clean, lastOrderStatus: null })).toBeNull();
+    expect(cancelProblem(g, 1, { ...clean, lastOrderStatus: "refunded" })).toBeNull();
+  });
+  it("refuses once money is on its way or arrived, and for anyone but the sender", () => {
+    expect(cancelProblem(g, 2, clean)).toMatch(/Only the sender/);
+    expect(cancelProblem({ ...g, status: "ready" }, 1, clean)).toMatch(/Take it back/);
+    expect(cancelProblem(g, 1, { ...clean, lastOrderStatus: "funded" })).toMatch(/already arrived/);
+    expect(cancelProblem(g, 1, { ...clean, depositSeen: true })).toMatch(/on its way/);
+    expect(cancelProblem(g, 1, { ...clean, holds: true })).toMatch(/holds money/);
+  });
+  it("a cancelled gift can't be claimed, but money that arrives late can still be taken back", () => {
+    const c = { status: "cancelled" as const, senderUserId: 1, expiresAt: new Date(Date.now() + 86_400_000) };
+    expect(claimProblem(c, 2)).toMatch(/cancelled/);
+    expect(reclaimProblem(c, 1)).toBeNull();
   });
 });

@@ -345,7 +345,8 @@ export const gifts = pgTable(
     basketId: integer("basket_id").notNull().references(() => baskets.id),
     message: text("message"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    status: text("status", { enum: ["funding", "ready", "claimed", "reclaimed"] }).notNull().default("funding"),
+    // cancelled: the sender dropped it before paying (no migration: the column is plain text).
+    status: text("status", { enum: ["funding", "ready", "claimed", "reclaimed", "cancelled"] }).notNull().default("funding"),
     claimedByUserId: integer("claimed_by_user_id").references(() => users.id),
     claimTx: text("claim_tx"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),

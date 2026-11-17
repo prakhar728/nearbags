@@ -240,3 +240,25 @@ On every ship day, also:
   - All test accounts are empty on chain.
   - Fee routing is off. The treasury row is still there, pointing at the now-empty position.
 - **Round 1 done:** all five features pass with real money. Net cost about $0.14 on about $80.
+
+**2026-11-17, fixes from round 1, checked locally against the test data:**
+
+1. **Unpaid gifts:**
+   - The buy panel offers "Continue it" or "Cancel it" for an unpaid gift of that bag on this device, instead of starting another.
+   - **Gifts you sent** has a **Cancel** button.
+   - Cancel is refused if any money arrived or 1Click is handling a deposit. A cancelled gift that still receives money stays visible and can be taken back.
+   - Checked: order 10 was cancelled, and the refusals for a taken-back gift and a non-sender worked.
+2. **Gifts in P&L** (`lib/trade/gift-flows.ts`):
+   - A claimed gift counts as money in, at what went into its bag.
+   - A gift given away counts as money out at the same amount.
+   - A taken-back gift moves its cost into the sender's own position.
+   - Checked: A's all-time P&L went from +$19.77 to +$0.01, and B's is −$0.45 (fees only).
+3. **Treasury:** the movement list shows "Gift received from …" with what arrived, and the gift's USDC counts in the cash check. Checked: still matches after the sale.
+4. **Gift page:** the sender sees "A gift you sent" and "Your gift: Test 1"; everyone else sees "X sent you".
+5. **Agent keys:** the "Trading" button is replaced by a dropdown, "Manage bags only" / "Manage bags and trade", with a Limits button when trading is on.
+
+**Still to test:**
+
+- **Round 2:** on production after each deploy.
+- **In the browser on the local server:** the unpaid-gift notice ("Continue it" / "Cancel it"). It needs the gift key that only the user's browser holds.
+- **Not covered:** gift expiry with real money, and gifts of agent bags.

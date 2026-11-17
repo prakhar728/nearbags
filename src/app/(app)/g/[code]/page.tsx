@@ -7,7 +7,7 @@ import { connection } from "next/server";
 import { AssetLogo } from "@/components/AssetLogo";
 import { Card, PageHeader } from "@/components/ui/Primitives";
 import { getAsset } from "@/lib/assets";
-import { HttpError } from "@/lib/auth/session";
+import { getSession, HttpError } from "@/lib/auth/session";
 import { giftView } from "@/lib/gifts";
 import { ClaimPanel } from "./ClaimPanel";
 
@@ -17,7 +17,9 @@ export const metadata: Metadata = { title: "A gift for you · nearbags", robots:
 export default async function GiftPage({ params }: PageProps<"/g/[code]">) {
   const { code } = await params;
   await connection();
-  const g = await giftView(code, null).catch((e) => {
+  // The viewer only decides the heading here (the sender sees "Your gift"); amounts load in ClaimPanel after sign-in.
+  const s = await getSession();
+  const g = await giftView(code, s?.userId ?? null).catch((e) => {
     if (e instanceof HttpError && e.status === 404) return null;
     throw e;
   });
@@ -26,18 +28,24 @@ export default async function GiftPage({ params }: PageProps<"/g/[code]">) {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <PageHeader
-        kicker="A gift"
+        kicker={g.isSender ? "A gift you sent" : "A gift"}
         title={
-          <>
-            {g.sender} sent you <em>{g.basket.name}.</em>
-          </>
+          g.isSender ? (
+            <>
+              Your gift: <em>{g.basket.name}.</em>
+            </>
+          ) : (
+            <>
+              {g.sender} sent you <em>{g.basket.name}.</em>
+            </>
+          )
         }
         description={g.basket.tagline}
       />
       {g.message && (
         <Card>
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{g.message}</p>
-          <p className="mt-2 text-xs text-faint">From {g.sender}</p>
+          <p className="mt-2 text-xs text-faint">From {g.isSender ? "you" : g.sender}</p>
         </Card>
       )}
       <Card className="space-y-3">

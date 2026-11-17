@@ -10,6 +10,7 @@ import { paused, type Paused } from "./availability";
 import { oneclick } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 import { quoteLeg } from "@/lib/rhea";
+import { giftFlows } from "./gift-flows";
 
 const EXIT_TTL = 120_000;
 const exitCache = new Map<string, { at: number; usd: number | null }>();
@@ -59,6 +60,7 @@ export async function portfolio(userId: number) {
   const orders = positions.length
     ? await db().select().from(schema.orders).where(inArray(schema.orders.positionId, positions.map((p) => p.id))).orderBy(asc(schema.orders.createdAt))
     : [];
+  const gifts = positions.some((p) => p.kind === "own") ? await giftFlows(userId) : [];
 
   const out = [];
   for (const p of positions) {
@@ -81,13 +83,26 @@ export async function portfolio(userId: number) {
     const exitKnown = holdings.every((h) => h.exitUsd != null);
     const exit = exitKnown ? holdings.reduce((s, h) => s + (h.exitUsd ?? 0), 0) : null;
 
-    // Cost basis: buys add what was paid; a sell of X% removes X% of the basis.
-    let cost = 0;
+    // Cost basis: buys add what was paid; a sell of X% removes X% of the basis. A gift claimed into this position
+    // adds what went into its bag, and your own gift taken back adds what you paid for it (lib/trade/gift-flows.ts),
+    // so neither shows up as profit.
+    const steps: { t: number; add?: number; sellPct?: number }[] = [];
     for (const o of orders.filter((o) => o.positionId === p.id)) {
       // From the moment the deposit arrived, not when the swaps finish: an unfinished buy already holds its value
       // (USDC, then the swapped assets), so leaving its cost out showed that value as profit.
-      if (o.kind === "buy" && ["funded", "fees_paid", "legs_running", "complete", "partial"].includes(o.status)) cost += o.usdIn ?? 0;
-      if (o.kind === "sell" && ["complete", "partial"].includes(o.status) && o.sellPct) cost *= 1 - o.sellPct / 100;
+      if (o.kind === "buy" && ["funded", "fees_paid", "legs_running", "complete", "partial"].includes(o.status)) steps.push({ t: o.createdAt.getTime(), add: o.usdIn ?? 0 });
+      if (o.kind === "sell" && ["complete", "partial"].includes(o.status) && o.sellPct) steps.push({ t: o.createdAt.getTime(), sellPct: o.sellPct });
+    }
+    if (p.kind === "own") {
+      for (const g of gifts.filter((g) => g.basketId === p.basketId)) {
+        if (g.kind === "received") steps.push({ t: g.at.getTime(), add: g.netUsd });
+        if (g.kind === "reclaimed") steps.push({ t: g.at.getTime(), add: g.paidUsd });
+      }
+    }
+    let cost = 0;
+    for (const st of steps.sort((a, b) => a.t - b.t)) {
+      if (st.add != null) cost += st.add;
+      if (st.sellPct != null) cost *= 1 - st.sellPct / 100;
     }
     const open = orders.filter((o) => o.positionId === p.id && ["awaiting_deposit", "funded", "fees_paid", "legs_running"].includes(o.status)).at(-1);
     const lastBuy = orders.filter((o) => o.positionId === p.id && o.kind === "buy" && ["complete", "partial"].includes(o.status)).at(-1);

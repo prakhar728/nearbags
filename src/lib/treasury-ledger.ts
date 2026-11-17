@@ -15,6 +15,11 @@ export interface OwnBuy {
 export interface FeePaid {
   amount: string; // fees this account paid on the owner's own buys
 }
+export interface GiftIn {
+  at: string;
+  note: string; // "from 0x90f6…37Ed", or "your own gift, taken back"
+  units: [string, string][]; // intents asset id → smallest units that arrived
+}
 export interface LegRow {
   at: string;
   orderKind: "buy" | "sell" | "reset" | "withdraw";
@@ -29,11 +34,12 @@ export interface LegRow {
 
 export interface LedgerEntry {
   at: string;
-  kind: "fee" | "topup" | "purchase" | "sale" | "out";
+  kind: "fee" | "topup" | "gift" | "purchase" | "sale" | "out";
   usdc: number; // + into the treasury's cash, − out of it
   asset?: string; // what was bought or sold (intents asset id)
   units?: string; // how much of it (smallest units)
   note?: string;
+  items?: [string, string][]; // a gift: everything that arrived besides USDC
 }
 
 const usd = (units: string | null | undefined) => Number(units ?? "0") / 1e6;
@@ -41,10 +47,15 @@ const usd = (units: string | null | undefined) => Number(units ?? "0") / 1e6;
 /** A leg's output stays in the treasury account unless it pays out or withdraws to an outside address. */
 const leaves = (l: LegRow) => l.recipient != null || l.seq === PAYOUT_SEQ;
 
-export function buildLedger(p: { usdc: string; fees: FeeIn[]; topups: OwnBuy[]; feesPaid: FeePaid[]; legs: LegRow[] }) {
+export function buildLedger(p: { usdc: string; fees: FeeIn[]; topups: OwnBuy[]; feesPaid: FeePaid[]; legs: LegRow[]; gifts?: GiftIn[] }) {
   const entries: LedgerEntry[] = [];
   for (const f of p.fees) entries.push({ at: f.at, kind: "fee", usdc: usd(f.amount), note: f.from });
   for (const t of p.topups) entries.push({ at: t.at, kind: "topup", usdc: usd(t.grossUsdc) });
+  // A gift claimed into the treasury: its USDC counts as cash in, the rest is listed (it isn't cash).
+  for (const g of p.gifts ?? []) {
+    const cash = g.units.filter(([id]) => id === p.usdc).reduce((s, [, v]) => s + usd(v), 0);
+    entries.push({ at: g.at, kind: "gift", usdc: cash, note: g.note, items: g.units.filter(([id]) => id !== p.usdc) });
+  }
   const feesPaid = p.feesPaid.reduce((s, f) => s + usd(f.amount), 0);
 
   for (const l of p.legs) {
@@ -60,12 +71,12 @@ export function buildLedger(p: { usdc: string; fees: FeeIn[]; topups: OwnBuy[]; 
   entries.sort((a, b) => b.at.localeCompare(a.at));
 
   const sum = (k: LedgerEntry["kind"]) => entries.filter((e) => e.kind === k).reduce((s, e) => s + e.usdc, 0);
-  const received = sum("fee") + sum("topup");
+  const received = sum("fee") + sum("topup") + sum("gift");
   const spent = 0 - sum("purchase") || 0;
   const sold = sum("sale");
   const out = (0 - sum("out") || 0) + feesPaid;
   const expectedCash = received - spent + sold - out;
-  return { entries, totals: { received, fees: sum("fee"), topups: sum("topup"), spent, sold, out, expectedCash } };
+  return { entries, totals: { received, fees: sum("fee"), topups: sum("topup"), gifts: entries.filter((e) => e.kind === "gift").length, spent, sold, out, expectedCash } };
 }
 
 /** The largest holding's share of the treasury, as a fraction (0 when empty). */

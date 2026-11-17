@@ -12,11 +12,12 @@ import { getBasketById } from "@/lib/baskets";
 import { eligibility } from "@/lib/compliance";
 import { creatorName } from "@/lib/format";
 import { visitorGeo } from "@/lib/geo";
-import { claimProblem, GIFT, giftCode, reclaimProblem, sameIntents, shownStatus, transferAll, type TransferMode } from "@/lib/gift-rules";
+import { cancelProblem, claimProblem, GIFT, giftCode, reclaimProblem, sameIntents, shownStatus, transferAll, type TransferMode } from "@/lib/gift-rules";
 import { isImplicitAccount } from "@/lib/intents/keys";
 import { parsePayload, type Intent, type SignedRawEd25519 } from "@/lib/intents/payload";
 import { balancesOf } from "@/lib/intents/rpc";
 import { parseWalletSigned, walletSignerKey, type SignedErc191, type SignedNep413, type SignedIntent } from "@/lib/intents/wallet-sign";
+import { oneclick } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 import { relay, RelayerNotConfigured } from "@/lib/relayer";
 
@@ -95,6 +96,32 @@ export async function giftView(code: string, viewerUserId: number | null) {
   };
 }
 
+/**
+ * Drop an unpaid gift (found in the round 1 test: each reload of the buy panel made a new one). Only when nothing
+ * reached it: see cancelProblem. Its order is marked failed so the deposit address stops being offered.
+ */
+export async function cancelGift(code: string, userId: number) {
+  const g = await byCode(code);
+  const [o] = await db().select().from(schema.orders).where(eq(schema.orders.positionId, g.positionId)).orderBy(desc(schema.orders.createdAt)).limit(1);
+  let depositSeen = false;
+  if (o?.status === "awaiting_deposit" && o.fundingDepositAddress) {
+    const st = await oneclick.status(o.fundingDepositAddress, o.fundingDepositMemo ?? undefined).catch(() => null);
+    // Can't tell: be safe and treat it as on its way.
+    depositSeen = !st || st.status !== "PENDING_DEPOSIT";
+  }
+  const accountId = await accountOf(g);
+  const assets = await giftTokens(g.basketId);
+  const holds = (await balancesOf(accountId, assets.map((a) => a.intentsAssetId))).some((b) => BigInt(b) > 0n);
+  const why = cancelProblem(g, userId, { lastOrderStatus: o?.status ?? null, depositSeen, holds });
+  if (why) throw new HttpError(409, why);
+  await db().transaction(async (tx) => {
+    await tx.update(schema.gifts).set({ status: "cancelled" }).where(eq(schema.gifts.id, g.id));
+    if (o?.status === "awaiting_deposit") await tx.update(schema.orders).set({ status: "failed", error: "Gift cancelled before paying." }).where(eq(schema.orders.id, o.id));
+    await tx.insert(schema.auditLog).values({ actor: `user:${userId}`, action: "gift.cancel", target: g.code, details: {} });
+  });
+  return { code: g.code, status: "cancelled" as const };
+}
+
 /** The sender's gifts, newest first, for their portfolio. */
 export async function sentGifts(userId: number) {
   const rows = await db()
@@ -132,7 +159,7 @@ export async function sentGifts(userId: number) {
       lastOrder: open[i],
       valueUsd: r.g.status === "claimed" || r.g.status === "reclaimed" ? 0 : await valueOf(r.accountId, r.g.basketId).catch(() => null),
     })),
-  );
+  ).then((xs) => xs.filter((x) => x.status !== "cancelled" || (x.valueUsd ?? 0) > 0.01)); // a cancelled gift only matters if money arrived late
 }
 
 /** Checks for a claim or take-back, and the exact intents to sign. The receiver is the user's own position for the bag. */

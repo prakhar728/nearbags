@@ -9,14 +9,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ASSETS, getAsset } from "@/lib/assets";
 import { useAuth } from "@/lib/client/auth";
-import { driveOrder, retryLeg } from "@/lib/client/order-runner";
+import { driveOrder, getOrder, retryLeg } from "@/lib/client/order-runner";
 import { canPayFromEvm, canPayFromNear, payFromEvm, payFromNear, type PayToken } from "@/lib/client/pay";
 import { useWalletBalances } from "@/lib/client/balances";
 import { CHAIN_NAMES, TokenPicker } from "./TokenPicker";
 import type { BasketKey } from "@/lib/intents/keys";
 import { randomBasketKey } from "@/lib/intents/keys";
 import { signIntents } from "@/lib/intents/payload";
-import { saveGiftKey } from "@/lib/client/keystore";
+import { giftKey, saveGiftKey } from "@/lib/client/keystore";
 import { giftLink } from "@/lib/client/gift";
 import { GIFT } from "@/lib/gift-rules";
 import type { BuyPreflight } from "@/lib/trade/preflight";
@@ -63,6 +63,9 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   // Buying as a gift: the bag goes into a new account whose key travels in the claim link.
   const [gift, setGift] = useState({ on: false, message: "", days: GIFT.defaultDays as number });
   const [giftMade, setGiftMade] = useState<{ code: string; link: string } | null>(null);
+  // A gift of this bag started on this device but never paid (say the page reloaded mid-buy): offer to continue or
+  // cancel it instead of making another (found in the round 1 test, 2026-11-17).
+  const [unpaid, setUnpaid] = useState<{ code: string; orderId: number | null; createdAt: string } | null>(null);
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [legErrs, setLegErrs] = useState<Record<number, string>>({});
@@ -109,6 +112,25 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       })
       .catch(() => setErr("Couldn't load payment tokens."));
   }, [user?.chain]);
+
+  useEffect(() => {
+    if (!user) return;
+    let live = true;
+    api<{ gifts: { code: string; basketId: number; status: string; createdAt: string; valueUsd: number | null; lastOrder: { id: number; status: string } | null }[] }>("/api/gifts")
+      .then(async ({ gifts }) => {
+        for (const g of gifts) {
+          if (g.basketId !== basket.id || g.status !== "funding" || (g.valueUsd ?? 0) > 0.01) continue;
+          if (g.lastOrder && g.lastOrder.status !== "awaiting_deposit") continue;
+          if (!(await giftKey(user.address, g.code).catch(() => null))) continue;
+          if (live) setUnpaid({ code: g.code, orderId: g.lastOrder?.id ?? null, createdAt: g.createdAt });
+          return;
+        }
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [user, basket.id]);
 
   // Refund address defaults to the signed-in wallet when the pay chain matches its family.
   const defaultRefund =
@@ -179,6 +201,37 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       setErr((e as Error).message);
     } finally {
       setStep(null);
+    }
+  }
+
+  async function continueGift() {
+    if (!user || !unpaid) return;
+    setErr(null);
+    try {
+      const k = await giftKey(user.address, unpaid.code);
+      if (!k || !unpaid.orderId) throw new Error("This gift has no payment to continue. Cancel it and start again.");
+      const v = await getOrder(unpaid.orderId);
+      const deadline = v.order.deposit?.deadline ? Date.parse(v.order.deposit.deadline) : 0;
+      if (v.order.status === "awaiting_deposit" && deadline && deadline < Date.now()) throw new Error("Its payment address has expired. Cancel it and start again.");
+      keyRef.current = k;
+      setGiftMade({ code: unpaid.code, link: giftLink(unpaid.code, k) });
+      setView(v);
+      setPhase("order");
+      setUnpaid(null);
+      void run(v.order.id, k);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
+  async function cancelUnpaid() {
+    if (!unpaid) return;
+    setErr(null);
+    try {
+      await api(`/api/gifts/${unpaid.code}`, { method: "DELETE" });
+      setUnpaid(null);
+    } catch (e) {
+      setErr((e as Error).message);
     }
   }
 
@@ -333,6 +386,20 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   return (
     <Box title="Buy">
       <div className="grid gap-4">
+        {unpaid && (
+          <div className="callout grid gap-3 text-sm">
+            <p>You started a gift of this bag on {unpaid.createdAt.slice(0, 10)} and haven&apos;t paid for it yet.</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void continueGift()}>
+                Continue it
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void cancelUnpaid()}>
+                Cancel it
+              </button>
+            </div>
+            {err && <p className="text-xs text-loss">{err}</p>}
+          </div>
+        )}
         <label className="field">
           <span className="label">Amount (USD)</span>
           <input

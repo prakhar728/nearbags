@@ -8,6 +8,7 @@ import { db, schema } from "@/db";
 import { ASSETS, getAsset, USDC } from "@/lib/assets";
 import { estimatedMultiplier, livePrice } from "@/lib/prices/live";
 import { loadSeries } from "@/lib/prices/store";
+import { giftFlows } from "./gift-flows";
 
 // A buy counts (cash in, plus its USDC) from the moment its deposit arrived; its swaps already count as they settle.
 const FUNDED = ["funded", "fees_paid", "legs_running", "complete", "partial"];
@@ -33,6 +34,8 @@ export interface ClosedPosition {
   usdOut: number;
   pnlUsd: number;
   closedAt: string;
+  /** A gift you bought: "given" once someone claimed it (out = what went into the bag). */
+  gift: boolean;
 }
 
 export interface PnlPoint {
@@ -60,10 +63,11 @@ export async function history(userId: number): Promise<History> {
   if (!positions.length) return empty;
 
   const orders = await db().select().from(schema.orders).where(inArray(schema.orders.positionId, positions.map((p) => p.id))).orderBy(asc(schema.orders.createdAt));
-  if (!orders.length) return empty;
+  const gifts = await giftFlows(userId);
+  if (!orders.length && !gifts.length) return empty;
   const orderIds = orders.map((o) => o.id);
-  const legs = await db().select().from(schema.orderLegs).where(inArray(schema.orderLegs.orderId, orderIds));
-  const fees = await db().select().from(schema.feeEvents).where(inArray(schema.feeEvents.orderId, orderIds));
+  const legs = orderIds.length ? await db().select().from(schema.orderLegs).where(inArray(schema.orderLegs.orderId, orderIds)) : [];
+  const fees = orderIds.length ? await db().select().from(schema.feeEvents).where(inArray(schema.feeEvents.orderId, orderIds)) : [];
   const baskets = await db().select({ id: schema.baskets.id, name: schema.baskets.name, slug: schema.baskets.slug }).from(schema.baskets).where(inArray(schema.baskets.id, [...new Set(positions.map((p) => p.basketId))]));
   const basketOf = (positionId: number) => {
     const p = positions.find((x) => x.id === positionId)!;
@@ -72,7 +76,8 @@ export async function history(userId: number): Promise<History> {
   };
 
   // ── Events: every unit change and cash flow, in time order ─────────────────────────────────────────────────────
-  type Ev = { t: number; orderId: number; positionId: number; units?: [string, bigint][]; cashIn?: number; cashOut?: number; withdrawn?: [string, bigint][] };
+  // moveBasisTo: this position's money-in moves to another position (a gift taken back), without new money.
+  type Ev = { t: number; orderId: number; positionId: number; units?: [string, bigint][]; cashIn?: number; cashOut?: number; withdrawn?: [string, bigint][]; moveBasisTo?: number };
   const evs: Ev[] = [];
   for (const o of orders) {
     const ls = legs.filter((l) => l.orderId === o.id && l.status === "success");
@@ -94,7 +99,22 @@ export async function history(userId: number): Promise<History> {
       }
     }
   }
+  // Gifts move bags without an order on the receiving side (lib/trade/gift-flows.ts). Order ids are negative so
+  // each gift is its own step on the chart.
+  for (const g of gifts) {
+    const t = g.at.getTime();
+    const orderId = -g.giftPositionId;
+    const own = positions.find((p) => p.kind === "own" && p.basketId === g.basketId);
+    const out = g.units.map(([id, v]) => [id, -v] as [string, bigint]);
+    if (g.kind === "received" && own) evs.push({ t, orderId, positionId: own.id, units: g.units, cashIn: g.netUsd });
+    if (g.kind === "given") evs.push({ t, orderId, positionId: g.giftPositionId, units: out, cashOut: g.netUsd });
+    if (g.kind === "reclaimed") {
+      evs.push({ t, orderId, positionId: g.giftPositionId, units: out, moveBasisTo: own?.id });
+      if (own) evs.push({ t, orderId, positionId: own.id, units: g.units });
+    }
+  }
   evs.sort((a, b) => a.t - b.t);
+  if (!evs.length) return empty;
 
   // ── Prices: daily medians (stocks × shares-per-token), carried forward over weekends ────────────────────────────
   const held = [...new Set(evs.flatMap((e) => (e.units ?? []).map(([id]) => id)))].map((id) => byIntents.get(id)).filter((a) => a != null);
@@ -174,6 +194,12 @@ export async function history(userId: number): Promise<History> {
     }
     f.lastT = e.t;
     flows.set(e.positionId, f);
+    if (e.moveBasisTo != null) {
+      const to = flows.get(e.moveBasisTo) ?? { in: 0, out: 0, lastT: e.t };
+      to.in += f.in;
+      f.in = 0;
+      flows.set(e.moveBasisTo, to);
+    }
     const next = evs[evs.indexOf(e) + 1];
     if (!next || next.orderId !== e.orderId) point(e.t);
   }
@@ -223,7 +249,7 @@ export async function history(userId: number): Promise<History> {
     if (!f || f.in === 0) continue;
     const left = valueOf(units.get(p.id)!, now, true);
     if (left > 0.01) continue;
-    closed.push({ positionId: p.id, basket: basketOf(p.id), usdIn: f.in, usdOut: f.out, pnlUsd: f.out - f.in, closedAt: new Date(f.lastT).toISOString() });
+    closed.push({ positionId: p.id, basket: basketOf(p.id), usdIn: f.in, usdOut: f.out, pnlUsd: f.out - f.in, closedAt: new Date(f.lastT).toISOString(), gift: p.kind === "gift" });
   }
 
   const last = series_.at(-1)!;

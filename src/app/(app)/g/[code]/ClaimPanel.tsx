@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/client/auth";
 import { keyFromHash, moveGift, ownAccountFor, signWithKey } from "@/lib/client/gift";
 import { usd } from "@/lib/format";
 
-type Status = "funding" | "ready" | "claimed" | "reclaimed" | "expired";
+type Status = "funding" | "ready" | "claimed" | "reclaimed" | "cancelled" | "expired";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(path, { ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) }, cache: "no-store" });
@@ -50,6 +50,7 @@ export function ClaimPanel(p: { code: string; accountId: string; status: Status;
     funding: "This gift is still being paid for. Check back in a few minutes.",
     claimed: "This gift has been claimed.",
     reclaimed: "The sender took this gift back.",
+    cancelled: "The sender cancelled this gift before paying for it.",
     expired: "This gift expired. It stays with the sender.",
   };
 

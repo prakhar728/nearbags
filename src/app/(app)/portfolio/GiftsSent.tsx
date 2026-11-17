@@ -18,7 +18,7 @@ interface Sent {
   agentManaged: boolean;
   accountId: string;
   message: string | null;
-  status: "funding" | "ready" | "claimed" | "reclaimed" | "expired";
+  status: "funding" | "ready" | "claimed" | "reclaimed" | "cancelled" | "expired";
   expiresAt: string;
   createdAt: string;
   claimedAt: string | null;
@@ -26,7 +26,17 @@ interface Sent {
   valueUsd: number | null;
 }
 
-const LABEL: Record<Sent["status"], string> = { funding: "Not paid yet", ready: "Waiting to be claimed", claimed: "Claimed", reclaimed: "Taken back", expired: "Expired, still yours" };
+const LABEL: Record<Sent["status"], string> = {
+  funding: "Not paid yet",
+  ready: "Waiting to be claimed",
+  claimed: "Claimed",
+  reclaimed: "Taken back",
+  cancelled: "Cancelled, but money arrived",
+  expired: "Expired, still yours",
+};
+
+/** An unpaid gift whose payment never started: it can be cancelled (the server checks again). */
+const UNPAID = ["preflight", "awaiting_deposit", "failed", "refunded"];
 
 export function GiftsSent() {
   const { user, keyForBasket, walletSign } = useAuth();
@@ -96,6 +106,14 @@ export function GiftsSent() {
       await driveOrder(g.lastOrder.id, k, { onUpdate: (v) => setStep(`Finishing the buy… (${v.order.status.replace("_", " ")})`) });
     });
 
+  const cancel = (g: Sent) =>
+    act(g.code, async (setStep) => {
+      setStep("Cancelling…");
+      const r = await fetch(`/api/gifts/${g.code}`, { method: "DELETE" });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error ?? "Couldn't cancel it.");
+    });
+
   const takeBack = (g: Sent) =>
     act(g.code, async (setStep) => {
       const own = await ownAccountFor(g.basketId, g.agentManaged, { keyForBasket, walletPubkey: user.walletPubkey, setStep });
@@ -108,7 +126,8 @@ export function GiftsSent() {
     <Section title="Gifts you sent" right={<span className="badge">{gifts.length}</span>}>
       <ul className="grid gap-3">
         {gifts.map((g) => {
-          const open = g.status === "ready" || g.status === "expired" || g.status === "funding";
+          const open = g.status === "ready" || g.status === "expired" || g.status === "funding" || g.status === "cancelled";
+          const cancellable = g.status === "funding" && (!g.lastOrder || UNPAID.includes(g.lastOrder.status)) && (g.valueUsd ?? 0) <= 0.01;
           const midBuy = g.status === "funding" && g.lastOrder && ["funded", "fees_paid", "legs_running", "partial"].includes(g.lastOrder.status);
           const step = busy[g.code];
           return (
@@ -137,6 +156,11 @@ export function GiftsSent() {
                 {midBuy && onDevice[g.code] && (
                   <button type="button" className="btn btn-secondary btn-sm" disabled={!!step} onClick={() => finish(g)}>
                     Finish buying
+                  </button>
+                )}
+                {cancellable && (
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={!!step} onClick={() => cancel(g)}>
+                    Cancel
                   </button>
                 )}
                 {open && (g.valueUsd ?? 0) > 0.01 && (

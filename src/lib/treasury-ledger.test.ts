@@ -85,4 +85,19 @@ describe("treasury ledger", () => {
     expect(concentration([])).toEqual({ assetId: null, share: 0 });
     expect(concentration([{ assetId: "BTC", valueUsd: 30 }, { assetId: "ETH", valueUsd: 10 }])).toEqual({ assetId: "BTC", share: 0.75 });
   });
+
+  it("lists a gift claimed into the treasury: its USDC is cash in, the rest is shown, not counted as cash", () => {
+    const l = buildLedger({
+      usdc: USDC,
+      fees: [{ at: "2026-11-17T11:02:00Z", amount: "200067", from: "Test 1" }],
+      topups: [],
+      feesPaid: [],
+      legs: [],
+      gifts: [{ at: "2026-11-17T11:05:00Z", note: "from 0x90f6…37Ed", units: [[BTC, "15369"], [USDC, "1000000"]] }],
+    });
+    expect(l.entries[0]).toMatchObject({ kind: "gift", usdc: 1, note: "from 0x90f6…37Ed", items: [[BTC, "15369"]] });
+    expect(l.totals.received).toBeCloseTo(1.200067);
+    expect(l.totals.expectedCash).toBeCloseTo(1.200067);
+    expect(l.totals.gifts).toBe(1);
+  });
 });
