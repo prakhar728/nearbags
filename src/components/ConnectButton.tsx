@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useConnect } from "wagmi";
 import { AssetLogo } from "@/components/AssetLogo";
+import { ChainLogo } from "@/components/trade/ChainLogos";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useAuth } from "@/lib/client/auth";
 import { usePwa } from "@/lib/client/pwa";
@@ -48,7 +49,7 @@ export function ConnectButton({ variant = "landing" }: { variant?: "landing" | "
         aria-expanded={open}
         className={`btn btn-sm ${user ? "btn-secondary num" : quiet ? "btn-ghost text-text" : "btn-primary"}`}
       >
-        {user && <span className="live-dot" aria-hidden />}
+        {user && <ChainLogo chain={user.chain === "near" ? "near" : "eth"} size={16} />}
         {user ? short(user.address) : "Connect"}
       </button>
 

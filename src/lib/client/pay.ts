@@ -3,7 +3,7 @@
 import type { ConnectorAction } from "@hot-labs/near-connect";
 import { erc20Abi, type Hex } from "viem";
 import type { Config } from "wagmi";
-import { sendTransaction, switchChain, writeContract } from "wagmi/actions";
+import { connect, getAccount, reconnect, sendTransaction, switchChain, writeContract } from "wagmi/actions";
 import { rpcUrl } from "@/lib/intents/rpc";
 import { nearSendTransactions } from "./near";
 
@@ -20,9 +20,24 @@ export interface PayToken {
 
 export const canPayFromEvm = (t: PayToken) => t.chain in EVM_CHAIN_IDS;
 
+/**
+ * The site session outlives the wallet link: after a reload, a locked wallet, or a wallet that drops the link when it
+ * changes network, wagmi says "Connector not connected". Reconnect quietly, or ask the wallet to connect again.
+ */
+async function ensureEvmConnected(config: Config) {
+  if (getAccount(config).status === "connected") return;
+  await reconnect(config).catch(() => {});
+  if (getAccount(config).status === "connected") return;
+  const c = config.connectors.find((x) => x.id === "injected") ?? config.connectors[0];
+  if (!c) throw new Error("No EVM wallet found in this browser. Send the amount to the address above from your wallet instead.");
+  await connect(config, { connector: c });
+}
+
 export async function payFromEvm(config: Config, t: PayToken, to: string, amount: string): Promise<Hex> {
   const chainId = EVM_CHAIN_IDS[t.chain];
+  await ensureEvmConnected(config);
   await switchChain(config, { chainId });
+  await ensureEvmConnected(config);
   if (!t.contract) return sendTransaction(config, { chainId, to: to as Hex, value: BigInt(amount) });
   return writeContract(config, { chainId, address: t.contract as Hex, abi: erc20Abi, functionName: "transfer", args: [to as Hex, BigInt(amount)] });
 }
