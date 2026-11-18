@@ -12,9 +12,19 @@ import { treasuryPage, type TreasuryPage } from "@/lib/treasury";
 
 export const instant = false;
 
+/** The handle from the URL, or null when its %-encoding is malformed (that's a 404, not a 500). */
+function decodeHandle(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
 export async function generateMetadata({ params }: PageProps<"/t/[handle]">): Promise<Metadata> {
   const { handle } = await params;
-  return { title: `Treasury of ${decodeURIComponent(handle)} · nearbags` };
+  const h = decodeHandle(handle);
+  return { title: h ? `Treasury of ${h} · nearbags` : "Treasury · nearbags" };
 }
 
 const nameOf = (intentsId?: string) => ASSETS.find((a) => a.intentsAssetId === intentsId)?.id ?? "?";
@@ -29,7 +39,9 @@ const KIND: Record<TreasuryPage["ledger"][number]["kind"], string> = { fee: "Fee
 export default async function TreasuryPublicPage({ params }: PageProps<"/t/[handle]">) {
   const { handle } = await params;
   await connection();
-  const t = await treasuryPage(decodeURIComponent(handle));
+  const h = decodeHandle(handle);
+  if (h == null) notFound();
+  const t = await treasuryPage(h);
   if (!t) notFound();
   const gapOk = Math.abs(t.totals.gap) < 0.05;
 
@@ -135,8 +147,8 @@ export default async function TreasuryPublicPage({ params }: PageProps<"/t/[hand
                       {e.kind === "out" && e.note && <span className="text-muted"> · {e.note}</span>}
                       {e.kind === "gift" && (
                         <span className="text-muted">
-                          {" "}
-                          {e.note}
+                          {/* "A gift": the public page never names who sent it. Only the owner's own take-back gets a note. */}
+                          {e.note && e.note !== "A gift" ? ` (${e.note})` : ""}
                           {e.items?.length ? ` · ${e.items.map(([id, v]) => `${units(id, v)} ${nameOf(id)}`).join(", ")}` : ""}
                         </span>
                       )}

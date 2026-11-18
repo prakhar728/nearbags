@@ -16,6 +16,7 @@ import { CHAIN_NAMES, TokenPicker } from "./TokenPicker";
 import type { BasketKey } from "@/lib/intents/keys";
 import { randomBasketKey } from "@/lib/intents/keys";
 import { signIntents } from "@/lib/intents/payload";
+import { ownershipProof } from "@/lib/intents/proof";
 import { giftKey, saveGiftKey } from "@/lib/client/keystore";
 import { giftLink } from "@/lib/client/gift";
 import { GIFT } from "@/lib/gift-rules";
@@ -66,6 +67,10 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   // A gift of this bag started on this device but never paid (say the page reloaded mid-buy): offer to continue or
   // cancel it instead of making another (found in the round 1 test, 2026-11-17).
   const [unpaid, setUnpaid] = useState<{ code: string; orderId: number | null; createdAt: string } | null>(null);
+  // An unfinished sell or withdrawal found on load. It is never resumed on its own: it sends money out of the bag, so
+  // the user confirms where it goes first (security audit 2026-11-18, #1).
+  const [pendingOut, setPendingOut] = useState<OrderView | null>(null);
+  const confirmedRef = useRef<string[]>([]);
   const [step, setStep] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [legErrs, setLegErrs] = useState<Record<number, string>>({});
@@ -144,7 +149,8 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     return { k, mode };
   }, [user, keyForBasket, basket.id]);
 
-  const run = useCallback(async (orderId: number, k: BasketKey) => {
+  const run = useCallback(async (orderId: number, k: BasketKey, confirmed: string[] = []) => {
+    confirmedRef.current = confirmed;
     runRef.current?.abort();
     const ac = new AbortController();
     runRef.current = ac;
@@ -152,6 +158,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       await driveOrder(orderId, k, {
         onUpdate: setView,
         signal: ac.signal,
+        confirmed,
         onLegError: (seq, msg) =>
           setLegErrs((m) => {
             const next = { ...m };
@@ -172,6 +179,10 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     api<{ open: OrderView | null }>(`/api/orders?basketId=${basket.id}`)
       .then(async ({ open }) => {
         if (cancelled || !open) return;
+        if (open.order.kind === "sell" || open.order.kind === "withdraw") {
+          setPendingOut(open);
+          return;
+        }
         setView(open);
         setPhase("order");
         if (open.next !== "deposit" || user.keyMode) {
@@ -224,6 +235,38 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     }
   }
 
+  /** Where an unfinished sell or withdrawal sends money: its payout address, or each withdrawal step's address. */
+  const outAddresses = (v: OrderView) => [...new Set([v.order.payoutAddress, ...v.legs.map((l) => l.recipient)].filter((x): x is string => !!x))];
+
+  async function continueOut() {
+    if (!pendingOut) return;
+    const v = pendingOut;
+    setErr(null);
+    try {
+      const { k } = await keyFor();
+      setPendingOut(null);
+      setView(v);
+      setPhase("order");
+      void run(v.order.id, k, outAddresses(v));
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
+  async function cancelOrder(id: number) {
+    setErr(null);
+    try {
+      await api(`/api/orders/${id}`, { method: "DELETE" });
+      runRef.current?.abort();
+      setPendingOut(null);
+      setView(null);
+      setPhase("form");
+      setStep(null);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+
   async function cancelUnpaid() {
     if (!unpaid) return;
     setErr(null);
@@ -244,7 +287,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       const k = randomBasketKey();
       const made = await api<{ code: string }>("/api/gifts", {
         method: "POST",
-        body: JSON.stringify({ basketId: basket.id, accountId: k.accountId, message: gift.message.trim() || null, days: gift.days }),
+        body: JSON.stringify({ basketId: basket.id, accountId: k.accountId, message: gift.message.trim() || null, days: gift.days, proof: ownershipProof(k) }),
       });
       await saveGiftKey(user.address, made.code, k);
       keyRef.current = k;
@@ -279,7 +322,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       setStep("Registering your basket account…");
       const { position } = await api<{ position: { recoveryKeyAddedAt: string | null; agentKeyAddedAt?: string | null } }>("/api/positions", {
         method: "POST",
-        body: JSON.stringify({ basketId: basket.id, accountId: k.accountId, keyMode: mode }),
+        body: JSON.stringify({ basketId: basket.id, accountId: k.accountId, keyMode: mode, proof: ownershipProof(k) }),
       });
       if (!position.recoveryKeyAddedAt) {
         if (!user.walletPubkey) throw new Error("No wallet key on file. Sign out and in again.");
@@ -330,7 +373,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     if (!view || !keyRef.current) return;
     setErr(null);
     try {
-      await retryLeg(view.order.id, seq, keyRef.current);
+      await retryLeg(view.order.id, seq, keyRef.current, confirmedRef.current);
       setLegErrs((m) => {
         const next = { ...m };
         delete next[seq];
@@ -365,7 +408,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   // "Sent. Waiting for it to arrive…" belongs to the deposit step only.
   const orderStep = step?.startsWith("Sent.") && view && view.order.status !== "awaiting_deposit" ? null : step;
   if (phase === "order" && view) {
-    const box = <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} step={orderStep} err={err} legErrs={legErrs} />;
+    const box = <OrderBox view={view} token={token} canPay={walletCanPay} onPay={payNow} onRetry={retry} onCancel={giftMade ? undefined : () => void cancelOrder(view.order.id)} step={orderStep} err={err} legErrs={legErrs} />;
     if (!giftMade) return box;
     const done = view.order.status === "complete" || view.order.status === "partial";
     return (
@@ -386,6 +429,29 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
   return (
     <Box title="Buy">
       <div className="grid gap-4">
+        {pendingOut && (
+          <div className="callout callout-warn grid gap-3 text-sm">
+            <p>
+              This bag has an unfinished {pendingOut.order.kind === "sell" ? "sale" : "withdrawal"} that pays out to{" "}
+              {outAddresses(pendingOut).map((a, i) => (
+                <span key={a}>
+                  {i > 0 && ", "}
+                  <span className="num break-all font-semibold">{a}</span>
+                </span>
+              ))}
+              . Continue only if you started it and that address is yours.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void continueOut()}>
+                Continue it
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => void cancelOrder(pendingOut.order.id)}>
+                Cancel it
+              </button>
+            </div>
+            {err && <p className="text-xs text-loss">{err}</p>}
+          </div>
+        )}
         {unpaid && (
           <div className="callout grid gap-3 text-sm">
             <p>You started a gift of this bag on {unpaid.createdAt.slice(0, 10)} and haven&apos;t paid for it yet.</p>
@@ -653,7 +719,7 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
   );
 }
 
-function OrderBox({ view, token, canPay, onPay, onRetry, step, err, legErrs }: { view: OrderView; token?: PayToken; canPay: boolean; onPay: () => void; onRetry: (seq: number) => void; step: string | null; err: string | null; legErrs: Record<number, string> }) {
+function OrderBox({ view, token, canPay, onPay, onRetry, onCancel, step, err, legErrs }: { view: OrderView; token?: PayToken; canPay: boolean; onPay: () => void; onRetry: (seq: number) => void; onCancel?: () => void; step: string | null; err: string | null; legErrs: Record<number, string> }) {
   const o = view.order;
   const dep = o.deposit;
   const steps: [string, "done" | "now" | "todo" | "bad"][] = [
@@ -699,6 +765,11 @@ function OrderBox({ view, token, canPay, onPay, onRetry, step, err, legErrs }: {
           {canPay && (
             <button type="button" onClick={onPay} disabled={!!step} className="btn btn-primary btn-block">
               Pay from wallet
+            </button>
+          )}
+          {onCancel && (
+            <button type="button" onClick={onCancel} disabled={!!step} className="btn btn-ghost btn-sm justify-self-center">
+              Cancel this order
             </button>
           )}
         </div>

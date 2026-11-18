@@ -113,8 +113,8 @@ export function AgentKeys() {
           <Link href="/docs/agents" className="underline underline-offset-2 hover:text-text">
             nearbags MCP server
           </Link>
-          . A new bag still goes live only after you buy it yourself. Buying and selling is off unless you turn it on for a key: then it trades with its own wallet, inside your
-          limits, and sale money comes to your wallet. It can never withdraw.
+          . A new bag still goes live only after you buy it yourself. Buying and selling is off unless you turn it on for a key: then nearbags builds buys and sells for it,
+          inside your limits, and sends sale money to your wallet.
         </p>
       </div>
 
@@ -255,7 +255,10 @@ function TradingForm({ k, onSaved, onCancel }: { k: Key; onSaved: () => void; on
 
   return (
     <div className="mt-3 space-y-3 rounded-[var(--r-sm)] border border-[var(--line)] p-3">
-      <p className="text-sm text-muted">It buys and sells bags with its own wallet. Sale money comes to your wallet. It can never withdraw.</p>
+      <p className="text-sm text-muted">
+        nearbags builds its buys and sells, inside these limits, and sends sale money to your wallet. The agent holds its own key, so only fund it with money you&apos;d hand it
+        outright.
+      </p>
       {t.enabled && (
         <>
           <label className="field">
@@ -271,6 +274,7 @@ function TradingForm({ k, onSaved, onCancel }: { k: Key; onSaved: () => void; on
             <input type="checkbox" className="check" checked={t.anyBag} onChange={(e) => setT({ ...t, anyBag: e.target.checked })} />
             Any live bag
           </label>
+          {t.anyBag && <p className="text-xs text-loss">A bag&apos;s own text could try to talk your agent into buying it.</p>}
           {!t.anyBag && (
             <div className="max-h-48 space-y-1.5 overflow-y-auto">
               {bags === null && <p className="text-xs text-muted">Loading bags…</p>}

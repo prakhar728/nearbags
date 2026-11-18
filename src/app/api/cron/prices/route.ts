@@ -1,12 +1,12 @@
 // Daily price + dividend top-up (spec §7.1). Called by Vercel Cron with `Authorization: Bearer $CRON_SECRET`.
+import { cronAuthorized } from "@/lib/auth/cron";
 import { ingestAll } from "@/lib/prices/store";
 
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim(); // a stray newline in the env value made Vercel Cron get 401
   // Reading the request header also keeps this handler at request time (never prerendered).
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!cronAuthorized(request)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const results = await ingestAll();

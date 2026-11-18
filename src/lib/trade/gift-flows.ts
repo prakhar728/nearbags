@@ -11,7 +11,7 @@
 import "server-only";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { replayGift } from "./gift-replay";
+import { giftUnits, replayGift } from "./gift-replay";
 
 export type GiftFlowKind = "received" | "reclaimed" | "given";
 
@@ -24,7 +24,7 @@ export interface GiftFlow {
   netUsd: number;
   /** What the sender paid for it (the buys' usdIn). */
   paidUsd: number;
-  /** The gift account's holdings when it moved, replayed from its orders (intents asset id → raw units). */
+  /** What moved (intents asset id → raw units): the stored transfer, or for older gifts, replayed from its orders. */
   units: [string, bigint][];
   senderUserId: number;
 }
@@ -54,7 +54,16 @@ export async function giftFlows(userId: number): Promise<GiftFlow[]> {
     if (!kind || !g.claimedAt) continue;
     const os = orders.filter((o) => o.positionId === g.positionId);
     const r = replayGift(os, legs, fees);
-    out.push({ kind, at: g.claimedAt, basketId: g.basketId, giftPositionId: g.positionId, netUsd: r.netUsd, paidUsd: r.paidUsd, units: r.units, senderUserId: g.senderUserId });
+    out.push({
+      kind,
+      at: g.claimedAt,
+      basketId: g.basketId,
+      giftPositionId: g.positionId,
+      netUsd: r.netUsd,
+      paidUsd: r.paidUsd,
+      units: giftUnits(g.moved, r.units),
+      senderUserId: g.senderUserId,
+    });
   }
   return out.sort((a, b) => a.at.getTime() - b.at.getTime());
 }

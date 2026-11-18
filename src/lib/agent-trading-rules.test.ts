@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanSettings, limitProblem, payoutChainOk, tradeProblem } from "./agent-trading-rules";
+import { cleanSettings, limitProblem, openOrderProblem, payoutChainOk, tradeProblem } from "./agent-trading-rules";
 
 const on = { enabled: true, dailyUsd: 100, anyBag: false, basketIds: [4] };
 
@@ -29,5 +29,21 @@ describe("agent trading rules", () => {
     expect(payoutChainOk("near", "arb")).toBe(false);
     expect(payoutChainOk("evm", "base")).toBe(true);
     expect(payoutChainOk("evm", "sol")).toBe(false);
+  });
+
+  it("stops open orders once trading is off or the bag is dropped, except a sell already under way", () => {
+    const off = { ...on, enabled: false };
+    const buy = { kind: "buy", status: "awaiting_deposit", legStatuses: [] };
+    expect(openOrderProblem(on, 4, buy)).toBeNull();
+    expect(openOrderProblem(off, 4, buy)).toMatch(/Trading is off/);
+    expect(openOrderProblem(on, 5, buy)).toMatch(/isn't allowed to trade that bag/);
+    // A buy whose swaps already ran still stops: what's left stays as USDC in the agent's own account.
+    expect(openOrderProblem(off, 4, { kind: "buy", status: "legs_running", legStatuses: ["success", "pending"] })).toMatch(/Trading is off/);
+    // A sell that hasn't sent anything stops; one that has finishes, so its payout reaches the owner's wallet.
+    expect(openOrderProblem(off, 4, { kind: "sell", status: "fees_paid", legStatuses: ["pending", "quoted"] })).toMatch(/Trading is off/);
+    expect(openOrderProblem(off, 4, { kind: "sell", status: "legs_running", legStatuses: ["success", "pending"] })).toBeNull();
+    expect(openOrderProblem(on, 5, { kind: "sell", status: "partial", legStatuses: ["failed", "pending"] })).toBeNull();
+    // Finished orders only report.
+    expect(openOrderProblem(off, 4, { kind: "buy", status: "complete", legStatuses: ["success"] })).toBeNull();
   });
 });

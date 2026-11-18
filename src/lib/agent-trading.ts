@@ -1,21 +1,27 @@
 // Agent keys that buy and sell (plan feature 5). The agent makes and holds its own ed25519 key; its account is a
 // position of the key's owner (kind "agent") with the owner's wallet added as recovery key before the first buy, so
-// the owner can always take over. nearbags never sees the agent's key: we hand it exact intents or payloads, it signs
-// them locally and sends them back, and we check them as we do for the website.
+// the owner can take over (unless the agent removes it again). nearbags never sees the agent's key: we hand it exact
+// intents or payloads, it signs them locally and sends them back, and we check them as we do for the website.
 //
 // Limits: trading is off until the owner turns it on; only chosen bags (or any); buys count against a daily USD limit
-// ($100 by default, at most $1,000); a few sells a day; sale money only to the owner's own wallet; no withdrawals.
+// ($100 by default, at most $1,000) and at most 20 an hour; a few sells a day; sales we build pay the owner's wallet.
+// These are our server's rules, not the chain's: the agent holds its account's full key, so it can move what's in it
+// on intents.near without us (withdraw included). Owners should fund an agent only with money they'd hand it outright.
 import "server-only";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { AgentActor } from "@/lib/agent-keys";
-import { AGENT_TRADE, cleanSettings, limitProblem, payoutChainOk, tradeProblem, type TradeSettings } from "@/lib/agent-trading-rules";
+import { AGENT_TRADE, cleanSettings, limitProblem, openOrderProblem, payoutChainOk, tradeProblem, type TradeSettings } from "@/lib/agent-trading-rules";
 import { HttpError, type Session } from "@/lib/auth/session";
 import { getBasketBySlug } from "@/lib/baskets";
 import { isImplicitAccount } from "@/lib/intents/keys";
 import { parsePayload, type Intent, type SignedRawEd25519 } from "@/lib/intents/payload";
 import { hasPublicKey } from "@/lib/intents/rpc";
+import { withLease } from "@/lib/lease";
+import { CREATOR_CONTENT_NOTE } from "@/lib/mcp/untrusted";
+import { cap } from "@/lib/ratelimit";
 import { relay, RelayerNotConfigured } from "@/lib/relayer";
+import { spendRelay } from "@/lib/relay-budget";
 import {
   createBuyOrder,
   createSellOrder,
@@ -65,6 +71,22 @@ async function ownOrder(a: AgentActor, orderId: number) {
     .where(eq(schema.orders.id, orderId));
   if (!row || row.p.kind !== "agent" || row.p.agentKeyId !== a.keyId) throw new HttpError(404, "No such order for this key.");
   return row;
+}
+
+/** The order, only if this key may still move it on: trading off or the bag dropped stops it (see openOrderProblem). */
+async function movableOrder(a: AgentActor, orderId: number) {
+  const row = await ownOrder(a, orderId);
+  const legs = await db().select({ status: schema.orderLegs.status }).from(schema.orderLegs).where(eq(schema.orderLegs.orderId, orderId));
+  const why = openOrderProblem(settingsOf(await keyRow(a)), row.p.basketId, { kind: row.o.kind, status: row.o.status, legStatuses: legs.map((l) => l.status) });
+  if (why) throw new HttpError(403, why);
+  return row;
+}
+
+/** Our own messages (HttpError) go to the agent; anything else is logged and stays generic. */
+function agentError(e: unknown, where: string): string {
+  if (e instanceof HttpError) return e.message;
+  console.error(`[agent-trading] ${where}`, e);
+  return "Something went wrong at nearbags. Try again shortly.";
 }
 
 // ---------- owner settings (profile) ----------
@@ -124,6 +146,7 @@ export async function openAccount(a: AgentActor, slug: string, accountId: string
   if (claim.signer_id !== accountId || JSON.stringify(claim.intents) !== JSON.stringify(intents)) {
     throw new HttpError(403, "Only adding the owner's wallet as recovery key is allowed here.");
   }
+  await spendRelay(a.user.id);
   try {
     const { txHash } = await relay([signed]);
     await db().update(schema.positions).set({ recoveryKeyAddedAt: new Date() }).where(eq(schema.positions.id, pos.id));
@@ -151,10 +174,16 @@ export async function buy(a: AgentActor, p: { slug: string; usd: number; payAsse
   const b = await tradableBasket(a, p.slug);
   const pos = await agentPosition(a, b.id);
   if (!pos?.recoveryKeyAddedAt) throw new HttpError(409, "Open your account for this bag first (open_account).");
-  const why = limitProblem(settingsOf(await keyRow(a)), await boughtTodayUsd(a.keyId), p.usd);
-  if (why) throw new HttpError(403, why);
-  // The owner's attestations apply; the agent's own location isn't the owner's, so country checks use theirs on the site.
-  const { order } = await createBuyOrder(ownerSession(a), { basketId: b.id, usd: p.usd, payAssetId: p.payAssetId, refundAddress: p.refundAddress, agentKeyId: a.keyId }, { country: null, region: null });
+  // Each buy asks 1Click for a quote and a deposit address: a hard cap per key, on top of the daily dollar limit.
+  await cap(`agent-buy:${a.keyId}`, AGENT_TRADE.buysPerHour, 3600_000, `At most ${AGENT_TRADE.buysPerHour} buys an hour per key. Try again later.`);
+  // One buy per key at a time, so parallel calls can't each read "$0 spent today" before any order is written.
+  const order = await withLease(`agent-buy:${a.keyId}`, 60_000, "Another buy for this key is still being set up. Try again in a few seconds.", async () => {
+    const why = limitProblem(settingsOf(await keyRow(a)), await boughtTodayUsd(a.keyId), p.usd);
+    if (why) throw new HttpError(403, why);
+    // The owner's attestations apply; the agent's own location isn't the owner's, so country checks use theirs on the site.
+    const { order } = await createBuyOrder(ownerSession(a), { basketId: b.id, usd: p.usd, payAssetId: p.payAssetId, refundAddress: p.refundAddress, agentKeyId: a.keyId }, { country: null, region: null });
+    return order;
+  });
   await audit(a.user, a.prefix, "mcp.buy", p.slug, { orderId: order.id, usd: p.usd });
   return next(a, order.id);
 }
@@ -166,7 +195,7 @@ export async function sell(a: AgentActor, p: { slug: string; pct: number; payout
   const token = (await payTokens()).find((t) => t.assetId === p.payoutAssetId);
   if (!token) throw new HttpError(400, "That payout token isn't supported.");
   if (!payoutChainOk(a.user.walletChain, token.blockchain)) {
-    throw new HttpError(400, `Sale money goes to the owner's wallet (${a.user.walletAddress}), so pick a payout token on ${a.user.walletChain === "near" ? "NEAR" : "an EVM chain"}.`);
+    throw new HttpError(400, `nearbags sends sale money to the owner's wallet (${a.user.walletAddress}), so pick a payout token on ${a.user.walletChain === "near" ? "NEAR" : "an EVM chain"}.`);
   }
   const sellsToday = await db()
     .select({ id: schema.orders.id })
@@ -183,7 +212,7 @@ export async function sell(a: AgentActor, p: { slug: string; pct: number; payout
  * or nothing (done). Payloads are exact strings to sign as they are (ed25519 over the UTF-8 bytes).
  */
 export async function next(a: AgentActor, orderId: number) {
-  await ownOrder(a, orderId);
+  await movableOrder(a, orderId);
   const s = ownerSession(a);
   const v = await refreshOrder(s, orderId);
   const base = { orderId, kind: v.order.kind, status: v.order.status, accountId: v.order.accountId };
@@ -205,7 +234,7 @@ export async function next(a: AgentActor, orderId: number) {
           const r = await prepareLeg(s, orderId, l.seq, { agent: false });
           payloads.push({ seq: l.seq, payload: r.payload });
         } catch (e) {
-          payloads.push({ seq: l.seq, error: (e as Error).message });
+          payloads.push({ seq: l.seq, error: agentError(e, `prepare order ${orderId} leg ${l.seq}`) });
         }
       }
       return { ...base, next: "sign_payloads", payloads, note: "Sign each payload string exactly as given and send them with order_sign (legs)." };
@@ -218,7 +247,7 @@ export async function next(a: AgentActor, orderId: number) {
 }
 
 export async function sign(a: AgentActor, p: { orderId: number; fees?: SignedRawEd25519; legs?: { seq: number; signed: SignedRawEd25519 }[] }) {
-  await ownOrder(a, p.orderId);
+  await movableOrder(a, p.orderId);
   const s = ownerSession(a);
   const out: Record<string, unknown> = {};
   if (p.fees) out.fees = await submitFees(s, p.orderId, p.fees);
@@ -226,7 +255,7 @@ export async function sign(a: AgentActor, p: { orderId: number; fees?: SignedRaw
     try {
       out[`leg${l.seq}`] = await submitLeg(s, p.orderId, l.seq, l.signed);
     } catch (e) {
-      out[`leg${l.seq}`] = { error: (e as Error).message };
+      out[`leg${l.seq}`] = { error: agentError(e, `submit order ${p.orderId} leg ${l.seq}`) };
     }
   }
   return next(a, p.orderId).then((n) => ({ submitted: out, ...n }));
@@ -246,9 +275,10 @@ export async function myAccounts(a: AgentActor) {
   return {
     trading: { ...settingsOf(k), boughtLast24hUsd: await boughtTodayUsd(a.keyId) },
     payoutWallet: a.user.walletAddress,
+    creatorContentNote: CREATOR_CONTENT_NOTE,
     accounts: rows.map((r) => ({
       slug: r.slug,
-      name: r.name,
+      creatorContent: { name: r.name },
       accountId: r.p.accountId,
       recoveryKeyAdded: Boolean(r.p.recoveryKeyAddedAt),
       openOrders: orders.filter((o) => o.positionId === r.p.id && !["complete", "partial", "failed", "refunded"].includes(o.status)).map((o) => ({ id: o.id, kind: o.kind, status: o.status })),

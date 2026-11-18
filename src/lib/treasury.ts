@@ -12,8 +12,6 @@ import { livePrice } from "@/lib/prices/live";
 import { buildLedger, concentration } from "./treasury-ledger";
 import { giftFlows } from "./trade/gift-flows";
 
-const shortAddress = (a: string) => (a.length > 18 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a);
-
 export type Treasury = typeof schema.treasuries.$inferSelect;
 
 export async function treasuryOf(userId: number): Promise<Treasury | null> {
@@ -116,20 +114,15 @@ export async function treasuryPage(handleOrAddress: string) {
         .where(and(inArray(schema.feeEvents.orderId, orderIds), eq(schema.feeEvents.status, "success")))
     : [];
   const kindOf = new Map(orders.map((o) => [o.id, o.kind]));
-  // Gifts that landed in this position: claimed by the owner, or the owner's own gift taken back.
+  // Gifts that landed in this position: claimed by the owner, or the owner's own gift taken back. The page is public,
+  // so a gift doesn't name its sender. Units are what the relayed transfer moved (see gift-flows).
   const gifts = (await giftFlows(u.id)).filter((g) => g.basketId === pos.basketId && (g.kind === "received" || g.kind === "reclaimed"));
-  const senders = gifts.length
-    ? new Map((await db().select({ id: schema.users.id, handle: schema.users.handle, address: schema.users.walletAddress }).from(schema.users).where(inArray(schema.users.id, gifts.map((g) => g.senderUserId)))).map((x) => [x.id, x]))
-    : new Map();
   const ledger = buildLedger({
-    gifts: gifts.map((g) => {
-      const from = senders.get(g.senderUserId);
-      return {
-        at: g.at.toISOString(),
-        note: g.kind === "reclaimed" ? "their own gift, taken back" : `from ${from?.handle ? `@${from.handle}` : shortAddress(from?.address ?? "someone")}`,
-        units: g.units.map(([id, v]) => [id, v.toString()] as [string, string]),
-      };
-    }),
+    gifts: gifts.map((g) => ({
+      at: g.at.toISOString(),
+      note: g.kind === "reclaimed" ? "their own gift, taken back" : "A gift",
+      units: g.units.map(([id, v]) => [id, v.toString()] as [string, string]),
+    })),
     usdc: USDC.intentsAssetId,
     fees: fees.map((f) => ({ at: f.at.toISOString(), amount: f.amount, from: f.basket })),
     topups: orders.filter((o) => o.kind === "buy" && o.grossUsdc).map((o) => ({ at: o.createdAt.toISOString(), grossUsdc: o.grossUsdc! })),

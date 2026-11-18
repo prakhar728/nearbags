@@ -118,15 +118,17 @@ export function GiftsSent() {
     act(g.code, async (setStep) => {
       const own = await ownAccountFor(g.basketId, g.agentManaged, { keyForBasket, walletPubkey: user.walletPubkey, setStep });
       const k = await giftKey(user.address, g.code);
-      setStep(k ? "Moving it into your own account…" : "Approve in your wallet to move it into your own account…");
-      await moveGift(g.code, "reclaim", own.accountId, k ? signWithKey(k) : walletSign);
+      setStep(k && g.status !== "reclaimed" ? "Moving it into your own account…" : "Approve in your wallet to move it into your own account…");
+      // Taking it back also removes the gift's own key, so the link stops working everywhere, not only on nearbags.
+      await moveGift(g.code, "reclaim", g.accountId, own.accountId, { gift: k ? signWithKey(k) : null, wallet: walletSign });
     });
 
   return (
     <Section title="Gifts you sent" right={<span className="badge">{gifts.length}</span>}>
       <ul className="grid gap-3">
         {gifts.map((g) => {
-          const open = g.status === "ready" || g.status === "expired" || g.status === "funding" || g.status === "cancelled";
+          // Taken back, but money landed in its account afterwards (a late deposit): that can come back too.
+          const open = g.status === "ready" || g.status === "expired" || g.status === "funding" || g.status === "cancelled" || g.status === "reclaimed";
           const cancellable = g.status === "funding" && (!g.lastOrder || UNPAID.includes(g.lastOrder.status)) && (g.valueUsd ?? 0) <= 0.01;
           const midBuy = g.status === "funding" && g.lastOrder && ["funded", "fees_paid", "legs_running", "partial"].includes(g.lastOrder.status);
           const step = busy[g.code];
@@ -137,10 +139,10 @@ export function GiftsSent() {
                   <Link href={`/b/${g.slug}`} className="hover:underline">
                     {g.basket}
                   </Link>{" "}
-                  <span className="font-normal text-muted">· {LABEL[g.status]}</span>
+                  <span className="font-normal text-muted">· {g.status === "reclaimed" && (g.valueUsd ?? 0) > 0.01 ? "Taken back, but more money arrived" : LABEL[g.status]}</span>
                 </div>
                 <div className="num text-xs text-faint">
-                  {g.valueUsd != null && open ? `${usd(g.valueUsd, { cents: true })} · ` : ""}
+                  {g.valueUsd != null && open && (g.status !== "reclaimed" || g.valueUsd > 0.01) ? `${usd(g.valueUsd, { cents: true })} · ` : ""}
                   {g.status === "ready" ? `claim by ${g.expiresAt.slice(0, 10)}` : g.claimedAt ? g.claimedAt.slice(0, 10) : `made ${g.createdAt.slice(0, 10)}`}
                   {g.message ? ` · “${g.message.slice(0, 60)}${g.message.length > 60 ? "…" : ""}”` : ""}
                 </div>

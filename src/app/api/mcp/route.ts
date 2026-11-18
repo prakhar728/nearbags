@@ -59,7 +59,7 @@ const CREATOR = KEYED.map((t) => ({
 }));
 
 const KEY_NOTE =
-  " With this agent key you can also manage the key owner's own bags: whoami, my_bags, preview_bag, create_bag, edit_bag, close_bag and run_agent. New bags go live only after the owner buys them on the site. If the owner turned trading on for this key, you can also buy and sell bags with your own key and wallet (trading_status, open_account, buy, sell, order_next, order_sign), within their daily limit and chosen bags; sale money always goes to the owner's wallet and nothing can be withdrawn. Ask the person before every buy or sell.";
+  " With this agent key you can also manage the key owner's own bags: whoami, my_bags, preview_bag, create_bag, edit_bag, close_bag and run_agent. New bags go live only after the owner buys them on the site. If the owner turned trading on for this key, nearbags also builds buys and sells for you, signed with your own key (trading_status, open_account, buy, sell, order_next, order_sign), within their daily limit and chosen bags, and sends sale money to the owner's wallet. Ask the person before every buy or sell.";
 
 /** Messages we wrote for people (HttpError, "No bag ...") go to the agent; anything else stays generic. */
 function errorText(e: unknown) {
@@ -130,7 +130,8 @@ export async function POST(request: Request) {
   const msgs = (batch ? body : [body]) as Msg[];
   if (msgs.length === 0 || msgs.length > 20) return Response.json(fail(null, -32600, "Send 1 to 20 messages."), { status: 400, headers: CORS });
   try {
-    await rateLimit("mcp", 60, 60_000, actor ? `key:${actor.keyId}` : "");
+    // Every message in a batch counts, so a batch of 20 can't do 20 times the work of one request.
+    await rateLimit("mcp", 60, 60_000, actor ? `key:${actor.keyId}` : "", msgs.length);
   } catch {
     return Response.json(fail(null, -32000, "Too many requests. Wait a minute and try again."), { status: 429, headers: { ...CORS, "Retry-After": "60" } });
   }

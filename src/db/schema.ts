@@ -285,7 +285,7 @@ export const agentKeys = pgTable(
     hash: text("hash").notNull(),
     scopes: text("scopes").array().notNull(),
     // Trading (plan feature 5): off until the owner turns it on. Buys count against a daily USD limit; the key may
-    // trade only the listed baskets, or any live one. Sale money always goes to the owner's own wallet.
+    // trade only the listed baskets, or any live one. Sells nearbags builds pay the owner's own wallet.
     tradeEnabled: boolean("trade_enabled").notNull().default(false),
     tradeDailyUsd: integer("trade_daily_usd").notNull().default(100),
     tradeAnyBag: boolean("trade_any_bag").notNull().default(false),

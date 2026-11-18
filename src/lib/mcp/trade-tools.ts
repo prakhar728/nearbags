@@ -1,5 +1,6 @@
 // MCP tools for agent keys that trade (plan feature 5). The agent holds its own ed25519 key and signs locally; these
 // tools hand it exact intents or payloads and check what comes back. See docs/agents.md for the signing sample.
+// The limits here bind what nearbags builds, not the agent's key: it can move its own account on intents.near directly.
 import "server-only";
 import { z } from "zod";
 import * as trading from "@/lib/agent-trading";
@@ -33,7 +34,7 @@ export const TRADE_TOOLS: AuthedTool[] = [
     name: "open_account",
     title: "Open an account for a bag",
     description:
-      "Register the account you'll trade a bag in. account_id is the 64-character hex of an ed25519 public key you hold (never send the private key). The first call returns one intent to sign: adding the key owner's wallet as recovery key, so they can always take over. Sign it as a raw_ed25519 payload and call again with signed. Needed once per bag.",
+      "Register the account you'll trade a bag in. account_id is the 64-character hex of an ed25519 public key you hold (never send the private key). The first call returns one intent to sign: adding the key owner's wallet as recovery key, so they can take over. Sign it as a raw_ed25519 payload and call again with signed. Needed once per bag.",
     input: z.object({ bag: slug, account_id: z.string().length(64), signed: signedIn.optional() }),
     readOnly: false,
     run: async ({ bag, account_id, signed }, a) => trading.openAccount(a, bag, account_id, signed as SignedRawEd25519 | undefined),
@@ -43,7 +44,7 @@ export const TRADE_TOOLS: AuthedTool[] = [
     name: "buy",
     title: "Buy a bag",
     description:
-      "Buy a bag into your account for it, paying from your own wallet. Returns where to send the payment (any token 1Click supports, on its own chain). Counts against this key's daily limit. Then call order_next until it says done.",
+      "Buy a bag into your account for it, paying from your own wallet. Returns where to send the payment (any token 1Click supports, on its own chain). Counts against this key's daily limit; at most 20 buys an hour, one at a time. Then call order_next until it says done.",
     input: z.object({
       bag: slug,
       usd: z.number().positive().max(1000),
@@ -58,7 +59,7 @@ export const TRADE_TOOLS: AuthedTool[] = [
     name: "sell",
     title: "Sell a bag",
     description:
-      "Sell 25, 50, 75 or 100% of your holding in a bag. The money always goes to the key owner's own sign-in wallet, so the payout token must be on that wallet's chain. Then call order_next until it says done. At most 5 sells a day per bag.",
+      "Sell 25, 50, 75 or 100% of your holding in a bag. nearbags sends the money to the key owner's own sign-in wallet, so the payout token must be on that wallet's chain. Then call order_next until it says done. At most 5 sells a day per bag.",
     input: z.object({ bag: slug, pct: z.union([z.literal(25), z.literal(50), z.literal(75), z.literal(100)]), payout_asset: z.string().min(3) }),
     readOnly: false,
     run: async ({ bag, pct, payout_asset }, a) => trading.sell(a, { slug: bag, pct, payoutAssetId: payout_asset }),
@@ -67,7 +68,8 @@ export const TRADE_TOOLS: AuthedTool[] = [
   tool({
     name: "order_next",
     title: "Next step of an order",
-    description: "Move an order on and say what to do next: pay (deposit), sign_intents (fees), sign_payloads (swaps), wait, or done.",
+    description:
+      "Move an order on and say what to do next: pay (deposit), sign_intents (fees), sign_payloads (swaps), wait, or done. Stops if the owner turns trading off or drops the bag, except a sell already under way, which finishes so its money reaches the owner's wallet.",
     input: z.object({ order_id: z.number().int().positive() }),
     readOnly: false,
     run: async ({ order_id }, a) => trading.next(a, order_id),

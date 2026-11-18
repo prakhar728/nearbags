@@ -4,7 +4,7 @@
 import "server-only";
 import { z } from "zod";
 import { audit, type AgentActor } from "@/lib/agent-keys";
-import { agentRunsFor, runAgent } from "@/lib/agent/run";
+import { agentRunsFor, runAgent, RUNS_PER_DAY } from "@/lib/agent/run";
 import { TEMPLATE_IDS, type TemplateId } from "@/lib/agent/templates";
 import { getAnalyticsView } from "@/lib/analytics/cached";
 import { getAsset, isListed } from "@/lib/assets";
@@ -81,7 +81,7 @@ export const CREATOR_TOOLS: AuthedTool[] = [
       profile: `${SITE}/c/${encodeURIComponent(a.user.handle ?? a.user.walletAddress)}`,
       key: { name: a.keyName, starts: a.prefix, scopes: a.scopes },
       canDo:
-        "Create, edit and close your bags (every asset in a new bag needs a source), preview weights, and run your AI-agent bags. If you turned trading on for this key, it can also buy and sell with its own key and wallet inside your limits (see trading_status). It can never withdraw.",
+        "Create, edit and close your bags (every asset in a new bag needs a source), preview weights, and run your AI-agent bags. If you turned trading on for this key, nearbags also builds buys and sells for it inside your limits (see trading_status) and sends sale money to your wallet. It holds its own account's key, so only fund it with money you'd hand it outright.",
     }),
   }),
 
@@ -299,7 +299,7 @@ export const CREATOR_TOOLS: AuthedTool[] = [
     name: "run_agent",
     title: "Run a bag's agent",
     description:
-      "Start a rebalance now on one of your live AI-agent bags, instead of waiting for the daily run. The agent decides inside the bag's limits, then swaps inside each opted-in holder's account. At most once every 10 minutes; it can take a minute or two.",
+      `Start a rebalance now on one of your live AI-agent bags, instead of waiting for the daily run. The agent decides inside the bag's limits, then swaps inside each opted-in holder's account. At most once every 10 minutes and ${RUNS_PER_DAY} times a day per creator; it can take a minute or two.`,
     input: z.object({ slug: z.string().min(1).max(80) }),
     readOnly: false,
     run: async ({ slug }, a) => {

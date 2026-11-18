@@ -5,8 +5,16 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { handle, HttpError, requireSession } from "@/lib/auth/session";
 import { isImplicitAccount } from "@/lib/intents/keys";
+import { proofProblem } from "@/lib/intents/proof";
+import type { SignedRawEd25519 } from "@/lib/intents/payload";
 
-const Body = z.object({ basketId: z.number().int().positive(), accountId: z.string(), keyMode: z.enum(["derived", "device"]) });
+const Body = z.object({
+  basketId: z.number().int().positive(),
+  accountId: z.string(),
+  keyMode: z.enum(["derived", "device"]),
+  // Signed by the account's own key: you can only register an account you control.
+  proof: z.object({ standard: z.literal("raw_ed25519"), payload: z.string().max(2000), public_key: z.string(), signature: z.string() }),
+});
 
 export async function POST(request: Request) {
   return handle(async () => {
@@ -14,6 +22,8 @@ export async function POST(request: Request) {
     const p = Body.safeParse(await request.json());
     if (!p.success || !isImplicitAccount(p.data.accountId)) throw new HttpError(400, "Malformed position.");
     const { basketId, accountId, keyMode } = p.data;
+    const why = proofProblem(p.data.proof as SignedRawEd25519, accountId);
+    if (why) throw new HttpError(403, `Can't register this account: ${why}.`);
 
     const [basket] = await db().select().from(schema.baskets).where(eq(schema.baskets.id, basketId));
     if (!basket) throw new HttpError(404, "Basket not found.");

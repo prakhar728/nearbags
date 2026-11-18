@@ -1,15 +1,21 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { getSession, handle, HttpError, requireSession } from "@/lib/auth/session";
+import { isAdminUser } from "@/lib/auth/admin-match";
+import { handle, HttpError, requireSession, type Session } from "@/lib/auth/session";
 
 export async function GET() {
   return handle(async () => {
-    const s = await getSession();
-    if (!s) return Response.json({ user: null });
+    // Checked against session_version, so a logged-out token reads as signed out here too.
+    let s: Session;
+    try {
+      s = await requireSession();
+    } catch (e) {
+      if (e instanceof HttpError && e.status === 401) return Response.json({ user: null });
+      throw e;
+    }
     const [u] = await db().select().from(schema.users).where(eq(schema.users.id, s.userId));
     if (!u) return Response.json({ user: null });
-    const admins = (process.env.ADMIN_WALLETS ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
     return Response.json({
       user: {
         id: u.id,
@@ -18,7 +24,7 @@ export async function GET() {
         walletPubkey: u.walletPubkey,
         handle: u.handle,
         keyMode: u.keyMode,
-        isAdmin: u.isAdmin || admins.includes(u.walletAddress.toLowerCase()),
+        isAdmin: isAdminUser(u),
       },
     });
   });

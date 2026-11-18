@@ -14,6 +14,8 @@ import { agentAssetProblem } from "@/lib/basket-rules";
 import { revalidateBasket } from "@/lib/basket-pages";
 import type { Session } from "@/lib/auth/session";
 import { HttpError } from "@/lib/auth/session";
+import { withLease } from "@/lib/lease";
+import { cap } from "@/lib/ratelimit";
 import { createResetOrder, prepareLeg, refreshOrder, submitLeg } from "@/lib/trade/orders";
 import { untradeable } from "@/lib/trade/availability";
 import type { SignedRawEd25519 } from "@/lib/intents/payload";
@@ -23,6 +25,8 @@ import { DAY, marketData } from "./market";
 export { DEFAULT_LIMITS, minMaxWeightBps, sanitizeAgentConfig } from "./config";
 import { sameButNonce } from "./config";
 
+/** Runs a creator can start by hand (site or MCP) per day, across their bags. Each run spends relayer NEAR and 1Click quota. */
+export const RUNS_PER_DAY = 12;
 export const MAX_LEG_USD = 100; // the signer's own hard cap is $250; this is tighter for now
 const RUN_BUDGET_MS = 200_000; // stay inside one serverless invocation; unfinished orders continue on the next pump
 const AGENT_KEY_SETTING = "agent_signer";
@@ -74,11 +78,21 @@ async function templateDue(basketId: number, cadence: "daily" | "monthly") {
   return !recent.some((r) => r.status !== "failed" && r.weightsAfter && JSON.stringify(r.weightsAfter) !== JSON.stringify(r.weightsBefore));
 }
 
-/** Start a run: decide new weights, then rebalance opted-in holders. Returns the run id; pumping continues the swaps. */
+/**
+ * Start a run: decide new weights, then rebalance opted-in holders. Returns the run id; pumping continues the swaps.
+ * Every caller (cron, the site's "Run now", the MCP's run_agent) comes through here. A lease per basket makes the
+ * 10-minute check and the new run row one step, so parallel calls can't each see "no recent run".
+ */
 export async function runAgent(basketId: number, trigger: Run["trigger"]): Promise<number> {
   const [row] = await db().select().from(schema.baskets).where(eq(schema.baskets.id, basketId));
   if (!row?.agent) throw new HttpError(409, "This basket isn't agent-managed.");
   if (row.status !== "live") throw new HttpError(409, "The agent runs on live baskets only.");
+  return withLease(`agent-run:${basketId}`, 10 * 60_000, "The agent is already working on this basket.", () => startRun(row, trigger));
+}
+
+/** The run itself, inside the basket's lease. `row` is a live agent basket (runAgent checked). */
+async function startRun(row: typeof schema.baskets.$inferSelect, trigger: Run["trigger"]): Promise<number> {
+  const basketId = row.id;
   const recent = await db()
     .select()
     .from(schema.agentRuns)
@@ -95,12 +109,16 @@ export async function runAgent(basketId: number, trigger: Run["trigger"]): Promi
   // Don't move targets the agent couldn't trade toward; try again on the next run.
   const paused = await untradeable(basket.assets.map((a) => a.assetId));
   if (paused.length) throw new HttpError(409, `Trading is paused for ${paused.join(", ")} on NEAR Intents, so the agent will skip this run.`);
+  // Last, so a refused run doesn't use one up. Admin runs are ours and the cron's are once a day.
+  if (trigger === "creator") {
+    await cap(`agent-run:creator:${row.creatorId}`, RUNS_PER_DAY, 86_400_000, `At most ${RUNS_PER_DAY} agent runs a day. The daily run still happens on its own.`);
+  }
   const before = Object.fromEntries(basket.assets.map((a) => [a.assetId, a.weightBps]));
   const [run] = await db().insert(schema.agentRuns).values({ basketId, trigger, weightsBefore: before }).returning();
 
   try {
     const market = await marketData(basket.assets.map((a) => a.assetId));
-    const cfg = row.agent;
+    const cfg = row.agent!;
     const tpl = getTemplate(cfg.template?.id);
     const d = await runModule<{ weights: number[]; reason: string; model: string }>(
       strategist,

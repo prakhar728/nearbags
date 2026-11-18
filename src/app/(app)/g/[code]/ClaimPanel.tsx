@@ -16,7 +16,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return j as T;
 }
 
-export function ClaimPanel(p: { code: string; accountId: string; status: Status; expiresAt: string; basketId: number; agentManaged: boolean }) {
+// `accountId` only reaches the sender; anyone else's browser takes the gift's account from the key in the link.
+export function ClaimPanel(p: { code: string; accountId: string | null; status: Status; expiresAt: string; basketId: number; agentManaged: boolean }) {
   const { user, keyForBasket, signInNear, busy: authBusy } = useAuth();
   // The key lives in the link's # (never sent to a server). null while rendering on the server.
   const hash = useSyncExternalStore(
@@ -51,7 +52,7 @@ export function ClaimPanel(p: { code: string; accountId: string; status: Status;
     claimed: "This gift has been claimed.",
     reclaimed: "The sender took this gift back.",
     cancelled: "The sender cancelled this gift before paying for it.",
-    expired: "This gift expired. It stays with the sender.",
+    expired: "This gift expired on nearbags. It stays with the sender until they take it back.",
   };
 
   async function claim() {
@@ -62,7 +63,7 @@ export function ClaimPanel(p: { code: string; accountId: string; status: Status;
     try {
       const own = await ownAccountFor(p.basketId, p.agentManaged, { keyForBasket, walletPubkey: user.walletPubkey, setStep });
       setStep("Moving the gift into your account…");
-      await moveGift(p.code, "claim", own.accountId, signWithKey(k));
+      await moveGift(p.code, "claim", k.accountId, own.accountId, signWithKey(k));
       setDone(true);
     } catch (e) {
       setErr((e as Error).message);

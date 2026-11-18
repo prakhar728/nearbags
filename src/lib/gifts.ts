@@ -1,10 +1,13 @@
 // Gifts (plan feature 2). A gift is a position of the sender's with a random key, bought like any bag. The link
 // carries that key after the #. Claiming moves every balance into the claimer's own position for the same bag, in one
 // transfer intent signed by the gift key and relayed by us after these checks. Taking it back is the same transfer to
-// the sender's own position, signed by the gift key or by the sender's wallet (a recovery key on the gift account).
+// the sender's own position, signed by the gift key or by the sender's wallet (a recovery key on the gift account),
+// and it also removes the gift's own key from the account, so the link stops working on intents.near itself.
+// Until the sender takes it back, the link is like cash: expiry and region checks are nearbags' rules, and anyone
+// holding the link could sign a transfer straight to intents.near.
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getAsset } from "@/lib/assets";
 import { HttpError } from "@/lib/auth/session";
@@ -12,14 +15,30 @@ import { getBasketById } from "@/lib/baskets";
 import { eligibility } from "@/lib/compliance";
 import { creatorName } from "@/lib/format";
 import { visitorGeo } from "@/lib/geo";
-import { cancelProblem, claimProblem, GIFT, giftCode, reclaimProblem, sameIntents, shownStatus, transferAll, type TransferMode } from "@/lib/gift-rules";
+import {
+  addMoved,
+  cancelProblem,
+  claimProblem,
+  fromStatuses,
+  GIFT,
+  giftCode,
+  giftPublicKey,
+  movedTokens,
+  reclaimProblem,
+  sameIntents,
+  shownStatus,
+  toStatus,
+  transferAll,
+  type TransferMode,
+} from "@/lib/gift-rules";
 import { isImplicitAccount } from "@/lib/intents/keys";
 import { parsePayload, type Intent, type SignedRawEd25519 } from "@/lib/intents/payload";
-import { balancesOf } from "@/lib/intents/rpc";
+import { balancesOf, hasPublicKey } from "@/lib/intents/rpc";
 import { parseWalletSigned, walletSignerKey, type SignedErc191, type SignedNep413, type SignedIntent } from "@/lib/intents/wallet-sign";
 import { oneclick } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 import { relay, RelayerNotConfigured } from "@/lib/relayer";
+import { spendRelay } from "@/lib/relay-budget";
 
 type Gift = typeof schema.gifts.$inferSelect;
 
@@ -77,21 +96,25 @@ export async function createGift(userId: number, p: { basketId: number; accountI
   });
 }
 
-/** The gift page: anyone with the link sees the bag, sender and message. The value only after signing in. */
+/**
+ * The gift page: anyone with the link sees the bag, sender and message. The value only after signing in. The gift's
+ * account id only for its sender: the claimer's browser derives it from the key in the link's #.
+ */
 export async function giftView(code: string, viewerUserId: number | null) {
   const g = await byCode(code);
   const basket = (await getBasketById(g.basketId))!;
   const [sender] = await db().select().from(schema.users).where(eq(schema.users.id, g.senderUserId));
   const accountId = await accountOf(g);
+  const isSender = viewerUserId === g.senderUserId;
   return {
     code: g.code,
     status: shownStatus(g),
     expiresAt: g.expiresAt.toISOString(),
     message: g.message,
     sender: creatorName({ handle: sender.handle, address: sender.walletAddress }),
-    isSender: viewerUserId === g.senderUserId,
+    isSender,
     basket: { id: basket.id, slug: basket.slug, name: basket.name, tagline: basket.tagline, agentManaged: Boolean(basket.agent), assets: basket.assets.map((a) => ({ assetId: a.assetId, weightBps: a.weightBps })) },
-    accountId,
+    accountId: isSender ? accountId : null,
     valueUsd: viewerUserId ? await valueOf(accountId, g.basketId).catch(() => null) : null,
   };
 }
@@ -115,8 +138,21 @@ export async function cancelGift(code: string, userId: number) {
   const why = cancelProblem(g, userId, { lastOrderStatus: o?.status ?? null, depositSeen, holds });
   if (why) throw new HttpError(409, why);
   await db().transaction(async (tx) => {
-    await tx.update(schema.gifts).set({ status: "cancelled" }).where(eq(schema.gifts.id, g.id));
-    if (o?.status === "awaiting_deposit") await tx.update(schema.orders).set({ status: "failed", error: "Gift cancelled before paying." }).where(eq(schema.orders.id, o.id));
+    // Only if it's still unpaid: a payment or a second tab may have moved it on since the checks above.
+    const done = await tx
+      .update(schema.gifts)
+      .set({ status: "cancelled" })
+      .where(and(eq(schema.gifts.id, g.id), eq(schema.gifts.status, "funding")))
+      .returning({ id: schema.gifts.id });
+    if (!done.length) throw new HttpError(409, "This gift changed while you were cancelling it. Refresh and look again.");
+    if (o?.status === "awaiting_deposit") {
+      const failed = await tx
+        .update(schema.orders)
+        .set({ status: "failed", error: "Gift cancelled before paying." })
+        .where(and(eq(schema.orders.id, o.id), eq(schema.orders.status, "awaiting_deposit")))
+        .returning({ id: schema.orders.id });
+      if (!failed.length) throw new HttpError(409, "Its payment just arrived. Take the gift back instead.");
+    }
     await tx.insert(schema.auditLog).values({ actor: `user:${userId}`, action: "gift.cancel", target: g.code, details: {} });
   });
   return { code: g.code, status: "cancelled" as const };
@@ -157,12 +193,18 @@ export async function sentGifts(userId: number) {
       createdAt: r.g.createdAt.toISOString(),
       claimedAt: r.g.claimedAt?.toISOString() ?? null,
       lastOrder: open[i],
-      valueUsd: r.g.status === "claimed" || r.g.status === "reclaimed" ? 0 : await valueOf(r.accountId, r.g.basketId).catch(() => null),
+      // A gift taken back can still receive money later (a late deposit), so it keeps being checked.
+      valueUsd: r.g.status === "claimed" ? 0 : await valueOf(r.accountId, r.g.basketId).catch(() => null),
     })),
   ).then((xs) => xs.filter((x) => x.status !== "cancelled" || (x.valueUsd ?? 0) > 0.01)); // a cancelled gift only matters if money arrived late
 }
 
-/** Checks for a claim or take-back, and the exact intents to sign. The receiver is the user's own position for the bag. */
+/**
+ * Checks for a claim or take-back, and the exact intents to sign. The receiver is the user's own position for the bag.
+ * A take-back also removes the gift's own key, while it is still there and the sender's wallet is a recovery key on
+ * the account (without one, removing it would lock the account). `giftKeyLive` tells the sender's browser whether the
+ * gift key can still sign, or the wallet must.
+ */
 export async function prepareTransfer(code: string, userId: number, mode: TransferMode, receiver: string) {
   const g = await byCode(code);
   if (mode === "claim") {
@@ -187,13 +229,22 @@ export async function prepareTransfer(code: string, userId: number, mode: Transf
   const accountId = await accountOf(g);
   const tokens = await giftTokens(g.basketId);
   const bals = await balancesOf(accountId, tokens.map((a) => a.intentsAssetId));
+  let giftKeyLive = true;
+  let removeKey: string | undefined;
+  if (mode === "reclaim") {
+    const giftKey = giftPublicKey(accountId);
+    const [sender] = await db().select({ walletPubkey: schema.users.walletPubkey }).from(schema.users).where(eq(schema.users.id, g.senderUserId));
+    const [live, walletOn] = await Promise.all([hasPublicKey(accountId, giftKey), sender.walletPubkey ? hasPublicKey(accountId, sender.walletPubkey) : Promise.resolve(false)]);
+    giftKeyLive = live;
+    if (live && walletOn) removeKey = giftKey;
+  }
   let intents: Intent[];
   try {
-    intents = transferAll(receiver, Object.fromEntries(tokens.map((a, i) => [a.intentsAssetId, bals[i]])));
+    intents = transferAll(receiver, Object.fromEntries(tokens.map((a, i) => [a.intentsAssetId, bals[i]])), removeKey);
   } catch (e) {
     throw new HttpError(409, (e as Error).message);
   }
-  return { gift: g, accountId, intents };
+  return { gift: g, accountId, intents, giftKeyLive };
 }
 
 /** Relay a signed claim or take-back after checking it is exactly the transfer we'd build now. */
@@ -215,6 +266,7 @@ export async function submitTransfer(code: string, userId: number, mode: Transfe
   if (claim.signer_id !== accountId) throw new HttpError(403, "That isn't this gift's account.");
   if (!sameIntents(claim.intents, intents)) throw new HttpError(409, "The gift changed. Try again.");
 
+  await spendRelay(userId);
   let txHash: string;
   try {
     ({ txHash } = await relay([signed]));
@@ -222,10 +274,26 @@ export async function submitTransfer(code: string, userId: number, mode: Transfe
     if (e instanceof RelayerNotConfigured) throw new HttpError(503, e.message);
     throw new HttpError(400, `The contract refused it: ${(e as Error).message.slice(0, 200)}`);
   }
-  await db()
+  // What actually moved, from the intents we just relayed (they matched `intents` above).
+  const moved = movedTokens(claim.intents);
+  // Only from the status we checked: a claim and a take-back racing each other can't both be recorded. A second
+  // take-back (money that landed later) adds to what the first moved, and must find the first one's tx unchanged.
+  const again = mode === "reclaim" && gift.status === "reclaimed";
+  const done = await db()
     .update(schema.gifts)
-    .set({ status: mode === "claim" ? "claimed" : "reclaimed", claimedByUserId: userId, claimTx: txHash, claimedAt: new Date() })
-    .where(eq(schema.gifts.id, gift.id));
-  await db().insert(schema.auditLog).values({ actor: `user:${userId}`, action: `gift.${mode}`, target: gift.code, details: { txHash, to: receiver } });
+    .set({ status: toStatus(mode), claimedByUserId: userId, claimTx: txHash, claimedAt: new Date(), moved: again ? addMoved(gift.moved, moved) : moved })
+    .where(
+      and(
+        eq(schema.gifts.id, gift.id),
+        again
+          ? and(eq(schema.gifts.status, "reclaimed"), gift.claimTx ? eq(schema.gifts.claimTx, gift.claimTx) : isNull(schema.gifts.claimTx))
+          : and(inArray(schema.gifts.status, fromStatuses(mode)), mode === "claim" ? gt(schema.gifts.expiresAt, new Date()) : undefined),
+      ),
+    )
+    .returning({ id: schema.gifts.id });
+  await db()
+    .insert(schema.auditLog)
+    .values({ actor: `user:${userId}`, action: `gift.${mode}`, target: gift.code, details: { txHash, to: receiver, moved, recorded: done.length > 0 } });
+  if (!done.length) throw new HttpError(409, `Someone else moved this gift at the same moment. Your transfer (${txHash}) went through; refresh to see where it stands.`);
   return { txHash, basketId: gift.basketId };
 }

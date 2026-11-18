@@ -1,7 +1,8 @@
 // Agent keys: a creator makes one on their profile and gives it to an AI agent, which sends it to the MCP server as
 // "Authorization: Bearer nbk_...". The key can manage that creator's baskets (create, edit, close, run its agent).
 // If the owner turns trading on for it, it can also buy and sell with its own key and wallet (lib/agent-trading.ts),
-// inside their limits. It can never withdraw, and nearbags never holds its signing key. Only a SHA-256 of the key is stored.
+// inside their limits. nearbags only builds buys and sells for it (sale money to the owner's wallet); the agent holds
+// its own signing key, so that is our rule, not the chain's. Only a SHA-256 of the key is stored.
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { and, count, desc, eq, isNull } from "drizzle-orm";

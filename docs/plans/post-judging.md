@@ -85,7 +85,8 @@ Four features taken from Base's "Stocks Maxxing" idea list. We stay on NEAR and 
 **Accounts**
 - The gift is a position of the sender's, with a random key (`randomBasketKey`). The sender's wallet is added as recovery key.
 - Until the gift is claimed, it belongs to the sender. The normal sell and withdraw flow takes it back.
-- After expiry, claiming stops and the gift stays with the sender.
+- After expiry, nearbags stops relaying claims and the gift stays with the sender. That is our rule, not the chain's: until the sender takes the gift back, anyone holding the link can still move it on `intents.near` directly.
+- Taking a gift back moves everything to the sender's own position and, in the same signed payload, removes the gift's own key from its account (`remove_public_key`, signed by the sender's wallet as recovery key, or by the gift key itself). After that the link is dead on `intents.near` too. Checked with `simulate_intents` on mainnet, 2026-11-18. Money that lands in a gift account after a take-back (a late deposit) can be taken back again; the wallet signs it.
 - The sender's browser keeps the gift key, so the link can be copied again on that device. On another device, the sender can only take the gift back.
 
 **The link and claiming**
@@ -96,7 +97,7 @@ Four features taken from Base's "Stocks Maxxing" idea list. We stay on NEAR and 
   - the account's full balances;
   - a claim before expiry;
   - a claimer who passes `eligibility()`.
-- The page warns: "Treat the link like cash. Anyone with it can take the gift." Our relay enforces expiry, but someone holding the link could still go to `intents.near` directly.
+- The page warns: "Treat the link like cash. Anyone with it can take the gift." Our relay enforces expiry and region checks, but someone holding the link could still go to `intents.near` directly until the sender takes the gift back.
 
 **The gift page**
 - `/g/[id]` shows the bag, the sender's name and the message.

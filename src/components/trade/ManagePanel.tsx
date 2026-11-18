@@ -25,7 +25,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
   const [err, setErr] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
 
-  async function run(start: () => Promise<OrderView>, label: string) {
+  async function run(start: () => Promise<OrderView>, label: string, confirmed: string[] = []) {
     if (!user) return;
     setErr(null);
     try {
@@ -34,7 +34,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
       setStep(label);
       const v = await start();
       setView(v);
-      const final = await driveOrder(v.order.id, k, { onUpdate: setView });
+      const final = await driveOrder(v.order.id, k, { onUpdate: setView, confirmed });
       setStep(null);
       if (final.order.status === "complete") onDone?.();
     } catch (e) {
@@ -98,7 +98,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
           <button
             type="button"
             disabled={!!step || Object.keys(chains).some((c) => !addr[c])}
-            onClick={() => run(() => api<OrderView>("/api/orders/withdraw", { method: "POST", body: JSON.stringify({ positionId, addresses: addr }) }), "Withdrawing…")}
+            onClick={() => run(() => api<OrderView>("/api/orders/withdraw", { method: "POST", body: JSON.stringify({ positionId, addresses: addr }) }), "Withdrawing…", Object.values(addr))}
             className="btn btn-primary btn-block"
           >
             Withdraw everything

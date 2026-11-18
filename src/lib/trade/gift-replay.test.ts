@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { USDC } from "@/lib/assets";
-import { replayGift } from "./gift-replay";
+import { giftUnits, replayGift } from "./gift-replay";
 
 const BTC = "nep141:nbtc.bridge.near";
 const ETH = "nep141:eth.omft.near";
@@ -39,5 +39,18 @@ describe("replayGift", () => {
   it("ignores buys that were never paid", () => {
     const r = replayGift([{ ...order, status: "awaiting_deposit", grossUsdc: null }], [], []);
     expect(r).toEqual({ units: [], netUsd: 0, paidUsd: 0 });
+  });
+});
+
+describe("giftUnits", () => {
+  it("uses what the relayed transfer moved when it was stored", () => {
+    const replayed = replayGift([order], legs, fees).units;
+    // The account held a little more than the orders say (say a late deposit): `moved` wins.
+    expect(Object.fromEntries(giftUnits([[BTC, "15400"], [ETH, "5504881507450181"]], replayed))).toEqual({ [BTC]: 15400n, [ETH]: 5504881507450181n });
+  });
+  it("falls back to replaying the orders for gifts moved before `moved` existed", () => {
+    const replayed = replayGift([order], legs, fees).units;
+    expect(giftUnits(null, replayed)).toBe(replayed);
+    expect(giftUnits(undefined, replayed)).toBe(replayed);
   });
 });

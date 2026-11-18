@@ -3,17 +3,12 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { HttpError, type Session } from "@/lib/auth/session";
+import { isAdminUser } from "@/lib/auth/admin-match";
 
 export type UserRow = typeof schema.users.$inferSelect;
 
-export function adminWallets(): string[] {
-  return (process.env.ADMIN_WALLETS ?? "")
-    .split(",")
-    .map((x) => x.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-export const isAdmin = (u: UserRow) => u.isAdmin || adminWallets().includes(u.walletAddress.toLowerCase());
+/** Admin by the flag on the row, or by ADMIN_WALLETS matched on chain and address (lib/auth/admin-match.ts). */
+export const isAdmin = (u: UserRow) => isAdminUser(u);
 
 export async function sessionUser(s: Session): Promise<UserRow> {
   const [u] = await db().select().from(schema.users).where(eq(schema.users.id, s.userId));

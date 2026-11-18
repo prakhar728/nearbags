@@ -10,6 +10,7 @@ import { hasPublicKey } from "@/lib/intents/rpc";
 import { parseWalletSigned, walletSignerKey, type SignedErc191, type SignedNep413 } from "@/lib/intents/wallet-sign";
 import { rateLimit } from "@/lib/ratelimit";
 import { relay, RelayerNotConfigured } from "@/lib/relayer";
+import { spendDeviceKey, spendRelay } from "@/lib/relay-budget";
 
 const Body = z.object({
   signed: z.union([
@@ -55,6 +56,8 @@ export async function POST(request: Request) {
     if (!(await hasPublicKey(pos.accountId, user.walletPubkey))) {
       throw new HttpError(409, "Your wallet isn't a recovery key on this basket account yet, so it can't add a new browser.");
     }
+    await spendRelay(s.userId);
+    await spendDeviceKey(pos.id);
     try {
       const { txHash } = await relay([signed]);
       await db().insert(schema.auditLog).values({ actor: `user:${s.userId}`, action: "relay.authorize_device", target: pos.accountId, details: { txHash, key: one } });

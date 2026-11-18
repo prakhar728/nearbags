@@ -1,5 +1,6 @@
 // Daily agent run for every live agent-managed basket, then continue any unfinished rebalances.
 // Called by Vercel Cron with `Authorization: Bearer $CRON_SECRET`.
+import { cronAuthorized } from "@/lib/auth/cron";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { pumpAll, runAgent } from "@/lib/agent/run";
@@ -7,8 +8,7 @@ import { pumpAll, runAgent } from "@/lib/agent/run";
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!cronAuthorized(request)) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const baskets = await db().select({ id: schema.baskets.id }).from(schema.baskets).where(and(eq(schema.baskets.status, "live"), isNotNull(schema.baskets.agent)));

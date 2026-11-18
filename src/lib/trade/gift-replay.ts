@@ -32,3 +32,12 @@ export function replayGift(
   return { units: [...u].filter(([, v]) => v > 0n), netUsd: Number(net) / 1e6, paidUsd: paid };
 }
 
+
+/**
+ * What a gift moved when it was claimed or taken back: `moved` (the tokens read from the relayed transfer) when we
+ * have it, else, for gifts moved before we stored it, the holdings replayed from its orders.
+ */
+export function giftUnits(moved: [string, string][] | null | undefined, replayed: [string, bigint][]): [string, bigint][] {
+  if (!moved) return replayed;
+  return moved.map(([id, v]) => [id, BigInt(v)] as [string, bigint]).filter(([, v]) => v > 0n);
+}

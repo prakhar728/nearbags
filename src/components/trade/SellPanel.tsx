@@ -68,7 +68,7 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
       const v = await api<OrderView>("/api/orders/sell", { method: "POST", body: JSON.stringify({ positionId, pct, payoutAssetId: token.assetId, payoutAddress: to }) });
       setView(v);
       setStep("Selling…");
-      const final = await driveOrder(v.order.id, k, { onUpdate: setView });
+      const final = await driveOrder(v.order.id, k, { onUpdate: setView, confirmed: [to] });
       setStep(null);
       if (final.order.status === "complete") onDone?.();
     } catch (e) {

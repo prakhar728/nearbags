@@ -31,8 +31,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/gifts/[code
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed request.");
     if (!p.data.signed) {
-      const { accountId, intents } = await prepareTransfer(code, s.userId, p.data.mode, p.data.receiver);
-      return Response.json({ accountId, intents });
+      const { accountId, intents, giftKeyLive } = await prepareTransfer(code, s.userId, p.data.mode, p.data.receiver);
+      // The gift's account id only goes to its sender; a claimer's browser has it from the key in the link.
+      return Response.json(p.data.mode === "reclaim" ? { accountId, intents, giftKeyLive } : { intents });
     }
     return Response.json(await submitTransfer(code, s.userId, p.data.mode, p.data.receiver, p.data.signed as SignedIntent));
   });

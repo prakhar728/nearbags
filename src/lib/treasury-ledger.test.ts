@@ -93,11 +93,22 @@ describe("treasury ledger", () => {
       topups: [],
       feesPaid: [],
       legs: [],
-      gifts: [{ at: "2026-11-17T11:05:00Z", note: "from 0x90f6…37Ed", units: [[BTC, "15369"], [USDC, "1000000"]] }],
+      gifts: [{ at: "2026-11-17T11:05:00Z", note: "A gift", units: [[BTC, "15369"], [USDC, "1000000"]] }],
     });
-    expect(l.entries[0]).toMatchObject({ kind: "gift", usdc: 1, note: "from 0x90f6…37Ed", items: [[BTC, "15369"]] });
+    expect(l.entries[0]).toMatchObject({ kind: "gift", usdc: 1, note: "A gift", items: [[BTC, "15369"]] });
     expect(l.totals.received).toBeCloseTo(1.200067);
     expect(l.totals.expectedCash).toBeCloseTo(1.200067);
     expect(l.totals.gifts).toBe(1);
+  });
+
+  it("counts a gift at what its transfer moved, not at what its orders say", () => {
+    // `moved` from the relayed transfer (gift-flows hands it over as units): 2.5 USDC and some BTC.
+    const moved: [string, string][] = [
+      [BTC, "100"],
+      [USDC, "2500000"],
+    ];
+    const l = buildLedger({ usdc: USDC, fees: [], topups: [], feesPaid: [], legs: [], gifts: [{ at: "2026-11-18T00:00:00Z", note: "A gift", units: moved }] });
+    expect(l.entries[0]).toMatchObject({ kind: "gift", usdc: 2.5, items: [[BTC, "100"]] });
+    expect(l.totals.expectedCash).toBeCloseTo(2.5);
   });
 });

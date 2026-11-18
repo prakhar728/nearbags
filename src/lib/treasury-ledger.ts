@@ -17,8 +17,8 @@ export interface FeePaid {
 }
 export interface GiftIn {
   at: string;
-  note: string; // "from 0x90f6…37Ed", or "your own gift, taken back"
-  units: [string, string][]; // intents asset id → smallest units that arrived
+  note: string; // "A gift" (the public page never names the sender), or "their own gift, taken back"
+  units: [string, string][]; // intents asset id → smallest units that arrived (the relayed transfer, when stored)
 }
 export interface LegRow {
   at: string;

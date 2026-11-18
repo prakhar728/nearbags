@@ -9,7 +9,9 @@ import { visitorGeo } from "@/lib/geo";
 
 export async function GET(request: Request) {
   return handle(async () => {
-    const basketId = Number(new URL(request.url).searchParams.get("basketId"));
+    const raw = new URL(request.url).searchParams.get("basketId") ?? "";
+    const basketId = Number(raw);
+    if (!/^\d{1,9}$/.test(raw) || !Number.isSafeInteger(basketId)) throw new HttpError(400, "basketId must be a number.");
     const basket = await getBasketById(basketId);
     if (!basket) throw new HttpError(404, "Basket not found.");
     const s = await getSession();

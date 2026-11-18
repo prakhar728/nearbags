@@ -1,7 +1,9 @@
 "use client";
 // Gift helpers for the browser: the link (key after the #), and moving a gift into your own account for its bag.
+import { transferPayloadProblem } from "@/lib/gift-rules";
 import { bytesToHex, hexToBytes, keyFromSecret, type BasketKey } from "@/lib/intents/keys";
 import { signIntents, type Intent } from "@/lib/intents/payload";
+import { ownershipProof } from "@/lib/intents/proof";
 import type { SignedIntent } from "@/lib/intents/wallet-sign";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -14,12 +16,15 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 /** The claim link. The key sits after the #: browsers never send that part to a server. */
 export const giftLink = (code: string, k: BasketKey) => `${window.location.origin}/g/${code}#${bytesToHex(k.secretKey)}`;
 
-/** The gift key from this page's link, or null if the link was cut short. */
-export function keyFromHash(hash: string, accountId: string): BasketKey | null {
+/**
+ * The gift key from this page's link, or null if the link was cut short. The page only knows the gift's account when
+ * you sent it (`accountId`); for anyone else a key of the wrong gift is caught by the server, which checks the signer.
+ */
+export function keyFromHash(hash: string, accountId?: string | null): BasketKey | null {
   const hex = hash.replace(/^#/, "").trim();
   if (!/^[0-9a-f]{64}$/.test(hex)) return null;
   const k = keyFromSecret(hexToBytes(hex));
-  return k.accountId === accountId ? k : null;
+  return !accountId || k.accountId === accountId ? k : null;
 }
 
 export interface OwnAccountDeps {
@@ -35,7 +40,7 @@ export async function ownAccountFor(basketId: number, agentManaged: boolean, d: 
   d.setStep("Setting up your account for this bag…");
   const { position } = await api<{ position: { recoveryKeyAddedAt: string | null; agentKeyAddedAt?: string | null } }>("/api/positions", {
     method: "POST",
-    body: JSON.stringify({ basketId, accountId: k.accountId, keyMode: mode }),
+    body: JSON.stringify({ basketId, accountId: k.accountId, keyMode: mode, proof: ownershipProof(k) }),
   });
   if (!position.recoveryKeyAddedAt) {
     if (!d.walletPubkey) throw new Error("No wallet key on file. Sign out and in again.");
@@ -52,10 +57,29 @@ export async function ownAccountFor(basketId: number, agentManaged: boolean, d: 
   return k;
 }
 
-/** Claim (or take back) a gift into `receiver`: get the exact transfer, sign it, send it. */
-export async function moveGift(code: string, mode: "claim" | "reclaim", receiver: string, sign: (accountId: string, intents: Intent[]) => Promise<SignedIntent>) {
-  const { accountId, intents } = await api<{ accountId: string; intents: Intent[] }>(`/api/gifts/${code}/transfer`, { method: "POST", body: JSON.stringify({ mode, receiver }) });
-  const signed = await sign(accountId, intents);
+type Signer = (accountId: string, intents: Intent[]) => Promise<SignedIntent>;
+
+/**
+ * Claim (or take back) the gift in `giftAccount` into `receiver`, your own position for the bag: get the exact
+ * transfer, check it is only that (see transferPayloadProblem), sign it, send it. A take-back passes both signers: the
+ * gift key (if this device has it) signs while it is still on the account; once a take-back removed it, the wallet does.
+ */
+export async function moveGift(
+  code: string,
+  mode: "claim" | "reclaim",
+  giftAccount: string,
+  receiver: string,
+  sign: Signer | { gift: Signer | null; wallet: Signer },
+) {
+  const r = await api<{ accountId?: string; intents: Intent[]; giftKeyLive?: boolean }>(`/api/gifts/${code}/transfer`, {
+    method: "POST",
+    body: JSON.stringify({ mode, receiver }),
+  });
+  if (r.accountId && r.accountId !== giftAccount) throw new Error("The server named a different gift account. Nothing was signed.");
+  const why = transferPayloadProblem(r.intents, { mode, giftAccount, receiver });
+  if (why) throw new Error(`${why} Nothing was signed.`);
+  const signer = typeof sign === "function" ? sign : sign.gift && r.giftKeyLive !== false ? sign.gift : sign.wallet;
+  const signed = await signer(giftAccount, r.intents);
   return api<{ txHash: string }>(`/api/gifts/${code}/transfer`, { method: "POST", body: JSON.stringify({ mode, receiver, signed }) });
 }
 

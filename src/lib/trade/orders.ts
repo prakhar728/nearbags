@@ -4,7 +4,7 @@
 // Buy:  awaiting_deposit → funded → fees_paid → legs_running → complete | partial   (or refunded / failed)
 // Sell: fees_paid (= legs ready, no fees on sells) → legs_running → payout leg → complete | partial
 import "server-only";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { ASSETS, getAsset, USDC, withdrawTarget } from "@/lib/assets";
 import { isNearAccountId, RheaNoLiquidity } from "@/lib/rhea";
@@ -23,6 +23,8 @@ import { outsideBands } from "@/lib/agent/templates";
 import { isFinal, oneclick, OneClickError, type QuoteResponse, type TokenInfo } from "@/lib/oneclick";
 import { livePrice } from "@/lib/prices/live";
 import { relay } from "@/lib/relayer";
+import { withLease } from "@/lib/lease";
+import { checkOneClickPayload } from "@/lib/intents/expect";
 import { fundedAmount } from "./funding";
 import { guard, usSession } from "./guard";
 import { planLegs, preflightBuy, SLIPPAGE_BPS, splitFees } from "./preflight";
@@ -68,6 +70,10 @@ const legsOf = (orderId: number) => db().select().from(schema.orderLegs).where(e
 async function setOrder(id: number, patch: Partial<Order>) {
   await db().update(schema.orders).set({ ...patch, updatedAt: new Date() }).where(eq(schema.orders.id, id));
 }
+/** Change an order only if it is still in `from` (another request may have moved it on). */
+async function setOrderIf(id: number, from: Order["status"], patch: Partial<Order>) {
+  await db().update(schema.orders).set({ ...patch, updatedAt: new Date() }).where(and(eq(schema.orders.id, id), eq(schema.orders.status, from)));
+}
 async function setLeg(id: number, patch: Partial<Leg>) {
   await db().update(schema.orderLegs).set({ ...patch, updatedAt: new Date() }).where(eq(schema.orderLegs.id, id));
 }
@@ -85,6 +91,89 @@ async function assertSignedByAccount(signed: SignedRawEd25519, accountId: string
   const claim = parsePayload(signed);
   if (claim.signer_id !== accountId) throw new HttpError(403, "Signed for the wrong account.");
   return claim;
+}
+
+// ---------- one open order per position (security audit 2026-11-18, #3 and #11) ----------
+
+const OPEN_STATUSES = ["awaiting_deposit", "funded", "fees_paid", "legs_running"] as const;
+const BUSY = "Another order on this bag is being set up. Try again in a moment.";
+
+/**
+ * An unpaid buy whose payment window closed (with nothing at 1Click) becomes failed, so it stops blocking the bag.
+ * A deposit that still arrives later is refunded by 1Click. Returns true when it expired the order.
+ */
+async function expireIfUnpaid(order: Order): Promise<boolean> {
+  if (order.kind !== "buy" || order.status !== "awaiting_deposit" || !order.fundingDepositAddress) return false;
+  const q = order.fundingQuote as QuoteResponse | null;
+  const deadline = Date.parse(q?.quote?.deadline ?? "") || order.createdAt.getTime() + 86_400_000;
+  if (Date.now() < deadline + 15 * 60_000) return false;
+  let st: Awaited<ReturnType<typeof oneclick.status>> | null = null;
+  try {
+    st = await oneclick.status(order.fundingDepositAddress, order.fundingDepositMemo ?? undefined);
+  } catch (e) {
+    if (!(e instanceof OneClickError && e.status === 404)) return false; // can't tell: leave it
+  }
+  if (st && st.status !== "PENDING_DEPOSIT") return false;
+  const done = await db()
+    .update(schema.orders)
+    .set({ status: "failed", error: "The payment window closed before anything arrived.", updatedAt: new Date() })
+    .where(and(eq(schema.orders.id, order.id), eq(schema.orders.status, "awaiting_deposit")))
+    .returning({ id: schema.orders.id });
+  return done.length > 0;
+}
+
+/** Refuse a new order while another one on the same position is still open. Call it holding the position's lease. */
+async function assertNoOpenOrder(positionId: number) {
+  const open = await db()
+    .select()
+    .from(schema.orders)
+    .where(and(eq(schema.orders.positionId, positionId), inArray(schema.orders.status, [...OPEN_STATUSES])));
+  for (const o of open) {
+    if (await expireIfUnpaid(o)) continue;
+    throw new HttpError(409, o.kind === "buy" && o.status === "awaiting_deposit" ? "This bag has an unpaid order. Pay it or cancel it first." : "Finish or cancel the open order on this bag first.");
+  }
+}
+
+/**
+ * Cancel an order that hasn't moved money yet: a buy still waiting for its payment, or a sell, rebalance or
+ * withdrawal none of whose steps is being sent right now. Swaps that already finished stay in the bag (as USDC).
+ */
+export async function cancelOrder(s: Session, orderId: number) {
+  const { order, position } = await loadOwned(orderId, s.userId);
+  if (position.kind === "gift") throw new HttpError(409, "Cancel the gift instead (Portfolio, Gifts you sent).");
+  return withLease(`position:${position.id}`, 60_000, BUSY, async () => {
+    if (order.kind === "buy") {
+      if (["complete", "partial", "failed", "refunded"].includes(order.status)) throw new HttpError(409, "This order has already finished.");
+      if (order.status !== "awaiting_deposit") throw new HttpError(409, "This buy is already paid, so it can't be cancelled. It finishes on its own.");
+      if (order.fundingDepositAddress) {
+        let st: Awaited<ReturnType<typeof oneclick.status>> | null = null;
+        try {
+          st = await oneclick.status(order.fundingDepositAddress, order.fundingDepositMemo ?? undefined);
+        } catch (e) {
+          if (!(e instanceof OneClickError && e.status === 404)) throw new HttpError(503, "Couldn't check the payment with 1Click. Try again in a minute.");
+        }
+        if (st && st.status !== "PENDING_DEPOSIT") throw new HttpError(409, "Your payment has reached 1Click, so this buy can't be cancelled. It finishes on its own, or is refunded.");
+      }
+      const done = await db()
+        .update(schema.orders)
+        .set({ status: "failed", error: "Cancelled before paying.", updatedAt: new Date() })
+        .where(and(eq(schema.orders.id, order.id), eq(schema.orders.status, "awaiting_deposit")))
+        .returning({ id: schema.orders.id });
+      if (!done.length) throw new HttpError(409, "This order just changed. Reload and look again.");
+      return { cancelled: true };
+    }
+    if (!["fees_paid", "legs_running", "partial"].includes(order.status)) throw new HttpError(409, "This order has already finished.");
+    const legs = await legsOf(order.id);
+    const sending = legs.some((l) => l.status === "submitted" || (l.status === "quoted" && Date.now() - l.updatedAt.getTime() < 120_000));
+    if (sending) throw new HttpError(409, "A swap in this order is being sent right now. Wait for it to finish, then cancel.");
+    const done = await db()
+      .update(schema.orders)
+      .set({ status: "failed", error: "Cancelled. Anything already swapped stays in the bag.", updatedAt: new Date() })
+      .where(and(eq(schema.orders.id, order.id), inArray(schema.orders.status, ["fees_paid", "legs_running", "partial"])))
+      .returning({ id: schema.orders.id });
+    if (!done.length) throw new HttpError(409, "This order just changed. Reload and look again.");
+    return { cancelled: true };
+  });
 }
 
 // ---------- buy ----------
@@ -133,6 +222,10 @@ export async function createBuyOrder(
   }
   if (!position) throw new HttpError(409, "Set up your basket account first.");
   if (!position.recoveryKeyAddedAt) throw new HttpError(409, "Add your wallet as recovery key first.");
+  const pos = position;
+  return withLease(`position:${pos.id}`, 90_000, BUSY, async () => {
+  await assertNoOpenOrder(pos.id);
+  const position = pos;
 
   const pf = platformFee(Boolean(basket.agent));
   const creatorBps = isCreator ? 0 : basket.feeBps;
@@ -181,6 +274,7 @@ export async function createBuyOrder(
     })
     .returning();
   return { order, preflight: pre };
+  });
 }
 
 /** Called when the funding swap lands: decide fees and legs from the USDC that actually arrived. */
@@ -191,8 +285,7 @@ export async function markFunded(order: Order, position: Position, grossUsdc: bi
   const creatorBps = basket.creator.id === position.userId ? 0 : basket.feeBps;
   const fees = splitFees(grossUsdc, creatorBps, pf.bps);
   const plan = planLegs(fees.netUsdc, basket.assets);
-  await db().insert(schema.orderLegs).values(
-    plan.map((l, i) => {
+  const legRows = plan.map((l, i) => {
       const a = getAsset(l.assetId);
       const stay = a.id === "USDC"; // USDC weight needs no swap
       return {
@@ -205,14 +298,25 @@ export async function markFunded(order: Order, position: Position, grossUsdc: bi
         amountOutActual: stay ? l.usdcIn : null,
         status: stay ? ("success" as const) : ("pending" as const),
       };
-    }),
-  );
+  });
   const feeRows = [
     fees.creatorFee > 0n ? { orderId: order.id, recipientKind: "creator" as const, recipientAccount: await creatorFeeRecipient(basket.creator), asset: USDC.intentsAssetId, amount: fees.creatorFee.toString() } : null,
     fees.platformFee > 0n ? { orderId: order.id, recipientKind: "platform" as const, recipientAccount: pf.account!, asset: USDC.intentsAssetId, amount: fees.platformFee.toString() } : null,
   ].filter((x): x is NonNullable<typeof x> => x !== null);
-  if (feeRows.length) await db().insert(schema.feeEvents).values(feeRows);
-  await setOrder(order.id, { grossUsdc: grossUsdc.toString(), status: feeRows.length ? "funded" : "fees_paid" });
+  // Two tabs (or a tab and an agent) can see the deposit land at the same moment. Only the one that still finds the
+  // order awaiting its deposit, with the row locked, writes the plan; the other does nothing. Everything above was
+  // computed first, so the transaction holds one connection and does no other I/O.
+  return db().transaction(async (tx) => {
+    const [cur] = await tx.select({ status: schema.orders.status }).from(schema.orders).where(eq(schema.orders.id, order.id)).for("update");
+    if (cur?.status !== "awaiting_deposit") return false;
+    await tx.insert(schema.orderLegs).values(legRows);
+    if (feeRows.length) await tx.insert(schema.feeEvents).values(feeRows);
+    await tx
+      .update(schema.orders)
+      .set({ grossUsdc: grossUsdc.toString(), status: feeRows.length ? "funded" : "fees_paid", updatedAt: new Date() })
+      .where(eq(schema.orders.id, order.id));
+    return true;
+  });
 }
 
 export async function expectedFeeIntents(orderId: number): Promise<Intent[]> {
@@ -227,17 +331,28 @@ export async function feeIntentsFor(s: Session, orderId: number) {
 }
 
 export async function submitFees(s: Session, orderId: number, signed: SignedRawEd25519) {
-  const { order, position } = await loadOwned(orderId, s.userId);
-  if (order.status === "fees_paid" || order.status === "legs_running") return { already: true };
-  if (order.status !== "funded") throw new HttpError(409, "No fees to pay right now.");
-  const claim = await assertSignedByAccount(signed, position.accountId);
-  const expected = await expectedFeeIntents(orderId);
-  const norm = (xs: Intent[]) => JSON.stringify(xs.map((x) => (x.intent === "transfer" ? { r: x.receiver_id, t: x.tokens } : x)));
-  if (norm(claim.intents) !== norm(expected)) throw new HttpError(403, "Fee transfer doesn't match this order.");
-  const { txHash } = await relay([signed]);
-  await db().update(schema.feeEvents).set({ status: "success", txHash }).where(eq(schema.feeEvents.orderId, orderId));
-  await setOrder(orderId, { status: "fees_paid" });
-  return { txHash };
+  // One fee payment per order: a second tab signing its own copy (a different nonce) would otherwise pay twice.
+  return withLease(`fees:${orderId}`, 180_000, "This order's fees are being paid right now.", async () => {
+    const { order, position } = await loadOwned(orderId, s.userId);
+    if (order.status === "fees_paid" || order.status === "legs_running") return { already: true };
+    if (order.status !== "funded") throw new HttpError(409, "No fees to pay right now.");
+    const claim = await assertSignedByAccount(signed, position.accountId);
+    const expected = await expectedFeeIntents(orderId);
+    const norm = (xs: Intent[]) => JSON.stringify(xs.map((x) => (x.intent === "transfer" ? { r: x.receiver_id, t: x.tokens } : x)));
+    if (norm(claim.intents) !== norm(expected)) throw new HttpError(403, "Fee transfer doesn't match this order.");
+    // Nothing else spends from the account before its fees are paid, so a balance below what arrived means an earlier
+    // attempt already paid them (its request died before it could record that). Record it instead of paying again.
+    const [usdc] = await balancesOf(position.accountId, [USDC.intentsAssetId]);
+    if (BigInt(usdc) < BigInt(order.grossUsdc ?? "0")) {
+      await db().update(schema.feeEvents).set({ status: "success" }).where(eq(schema.feeEvents.orderId, orderId));
+      await setOrder(orderId, { status: "fees_paid" });
+      return { already: true };
+    }
+    const { txHash } = await relay([signed]);
+    await db().update(schema.feeEvents).set({ status: "success", txHash }).where(eq(schema.feeEvents.orderId, orderId));
+    await setOrder(orderId, { status: "fees_paid" });
+    return { txHash };
+  });
 }
 
 // ---------- legs (buy, sell and payout) ----------
@@ -259,7 +374,11 @@ export async function prepareLeg(s: Session, orderId: number, seq: number, opts:
   // A refunded swap returns its input to the account; never spend more than is there.
   const [bal] = await balancesOf(position.accountId, [leg.assetFrom]);
   const amountIn = BigInt(bal) < BigInt(leg.amountIn) ? bal : leg.amountIn;
-  if (BigInt(amountIn) === 0n) throw new HttpError(409, "Nothing left to swap for this leg.");
+  if (BigInt(amountIn) === 0n) {
+    // Mark it failed so the order can finish (as partial) instead of waiting forever on a step that can't run.
+    await setLeg(leg.id, { status: "failed", error: "Nothing left to swap for this step." });
+    throw new HttpError(409, "Nothing left to swap for this leg.");
+  }
 
   // Meme coins swap on Rhea (and leave Intents by a plain ft_withdraw): built here, signed in the browser, relayed by us.
   if (isRheaLeg(leg)) {
@@ -309,6 +428,14 @@ export async function prepareLeg(s: Session, orderId: number, seq: number, opts:
 
   const gen = await oneclick.generateIntent(q.quote.depositAddress!, position.accountId, "raw_ed25519");
   const payload = typeof gen.intent.payload === "string" ? gen.intent.payload : JSON.stringify(gen.intent.payload);
+  // Never store (and so never ask the browser to sign) anything but a single transfer of this step's input to this
+  // quote's deposit address. The browser checks the same and more (lib/intents/expect.ts).
+  const shape = checkOneClickPayload(payload, { accountId: position.accountId, assetFrom: leg.assetFrom, assetTo: leg.assetTo, maxIn: BigInt(amountIn), recipient: null });
+  if (typeof shape === "string" || shape.depositAddress !== q.quote.depositAddress || shape.amount !== amountIn) {
+    await setLeg(leg.id, { error: "1Click returned an unexpected payload", attempts: leg.attempts + 1 });
+    console.error("unexpected 1Click payload", { leg: leg.id, why: typeof shape === "string" ? shape : "deposit or amount differ" });
+    throw new HttpError(502, "1Click returned an unexpected swap. Nothing was signed. Try again.");
+  }
   await setLeg(leg.id, {
     amountIn,
     depositAddress: q.quote.depositAddress!,
@@ -325,18 +452,30 @@ export async function prepareLeg(s: Session, orderId: number, seq: number, opts:
 }
 
 export async function submitLeg(s: Session, orderId: number, seq: number, signed: SignedRawEd25519) {
-  const { position } = await loadOwned(orderId, s.userId);
+  const { order, position } = await loadOwned(orderId, s.userId);
+  if (!["fees_paid", "legs_running", "partial"].includes(order.status)) throw new HttpError(409, "This order isn't running.");
   const [leg] = (await legsOf(orderId)).filter((l) => l.seq === seq);
   if (!leg) throw new HttpError(404, "No such swap.");
   if (leg.status !== "quoted" || !leg.payload) throw new HttpError(409, "Get a fresh quote for this swap first.");
   await assertSignedByAccount(signed, position.accountId);
   if (signed.payload !== leg.payload) throw new HttpError(403, "Signed payload doesn't match the quote.");
   if (rheaQuoteOf(leg)) return submitRheaLeg(leg, signed, position.accountId);
+  // Claim the step first, so a double submit (two tabs, a retry) can't send it twice.
+  const claimed = await db()
+    .update(schema.orderLegs)
+    .set({ status: "submitted", updatedAt: new Date() })
+    .where(and(eq(schema.orderLegs.id, leg.id), eq(schema.orderLegs.status, "quoted"), eq(schema.orderLegs.payload, leg.payload)))
+    .returning({ id: schema.orderLegs.id });
+  if (!claimed.length) throw new HttpError(409, "This swap was just sent from somewhere else.");
   try {
     const r = await oneclick.submitIntent(signed);
-    await setLeg(leg.id, { status: "submitted", intentHash: r.intentHash });
+    await setLeg(leg.id, { intentHash: r.intentHash });
     return { intentHash: r.intentHash };
   } catch (e) {
+    // A timeout or 5xx doesn't mean 1Click didn't take it. If the deposit shows up at 1Click, keep the step as sent
+    // and let the status poll settle it; only a deposit 1Click never saw counts as failed (and can be retried).
+    const st = await oneclick.status(leg.depositAddress!).catch(() => null);
+    if (st && st.status !== "PENDING_DEPOSIT") return { intentHash: null };
     await setLeg(leg.id, { status: "failed", error: (e as Error).message.slice(0, 300) });
     throw new HttpError(400, `1Click refused the swap: ${(e as Error).message.slice(0, 200)}`);
   }
@@ -349,13 +488,8 @@ export async function createSellOrder(s: Session, p: { positionId: number; pct: 
   const [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, p.positionId));
   if (!position || position.userId !== s.userId) throw new HttpError(404, "Position not found.");
   const basket = (await getBasketById(position.basketId))!;
-  const busy = await db()
-    .select()
-    .from(schema.orders)
-    .where(and(eq(schema.orders.positionId, position.id)));
-  if (busy.some((o) => ["awaiting_deposit", "funded", "fees_paid", "legs_running"].includes(o.status))) {
-    throw new HttpError(409, "Finish or cancel the open order on this basket first.");
-  }
+  return withLease(`position:${position.id}`, 180_000, BUSY, async () => {
+  await assertNoOpenOrder(position.id);
   if (!(await payTokens()).some((t) => t.assetId === p.payoutAssetId)) throw new HttpError(400, "That payout token isn't supported.");
 
   const assets = [...new Set([...basket.assets.map((a) => getAsset(a.assetId)), USDC])];
@@ -412,6 +546,7 @@ export async function createSellOrder(s: Session, p: { positionId: number; pct: 
   }
   await maybeCreatePayout(order);
   return { order };
+  });
 }
 
 async function maybeCreatePayout(order: Order) {
@@ -422,7 +557,7 @@ async function maybeCreatePayout(order: Order) {
   const proceeds = swaps.filter((l) => l.status === "success").reduce((sum, l) => sum + BigInt(l.amountOutActual ?? "0"), 0n);
   const total = proceeds + BigInt(order.usdcStart ?? "0");
   if (total === 0n) return;
-  await db().insert(schema.orderLegs).values({ orderId: order.id, seq: PAYOUT_SEQ, assetFrom: USDC.intentsAssetId, assetTo: order.payAsset!, amountIn: total.toString() });
+  await db().insert(schema.orderLegs).values({ orderId: order.id, seq: PAYOUT_SEQ, assetFrom: USDC.intentsAssetId, assetTo: order.payAsset!, amountIn: total.toString() }).onConflictDoNothing();
 }
 
 /** A leg the browser should (re)run now: never started, or quoted but not submitted for over a minute. */
@@ -436,7 +571,10 @@ export const RESET_BUY_SEQ = 200;
 
 /** `onlyIfOutsideBands`: template baskets trade a holder only once some asset drifts past its band. */
 export async function createResetOrder(s: Session, positionId: number, opts: { onlyIfOutsideBands?: boolean } = {}) {
-  const position = await ownedIdlePosition(s, positionId);
+  const owned = await ownedIdlePosition(s, positionId);
+  return withLease(`position:${owned.id}`, 180_000, BUSY, async () => {
+  await assertNoOpenOrder(owned.id);
+  const position = owned;
   const basket = (await getBasketById(position.basketId))!;
   const assets = basket.assets.map((w) => ({ w, a: getAsset(w.assetId) }));
   const bals = await balancesOf(position.accountId, assets.map(({ a }) => a.intentsAssetId));
@@ -469,6 +607,7 @@ export async function createResetOrder(s: Session, positionId: number, opts: { o
   }
   await maybeCreateResetBuys(order);
   return { order };
+  });
 }
 
 /** After the sells settle, spend the account's USDC on the assets that are under target. */
@@ -499,14 +638,17 @@ async function maybeCreateResetBuys(order: Order) {
     spendable -= spend;
     rows.push({ orderId: order.id, seq: RESET_BUY_SEQ + k, assetFrom: USDC.intentsAssetId, assetTo: d.a.intentsAssetId, amountIn: String(Math.floor(spend * 1e6)) });
   }
-  if (rows.length) await db().insert(schema.orderLegs).values(rows);
+  if (rows.length) await db().insert(schema.orderLegs).values(rows).onConflictDoNothing();
   else if (!legs.length) await setOrder(order.id, { status: "complete" });
 }
 
 // ---------- withdraw as tokens (spec §5.6) ----------
 
 export async function createWithdrawOrder(s: Session, p: { positionId: number; addresses: Record<string, string> }) {
-  const position = await ownedIdlePosition(s, p.positionId);
+  const owned = await ownedIdlePosition(s, p.positionId);
+  return withLease(`position:${owned.id}`, 120_000, BUSY, async () => {
+  await assertNoOpenOrder(owned.id);
+  const position = owned;
   const basket = (await getBasketById(position.basketId))!;
   const assets = [...new Set([...basket.assets.map((w) => w.assetId), "USDC"])].map(getAsset);
   const bals = await balancesOf(position.accountId, assets.map((a) => a.intentsAssetId));
@@ -523,6 +665,7 @@ export async function createWithdrawOrder(s: Session, p: { positionId: number; a
   const [order] = await db().insert(schema.orders).values({ positionId: position.id, kind: "withdraw", status: "fees_paid" }).returning();
   await db().insert(schema.orderLegs).values(rows.map((r) => ({ ...r, orderId: order.id })));
   return { order };
+  });
 }
 
 /** Which chains need an address to withdraw this position (for the form). */
@@ -544,11 +687,7 @@ export async function withdrawChains(s: Session, positionId: number) {
 async function ownedIdlePosition(s: Session, positionId: number): Promise<Position> {
   const [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, positionId));
   if (!position || position.userId !== s.userId) throw new HttpError(404, "Position not found.");
-  const open = await db().select().from(schema.orders).where(eq(schema.orders.positionId, position.id));
-  if (open.some((o) => ["awaiting_deposit", "funded", "fees_paid", "legs_running"].includes(o.status))) {
-    throw new HttpError(409, "Finish the open order on this basket first.");
-  }
-  return position;
+  return position; // the caller checks for open orders while holding the position's lease
 }
 
 // ---------- refresh + view ----------
@@ -565,12 +704,17 @@ export async function refreshOrder(s: Session, orderId: number) {
   if (order.kind === "buy" && order.status === "fees_paid" && order.grossUsdc === "0") {
     const legs = await legsOf(order.id);
     if (legs.every((l) => l.status === "pending" && l.attempts === 0 && !l.payload)) {
-      await db().delete(schema.orderLegs).where(eq(schema.orderLegs.orderId, order.id));
-      await setOrder(order.id, { status: "awaiting_deposit", grossUsdc: null });
-      order = { ...order, status: "awaiting_deposit", grossUsdc: null };
+      await db().transaction(async (tx) => {
+        const [cur] = await tx.select({ status: schema.orders.status, gross: schema.orders.grossUsdc }).from(schema.orders).where(eq(schema.orders.id, order.id)).for("update");
+        if (cur?.status !== "fees_paid" || cur.gross !== "0") return;
+        await tx.delete(schema.orderLegs).where(eq(schema.orderLegs.orderId, order.id));
+        await tx.update(schema.orders).set({ status: "awaiting_deposit", grossUsdc: null, updatedAt: new Date() }).where(eq(schema.orders.id, order.id));
+      });
+      [order] = await db().select().from(schema.orders).where(eq(schema.orders.id, orderId));
     }
   }
 
+  if (await expireIfUnpaid(order)) [order] = await db().select().from(schema.orders).where(eq(schema.orders.id, orderId));
   if (order.status === "awaiting_deposit" && order.fundingDepositAddress) {
     try {
       const st = await oneclick.status(order.fundingDepositAddress, order.fundingDepositMemo ?? undefined);
@@ -580,8 +724,8 @@ export async function refreshOrder(s: Session, orderId: number) {
         const gross = fundedAmount(reported, BigInt(onchain), order.createdAt);
         if (gross > 0n) await markFunded(order, position, gross);
         // else: the RPC hasn't caught up with 1Click yet; the next poll tries again.
-      } else if (st.status === "REFUNDED") await setOrder(order.id, { status: "refunded" });
-      else if (st.status === "FAILED") await setOrder(order.id, { status: "failed", error: "The deposit swap failed." });
+      } else if (st.status === "REFUNDED") await setOrderIf(order.id, "awaiting_deposit", { status: "refunded" });
+      else if (st.status === "FAILED") await setOrderIf(order.id, "awaiting_deposit", { status: "failed", error: "The deposit swap failed." });
     } catch (e) {
       if (!(e instanceof OneClickError && e.status === 404)) console.error("funding status", e);
     }

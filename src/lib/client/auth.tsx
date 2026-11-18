@@ -1,9 +1,10 @@
 "use client";
-// Sign-in for NEAR wallets (NEP-413 signMessage) and EVM wallets (personal_sign), plus basket-key setup.
+// Sign-in for NEAR wallets (NEP-413 signMessage, recipient = our host) and EVM wallets (SIWE / EIP-4361 via
+// personal_sign), plus basket-key setup.
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
-import { b64ToBytes, NEP413_RECIPIENT } from "@/lib/auth/messages";
+import { b64ToBytes, buildSiweMessage } from "@/lib/auth/messages";
 import { UNLOCK_MESSAGE_V1, UNLOCK_NONCE_V1 } from "@/lib/intents/keys";
 import { hexToBytes, type BasketKey } from "@/lib/intents/keys";
 import type { Intent } from "@/lib/intents/payload";
@@ -76,8 +77,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     setBusy("Pick a wallet and approve the sign-in message…");
     try {
-      const { nonce, message } = await api<{ nonce: string; message: string }>("/api/auth/nonce", { method: "POST" });
-      const signed = await nearSignIn({ message, recipient: NEP413_RECIPIENT, nonce: b64ToBytes(nonce) });
+      const { nonce, message, recipient } = await api<{ nonce: string; message: string; recipient: string }>("/api/auth/nonce", { method: "POST" });
+      const signed = await nearSignIn({ message, recipient, nonce: b64ToBytes(nonce) });
       await api("/api/auth/verify", {
         method: "POST",
         body: JSON.stringify({ chain: "near", nonce, accountId: signed.accountId, publicKey: signed.publicKey, signature: signed.signature }),
@@ -95,16 +96,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       try {
         let address = evm.address;
+        let chainId = evm.chainId;
         if (!address) {
           setBusy("Connect your wallet…");
           const connector = connectors.find((c) => c.id === connectorId) ?? connectors[0];
           const res = await connectAsync({ connector });
           address = res.accounts[0];
+          chainId = res.chainId;
         }
         setBusy("Approve the sign-in message in your wallet…");
-        const { nonce, message } = await api<{ nonce: string; message: string }>("/api/auth/nonce", { method: "POST" });
+        const { nonce, host } = await api<{ nonce: string; host: string }>("/api/auth/nonce", { method: "POST" });
+        // SIWE: the wallet shows (and MetaMask checks) the domain, so a relayed sign-in names nearbags, not the relay.
+        const message = buildSiweMessage({ address, chainId: chainId ?? 1, host, nonceB64: nonce });
         const signature = await signMessageAsync({ message });
-        await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ chain: "evm", nonce, address, signature }) });
+        await api("/api/auth/verify", { method: "POST", body: JSON.stringify({ chain: "evm", nonce, address, message, signature }) });
         await refresh();
       } catch (e) {
         setError((e as Error).message.split("\n")[0]);
@@ -112,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setBusy(null);
       }
     },
-    [evm.address, connectors, connectAsync, signMessageAsync, refresh],
+    [evm.address, evm.chainId, connectors, connectAsync, signMessageAsync, refresh],
   );
 
   const signOut = useCallback(async () => {

@@ -9,6 +9,7 @@ import { handle, HttpError, requireSession } from "@/lib/auth/session";
 import { parsePayload, type SignedRawEd25519 } from "@/lib/intents/payload";
 import { hasPublicKey } from "@/lib/intents/rpc";
 import { relay, RelayerNotConfigured } from "@/lib/relayer";
+import { spendRelay } from "@/lib/relay-budget";
 
 const Body = z.object({
   signed: z.object({ standard: z.literal("raw_ed25519"), payload: z.string().max(4000), public_key: z.string(), signature: z.string() }),
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
       await db().update(schema.positions).set({ recoveryKeyAddedAt: new Date() }).where(eq(schema.positions.id, pos.id));
       return Response.json({ alreadyAdded: true });
     }
+    await spendRelay(s.userId);
     try {
       const { txHash } = await relay([signed]);
       await db().update(schema.positions).set({ recoveryKeyAddedAt: new Date() }).where(eq(schema.positions.id, pos.id));

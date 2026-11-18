@@ -63,6 +63,12 @@ export default async function GiftPage({ params }: PageProps<"/g/[code]">) {
           About this bag
         </Link>
       </Card>
+      {g.isSender && (g.status === "ready" || g.status === "expired") && (
+        <p className="fine">
+          Until you take it back, the link works like cash. The expiry date and region checks are nearbags&apos; rules: anyone holding the link could still move
+          the gift on intents.near directly. Taking it back from your portfolio also switches the link&apos;s key off.
+        </p>
+      )}
       <ClaimPanel code={g.code} accountId={g.accountId} status={g.status} expiresAt={g.expiresAt} basketId={g.basket.id} agentManaged={g.basket.agentManaged} />
     </div>
   );
