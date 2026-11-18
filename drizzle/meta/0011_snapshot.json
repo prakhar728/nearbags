@@ -1,5 +1,5 @@
 {
-  "id": "acbda05b-acb2-4ce9-8bb2-dc379f6edcd1",
+  "id": "43aef376-3a69-4c26-991b-2f34a49d1dbe",
   "prevId": "e4996925-623b-480a-ac45-dec396658573",
   "version": "7",
   "dialect": "postgresql",
@@ -1972,6 +1972,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'{}'::jsonb"
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
         },
         "created_at": {
           "name": "created_at",

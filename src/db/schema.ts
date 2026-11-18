@@ -33,6 +33,8 @@ export const users = pgTable(
     isAdmin: boolean("is_admin").notNull().default(false),
     acceptedRiskAt: timestamp("accepted_risk_at", { withTimezone: true }),
     attestations: jsonb("attestations").$type<Partial<Record<"risk" | "not_us_person" | "professional", string>>>().notNull().default({}),
+    // Bumped on logout: sessions issued under an older version stop working on routes that move money or change data.
+    sessionVersion: integer("session_version").notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("users_wallet_uq").on(t.walletChain, t.walletAddress), uniqueIndex("users_handle_uq").on(t.handle)],
