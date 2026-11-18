@@ -10,7 +10,9 @@ import { hexToBytes, type BasketKey } from "@/lib/intents/keys";
 import type { Intent } from "@/lib/intents/payload";
 import { erc191Payload, erc191Signed, nep413Request, nep413Signed, type SignedErc191, type SignedNep413 } from "@/lib/intents/wallet-sign";
 import { nearSignIn, nearSignMessage, nearSignOut } from "./near";
-import { basketKey, confirmDeviceKey, hasSeed, pendingDeviceKey, restoreDerived, setupKeys, type KeyMode } from "./keystore";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { needsApproval, payoutApprovalText, type PayoutApproval } from "@/lib/payout-approval";
+import { basketKey, confirmDeviceKey, hasSeed, pendingDeviceKey, restoreDerived, type KeyMode } from "./keystore";
 
 export interface User {
   id: number;
@@ -38,6 +40,8 @@ interface AuthValue {
    */
   keyForBasket: (basketId: number) => Promise<{ k: BasketKey; mode: KeyMode }>;
   walletSign: (accountId: string, intents: Intent[]) => Promise<SignedErc191 | SignedNep413>;
+  /** A wallet signature approving money out of a bag to addresses other than this wallet; undefined if none need it. */
+  approvePayout: (positionId: number, addresses: string[]) => Promise<PayoutApproval | undefined>;
   refresh: () => Promise<void>;
 }
 
@@ -142,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user.keyMode === "device") return "device";
     if (user.keyMode === "derived") {
       if (!(await hasSeed(user.address))) {
-        setBusy("Sign once to unlock your basket keys on this device (the message says Stonkbag, our old name)…");
+        setBusy("Sign once to unlock your basket keys on this device. The message says Stonkbag, our old name. Only ever sign it on nearbags.com…");
         try {
           await restoreDerived(user.address, signUnlock);
         } finally {
@@ -151,21 +155,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return "derived";
     }
-    const near1 = user.chain === "near";
-    // The key message still names Stonkbag (our old name; it can't change, see UNLOCK_MESSAGE_V1), so say so up front.
-    setBusy(
-      near1
-        ? "Sign the key message in your wallet (it says Stonkbag, our old name). This sets up your basket keys…"
-        : "Sign the key message twice (it says Stonkbag, our old name). This sets up your basket keys…",
-    );
-    try {
-      const mode = await setupKeys(user.address, signUnlock, { deterministic: near1 });
-      await api("/api/auth/me", { method: "PATCH", body: JSON.stringify({ keyMode: mode }) });
-      await refresh();
-      return mode;
-    } finally {
-      setBusy(null);
-    }
+    // New users get device keys: a random key per bag, kept in this browser, and the wallet approves each new browser
+    // with an explicit add-key request. Derived keys come from one signature over a fixed text that names no site, so
+    // a phishing page that got that one signature would get every bag (security re-audit 2026-11-18, N1). Wallets
+    // already on derived keys keep them for now; moving them over is planned separately.
+    await api("/api/auth/me", { method: "PATCH", body: JSON.stringify({ keyMode: "device" }) });
+    await refresh();
+    return "device";
   }, [user, signUnlock, refresh]);
 
   const keyForBasket = useCallback(
@@ -220,9 +216,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user, signMessageAsync],
   );
 
+  const approvePayout = useCallback(
+    async (positionId: number, addresses: string[]): Promise<PayoutApproval | undefined> => {
+      if (!user) throw new Error("Sign in first.");
+      const others = needsApproval(addresses, { chain: user.chain, address: user.address });
+      if (!others.length) return undefined;
+      const host = window.location.host.toLowerCase();
+      const message = payoutApprovalText({ host, positionId, addresses: others });
+      setBusy("Approve the payout address in your wallet…");
+      try {
+        if (user.chain === "evm") return { message, signature: await signMessageAsync({ message }) };
+        const s = await nearSignMessage(user.address, { message, recipient: host, nonce: sha256(new TextEncoder().encode(message)) });
+        return { message, signature: s.signature, publicKey: s.publicKey };
+      } finally {
+        setBusy(null);
+      }
+    },
+    [user, signMessageAsync],
+  );
+
   const value = useMemo(
-    () => ({ user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, walletSign, refresh }),
-    [user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, walletSign, refresh],
+    () => ({ user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, walletSign, approvePayout, refresh }),
+    [user, loading, busy, error, signInNear, signInEvm, signOut, ensureKeys, keyForBasket, walletSign, approvePayout, refresh],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

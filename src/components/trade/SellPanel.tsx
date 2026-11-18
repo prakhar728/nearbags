@@ -32,7 +32,7 @@ function blockerFor(pct: number, holdings: { assetId: string; valueUsd: number }
 }
 
 export function SellPanel({ positionId, basketId, holdings = [], onDone }: { positionId: number; basketId: number; holdings?: { assetId: string; valueUsd: number }[]; onDone?: () => void }) {
-  const { user, keyForBasket } = useAuth();
+  const { user, keyForBasket, approvePayout } = useAuth();
   const [tokens, setTokens] = useState<PayToken[]>([]);
   const [pct, setPct] = useState(100);
   const [payout, setPayout] = useState("");
@@ -64,8 +64,9 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
     try {
       setStep("Unlocking your basket key…");
       const { k } = await keyForBasket(basketId);
+      const approval = await approvePayout(positionId, [to]);
       setStep("Quoting every asset…");
-      const v = await api<OrderView>("/api/orders/sell", { method: "POST", body: JSON.stringify({ positionId, pct, payoutAssetId: token.assetId, payoutAddress: to }) });
+      const v = await api<OrderView>("/api/orders/sell", { method: "POST", body: JSON.stringify({ positionId, pct, payoutAssetId: token.assetId, payoutAddress: to, approval }) });
       setView(v);
       setStep("Selling…");
       const final = await driveOrder(v.order.id, k, { onUpdate: setView, confirmed: [to] });

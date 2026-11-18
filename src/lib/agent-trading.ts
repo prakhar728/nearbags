@@ -21,6 +21,7 @@ import { withLease } from "@/lib/lease";
 import { CREATOR_CONTENT_NOTE } from "@/lib/mcp/untrusted";
 import { cap } from "@/lib/ratelimit";
 import { relay, RelayerNotConfigured } from "@/lib/relayer";
+import { signatureProblem } from "@/lib/intents/proof";
 import { spendRelay } from "@/lib/relay-budget";
 import {
   createBuyOrder,
@@ -120,7 +121,13 @@ export async function openAccount(a: AgentActor, slug: string, accountId: string
   if (!a.user.walletPubkey) throw new HttpError(409, "The key's owner has no wallet key on file. They need to sign in on nearbags again.");
   let pos = await agentPosition(a, b.id);
   if (pos && pos.accountId !== accountId) throw new HttpError(409, "This key already has a different account for this bag.");
+  const intents: Intent[] = [{ intent: "add_public_key", public_key: a.user.walletPubkey }];
   if (!pos) {
+    // Record the account only once the agent proves it holds its key (re-audit N4): the signed recovery-key intent is
+    // that proof. Until then just say what to sign, so nobody can register someone else's account under a bag.
+    if (!signed) return { slug, accountId, ready: false, signThis: { signer_id: accountId, intents } };
+    const why = signatureProblem(signed, accountId);
+    if (why) throw new HttpError(403, `That isn't signed by this account's key (${why}).`);
     const [taken] = await db().select({ id: schema.positions.id }).from(schema.positions).where(eq(schema.positions.accountId, accountId));
     if (taken) throw new HttpError(409, "That account is already registered on nearbags.");
     [pos] = await db()
@@ -129,7 +136,6 @@ export async function openAccount(a: AgentActor, slug: string, accountId: string
       .returning();
     await audit(a.user, a.prefix, "mcp.open_account", slug, { accountId });
   }
-  const intents: Intent[] = [{ intent: "add_public_key", public_key: a.user.walletPubkey }];
   if (pos.recoveryKeyAddedAt) return { slug, accountId, ready: true };
   if (await hasPublicKey(accountId, a.user.walletPubkey)) {
     await db().update(schema.positions).set({ recoveryKeyAddedAt: new Date() }).where(eq(schema.positions.id, pos.id));

@@ -33,7 +33,9 @@ export async function basketStats(basketId: number): Promise<BasketStats | null>
   let tvl = 0;
   let holders = 0;
   let creatorHolds = 0;
-  for (const p of positions) {
+  // Only accounts that proved who holds them count: adding the wallet as recovery key needs the account's own signature
+  // (re-audit N4). A registered-but-unproven account can't inflate TVL, holders or "creator holds".
+  for (const p of positions.filter((x) => x.recoveryKeyAddedAt)) {
     const bals = await balancesOf(p.accountId, assets.map((a) => a.intentsAssetId)).catch(() => assets.map(() => "0"));
     const value = bals.reduce((s, b, i) => s + (Number(b) / 10 ** assets[i].decimals) * prices[i], 0);
     tvl += value;

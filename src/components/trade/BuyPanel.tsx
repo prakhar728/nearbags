@@ -179,16 +179,16 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     api<{ open: OrderView | null }>(`/api/orders?basketId=${basket.id}`)
       .then(async ({ open }) => {
         if (cancelled || !open) return;
-        if (open.order.kind === "sell" || open.order.kind === "withdraw") {
+        // Unpaid buys, sells and withdrawals wait for a click: a buy's payment details show only after this browser's
+        // key matches the order's account (re-audit N10), and money leaving the bag needs the user to see where it goes.
+        if (open.order.kind === "sell" || open.order.kind === "withdraw" || open.next === "deposit") {
           setPendingOut(open);
           return;
         }
         setView(open);
         setPhase("order");
-        if (open.next !== "deposit" || user.keyMode) {
-          const { k } = await keyFor();
-          if (!cancelled) void run(open.order.id, k);
-        }
+        const { k } = await keyFor();
+        if (!cancelled) void run(open.order.id, k);
       })
       .catch(() => {});
     return () => {
@@ -244,6 +244,7 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
     setErr(null);
     try {
       const { k } = await keyFor();
+      if (k.accountId !== v.order.accountId) throw new Error("This order isn't for your account on this bag. Don't pay or continue it. Cancel it instead.");
       setPendingOut(null);
       setView(v);
       setPhase("order");
@@ -431,16 +432,20 @@ export function BuyPanel({ basket }: { basket: BuyPanelBasket }) {
       <div className="grid gap-4">
         {pendingOut && (
           <div className="callout callout-warn grid gap-3 text-sm">
-            <p>
-              This bag has an unfinished {pendingOut.order.kind === "sell" ? "sale" : "withdrawal"} that pays out to{" "}
-              {outAddresses(pendingOut).map((a, i) => (
-                <span key={a}>
-                  {i > 0 && ", "}
-                  <span className="num break-all font-semibold">{a}</span>
-                </span>
-              ))}
-              . Continue only if you started it and that address is yours.
-            </p>
+            {pendingOut.order.kind === "buy" ? (
+              <p>You have an unpaid buy of ${pendingOut.order.usdIn ?? "?"} on this bag. Continue to see where to pay, or cancel it.</p>
+            ) : (
+              <p>
+                This bag has an unfinished {pendingOut.order.kind === "sell" ? "sale" : "withdrawal"} that pays out to{" "}
+                {outAddresses(pendingOut).map((a, i) => (
+                  <span key={a}>
+                    {i > 0 && ", "}
+                    <span className="num break-all font-semibold">{a}</span>
+                  </span>
+                ))}
+                . Continue only if you started it and that address is yours.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               <button type="button" className="btn btn-secondary btn-sm" onClick={() => void continueOut()}>
                 Continue it

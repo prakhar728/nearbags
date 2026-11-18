@@ -40,6 +40,8 @@ export async function PATCH(request: Request) {
     if (!p.success) throw new HttpError(400, "keyMode must be derived or device.");
     const [u] = await db().select().from(schema.users).where(eq(schema.users.id, s.userId));
     if (u.keyMode && u.keyMode !== p.data.keyMode) throw new HttpError(409, `Key mode is already ${u.keyMode}.`);
+    // New wallets start on device keys only (security re-audit N1); derived stays for wallets that already use it.
+    if (!u.keyMode && p.data.keyMode !== "device") throw new HttpError(400, "New wallets use device keys.");
     await db().update(schema.users).set({ keyMode: p.data.keyMode }).where(eq(schema.users.id, s.userId));
     return Response.json({ keyMode: p.data.keyMode });
   });

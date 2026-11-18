@@ -17,7 +17,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function ManagePanel({ positionId, basketId, onDone }: { positionId: number; basketId: number; onDone?: () => void }) {
-  const { user, keyForBasket } = useAuth();
+  const { user, keyForBasket, approvePayout } = useAuth();
   const [chains, setChains] = useState<Record<string, string[]> | null>(null);
   const [addr, setAddr] = useState<Record<string, string>>({});
   const [view, setView] = useState<OrderView | null>(null);
@@ -98,7 +98,16 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
           <button
             type="button"
             disabled={!!step || Object.keys(chains).some((c) => !addr[c])}
-            onClick={() => run(() => api<OrderView>("/api/orders/withdraw", { method: "POST", body: JSON.stringify({ positionId, addresses: addr }) }), "Withdrawing…", Object.values(addr))}
+            onClick={() =>
+              run(
+                async () => {
+                  const approval = await approvePayout(positionId, Object.values(addr));
+                  return api<OrderView>("/api/orders/withdraw", { method: "POST", body: JSON.stringify({ positionId, addresses: addr, approval }) });
+                },
+                "Withdrawing…",
+                Object.values(addr),
+              )
+            }
             className="btn btn-primary btn-block"
           >
             Withdraw everything

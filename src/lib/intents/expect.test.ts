@@ -28,6 +28,8 @@ const record = (req: Record<string, unknown> = {}, quote: Record<string, unknown
       refundType: "INTENTS",
       recipient: "testing69.near",
       recipientType: "DESTINATION_CHAIN",
+      appFees: [],
+      slippageTolerance: 100,
       ...req,
     },
     quote: { depositAddress: DEP, amountIn: "40229913", ...quote },
@@ -60,6 +62,8 @@ describe("checkQuoteRecord", () => {
     expect(checkQuoteRecord(record({}, { depositAddress: "f".repeat(64) }), e)).toMatch(/another deposit/);
     expect(checkQuoteRecord(record({}, { amountIn: "1" }), e)).toMatch(/different amount/);
     expect(checkQuoteRecord({}, e)).toMatch(/no quote/);
+    expect(checkQuoteRecord(record({ appFees: [{ recipient: "attacker.near", fee: 500 }] }), e)).toMatch(/extra fee/);
+    expect(checkQuoteRecord(record({ slippageTolerance: 5000 }), e)).toMatch(/slippage/);
   });
   it("for a swap back into the bag, the quote must deliver to the account inside Intents", () => {
     const swap = { ...e, recipient: null, assetTo: "nep141:eth.omft.near" };

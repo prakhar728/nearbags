@@ -1,6 +1,7 @@
 CREATE TABLE "leases" (
 	"key" text PRIMARY KEY NOT NULL,
-	"until" timestamp with time zone NOT NULL
+	"until" timestamp with time zone NOT NULL,
+	"owner" text DEFAULT '' NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "rate_limits" (

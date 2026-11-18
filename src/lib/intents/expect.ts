@@ -10,6 +10,8 @@ import { VERIFYING_CONTRACT, type Intent } from "./payload";
 
 /** Creator fee cap (1%) plus the agent platform fee (0.5%), plus a little rounding room. */
 export const MAX_FEE_BPS = 160;
+/** Our swaps quote at 1% slippage; a looser quote could hand the difference to whoever fills it. */
+export const MAX_SLIPPAGE_BPS = 100;
 /** 1Click payloads carry the quote's deadline (about 3 days out); refuse anything much longer-lived. */
 const MAX_DEADLINE_MS = 4 * 86_400_000;
 
@@ -100,6 +102,10 @@ export function checkQuoteRecord(rec: QuoteRecord, e: LegExpect & { depositAddre
   if (req.depositType !== "INTENTS" || req.originAsset !== e.assetFrom) return "1Click's quote spends a different token";
   if (req.destinationAsset !== e.assetTo) return "1Click's quote buys a different token";
   if (req.refundType !== "INTENTS" || req.refundTo !== e.accountId) return "1Click's quote refunds somewhere else";
+  // Swaps the browser signs never carry an app fee (only the server's agent rebalances do), so any app fee here would
+  // be value taken by whoever built the quote (re-audit N3).
+  if (Array.isArray(req.appFees) ? req.appFees.length > 0 : req.appFees != null) return "1Click's quote carries an extra fee";
+  if (typeof req.slippageTolerance !== "number" || req.slippageTolerance > MAX_SLIPPAGE_BPS) return "1Click's quote allows too much slippage";
   if (e.recipient === null) {
     if (req.recipientType !== "INTENTS" || req.recipient !== e.accountId) return "1Click's quote pays out to another account";
   } else if (req.recipient !== e.recipient) {

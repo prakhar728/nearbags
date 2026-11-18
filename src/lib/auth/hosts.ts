@@ -9,11 +9,12 @@ export function isLocalHost(host: string): boolean {
   return /^localhost(:\d{1,5})?$/.test(host.toLowerCase());
 }
 
-/** True for our production hosts and for localhost on any port. */
+/** True for our production hosts, and for localhost on any port except on the production deployment. */
 export function isAllowedHost(host: string | null | undefined): boolean {
   if (!host) return false;
   const h = host.toLowerCase();
-  return FIXED.has(h) || isLocalHost(h);
+  const prod = typeof process !== "undefined" && process.env?.VERCEL_ENV === "production";
+  return FIXED.has(h) || (!prod && isLocalHost(h));
 }
 
 /** "http://localhost:3093" or "https://nearbags.com". */

@@ -58,6 +58,20 @@ export function isRheaLeg(l: Pick<Leg, "assetFrom" | "assetTo">): boolean {
   return assetByIntentsId(l.assetFrom)?.venue === "rhea" || assetByIntentsId(l.assetTo)?.venue === "rhea";
 }
 
+/**
+ * Store a fresh quote on a step only if nobody touched it since we read it (re-audit N7): two tabs, or a tab and an
+ * agent, preparing the same step at once must not turn a step that was just sent back into "quoted" and send it twice.
+ * Every prepare bumps `attempts`, so (status, attempts) identifies the version we read.
+ */
+export async function setQuotedIf(leg: Pick<Leg, "id" | "status" | "attempts">, patch: Partial<Leg>) {
+  const done = await db()
+    .update(schema.orderLegs)
+    .set({ ...patch, status: "quoted", attempts: leg.attempts + 1, updatedAt: new Date() })
+    .where(and(eq(schema.orderLegs.id, leg.id), eq(schema.orderLegs.status, leg.status), eq(schema.orderLegs.attempts, leg.attempts)))
+    .returning({ id: schema.orderLegs.id });
+  if (!done.length) throw new HttpError(409, "This swap just changed in another tab. Try again.");
+}
+
 async function setLeg(id: number, patch: Partial<Leg>) {
   await db().update(schema.orderLegs).set({ ...patch, updatedAt: new Date() }).where(eq(schema.orderLegs.id, id));
 }
@@ -121,16 +135,14 @@ export async function prepareRheaLeg(leg: Leg, ctx: { accountId: string; amountI
   };
   const payload = buildPayload(ctx.accountId, [swapIntent(spec)], { deadlineMs: RHEA_DEADLINE_MS });
   const quote: RheaLegQuote = { venue: "rhea", kind: "swap", spec, quoteOut: q.amountOut, midUsd };
-  await setLeg(leg.id, {
+  await setQuotedIf(leg, {
     amountIn: ctx.amountIn,
     depositAddress: null,
     amountOutExpected: q.amountOut,
     payload,
     quote: quote as unknown as object,
     guard: g as unknown as object,
-    status: "quoted",
     error: null,
-    attempts: leg.attempts + 1,
   });
   const out = Number(q.amountOut) / 10 ** to.decimals;
   return { payload, expectedOut: out.toLocaleString("en-US", { maximumFractionDigits: to.decimals > 6 ? 2 : 6 }), guard: g };
@@ -150,7 +162,7 @@ async function prepareRheaWithdraw(leg: Leg, asset: Asset, ctx: { accountId: str
   const withdraw = { account: ctx.accountId, token, receiver, amount: ctx.amountIn };
   const payload = buildPayload(ctx.accountId, [withdrawIntent(withdraw)], { deadlineMs: RHEA_DEADLINE_MS });
   const quote: RheaLegQuote = { venue: "rhea", kind: "withdraw", withdraw };
-  await setLeg(leg.id, { amountIn: ctx.amountIn, depositAddress: null, amountOutExpected: ctx.amountIn, payload, quote: quote as unknown as object, status: "quoted", error: null, attempts: leg.attempts + 1 });
+  await setQuotedIf(leg, { amountIn: ctx.amountIn, depositAddress: null, amountOutExpected: ctx.amountIn, payload, quote: quote as unknown as object, error: null });
   return { payload, expectedOut: (Number(ctx.amountIn) / 10 ** asset.decimals).toLocaleString("en-US", { maximumFractionDigits: 2 }), guard: null };
 }
 

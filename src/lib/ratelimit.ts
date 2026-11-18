@@ -37,8 +37,9 @@ export async function cap(key: string, limit: number, windowMs: number, message:
   if ((await hit(key, windowMs)) > limit) throw new HttpError(429, message);
 }
 
-/** Old rows, for the daily cron. */
+/** Old rows, for the daily cron. Every window is a day or shorter except the device-key cap (a year). */
 export async function pruneRateLimits() {
+  await db().execute(sql`DELETE FROM rate_limits WHERE window_start < now() - interval '2 days' AND key NOT LIKE 'device-keys:%'`);
   await db().execute(sql`DELETE FROM rate_limits WHERE window_start < now() - interval '400 days'`);
   await db().execute(sql`DELETE FROM leases WHERE until < now() - interval '1 day'`);
 }

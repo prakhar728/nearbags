@@ -377,4 +377,5 @@ export const rateLimits = pgTable("rate_limits", {
 export const leases = pgTable("leases", {
   key: text("key").primaryKey(),
   until: timestamp("until", { withTimezone: true }).notNull(),
+  owner: text("owner").notNull().default(""), // random per holder, so a late release can't free someone else's lease
 });

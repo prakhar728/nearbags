@@ -3,6 +3,7 @@ import { z } from "zod";
 import { handle, HttpError, requireSession } from "@/lib/auth/session";
 import { rateLimit } from "@/lib/ratelimit";
 import { createWithdrawOrder, orderView, withdrawChains } from "@/lib/trade/orders";
+import { assertPayoutApproved } from "@/lib/auth/payout-check";
 
 export async function GET(request: Request) {
   return handle(async () => {
@@ -12,7 +13,12 @@ export async function GET(request: Request) {
   });
 }
 
-const Body = z.object({ positionId: z.number().int().positive(), addresses: z.record(z.string(), z.string().max(128)) });
+const Body = z.object({
+  positionId: z.number().int().positive(),
+  addresses: z.record(z.string(), z.string().max(128)),
+  // A fresh wallet signature for addresses that aren't the signed-in wallet (lib/payout-approval.ts).
+  approval: z.object({ message: z.string().max(2000), signature: z.string().max(400), publicKey: z.string().max(120).optional() }).optional(),
+});
 
 export async function POST(request: Request) {
   return handle(async () => {
@@ -20,6 +26,7 @@ export async function POST(request: Request) {
     await rateLimit("withdraw", 10, 60_000, String(s.userId));
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed request.");
+    await assertPayoutApproved(request, s, p.data.positionId, Object.values(p.data.addresses), p.data.approval);
     const { order } = await createWithdrawOrder(s, p.data);
     return Response.json(await orderView(order.id));
   });

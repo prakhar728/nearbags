@@ -12,23 +12,30 @@ const MAX_AGE_MS = 10 * 60_000;
 /** Browser: the proof for this key's account. */
 export const ownershipProof = (k: BasketKey): SignedRawEd25519 => signIntents(k, [], { deadlineMs: 5 * 60_000 });
 
-/** Why the proof doesn't show control of `accountId`, or null when it does. */
-export function proofProblem(signed: SignedRawEd25519 | undefined, accountId: string, now = Date.now()): string | null {
-  if (!signed || signed.standard !== "raw_ed25519" || typeof signed.payload !== "string") return "missing proof that you hold this account's key";
+/** Why `signed` isn't a valid signature by the implicit account's own key, or null when it is. */
+export function signatureProblem(signed: SignedRawEd25519 | undefined, accountId: string): string | null {
+  if (!signed || signed.standard !== "raw_ed25519" || typeof signed.payload !== "string") return "missing signature";
   let pk: ReturnType<typeof parsePublicKey>;
   try {
     pk = parsePublicKey(signed.public_key);
   } catch {
     return "bad public key";
   }
-  if (pk.curve !== "ed25519" || bytesToHex(pk.bytes) !== accountId) return "the proof is signed by another key";
+  if (pk.curve !== "ed25519" || bytesToHex(pk.bytes) !== accountId) return "signed by another key";
   let sig: Uint8Array;
   try {
     sig = base58.decode(String(signed.signature).replace(/^ed25519:/, ""));
   } catch {
     return "bad signature";
   }
-  if (!verifyEd25519(pk.bytes, new TextEncoder().encode(signed.payload), sig)) return "the signature doesn't verify";
+  return verifyEd25519(pk.bytes, new TextEncoder().encode(signed.payload), sig) ? null : "the signature doesn't verify";
+}
+
+/** Why the proof doesn't show control of `accountId`, or null when it does. */
+export function proofProblem(signed: SignedRawEd25519 | undefined, accountId: string, now = Date.now()): string | null {
+  if (!signed) return "missing proof that you hold this account's key";
+  const bad = signatureProblem(signed, accountId);
+  if (bad) return bad === "signed by another key" ? "the proof is signed by another key" : bad;
   let p: { signer_id?: unknown; verifying_contract?: unknown; deadline?: unknown; intents?: unknown };
   try {
     p = JSON.parse(signed.payload);

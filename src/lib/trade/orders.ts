@@ -29,7 +29,7 @@ import { fundedAmount } from "./funding";
 import { guard, usSession } from "./guard";
 import { planLegs, preflightBuy, SLIPPAGE_BPS, splitFees } from "./preflight";
 import { buyBlockReason, paused } from "./availability";
-import { isRheaLeg, prepareRheaLeg, quoteRheaSell, rheaQuoteOf, settleRheaLeg, submitRheaLeg } from "./rhea-legs";
+import { isRheaLeg, prepareRheaLeg, quoteRheaSell, rheaQuoteOf, setQuotedIf, settleRheaLeg, submitRheaLeg } from "./rhea-legs";
 
 type Order = typeof schema.orders.$inferSelect;
 type Leg = typeof schema.orderLegs.$inferSelect;
@@ -436,16 +436,14 @@ export async function prepareLeg(s: Session, orderId: number, seq: number, opts:
     console.error("unexpected 1Click payload", { leg: leg.id, why: typeof shape === "string" ? shape : "deposit or amount differ" });
     throw new HttpError(502, "1Click returned an unexpected swap. Nothing was signed. Try again.");
   }
-  await setLeg(leg.id, {
+  await setQuotedIf(leg, {
     amountIn,
     depositAddress: q.quote.depositAddress!,
     amountOutExpected: q.quote.amountOut,
     payload,
     quote: q as unknown as object,
     guard: g as unknown as object,
-    status: "quoted",
     error: null,
-    attempts: leg.attempts + 1,
   });
   if (order.status !== "legs_running") await setOrder(order.id, { status: "legs_running" });
   return { seq, payload, accountId: position.accountId, expectedOut: q.quote.amountOutFormatted, guard: g };
