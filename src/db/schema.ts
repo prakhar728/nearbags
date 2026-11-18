@@ -189,10 +189,13 @@ export const orderLegs = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("legs_order_idx").on(t.orderId)],
+  // One row per step: two tabs funding the same order at once can't plan its swaps twice (security audit 2026-11-18).
+  (t) => [index("legs_order_idx").on(t.orderId), uniqueIndex("legs_order_seq_uq").on(t.orderId, t.seq)],
 );
 
-export const feeEvents = pgTable("fee_events", {
+export const feeEvents = pgTable(
+  "fee_events",
+  {
   id: serial("id").primaryKey(),
   orderId: integer("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
   recipientKind: text("recipient_kind", { enum: ["creator", "platform"] }).notNull(),
@@ -202,7 +205,10 @@ export const feeEvents = pgTable("fee_events", {
   txHash: text("tx_hash"),
   status: text("status", { enum: ["pending", "success", "failed"] }).notNull().default("pending"),
   createdAt: createdAt(),
-});
+  },
+  // One creator fee and one platform fee per order, never two.
+  (t) => [uniqueIndex("fees_order_kind_uq").on(t.orderId, t.recipientKind)],
+);
 
 export const priceDaily = pgTable(
   "price_daily",
@@ -350,8 +356,23 @@ export const gifts = pgTable(
     claimedByUserId: integer("claimed_by_user_id").references(() => users.id),
     claimTx: text("claim_tx"),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    // The exact tokens the claim or take-back moved ([asset id, raw units]), read from the relayed transfer.
+    moved: jsonb("moved").$type<[string, string][]>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("gifts_code_uq").on(t.code), uniqueIndex("gifts_position_uq").on(t.positionId), index("gifts_sender_idx").on(t.senderUserId)],
 );
+
+// Request counters shared by every server instance (the in-memory limiter wasn't). One row per key and window.
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+  hits: integer("hits").notNull(),
+});
+
+// Short leases: "only one of these at a time" across instances without holding a database connection open.
+export const leases = pgTable("leases", {
+  key: text("key").primaryKey(),
+  until: timestamp("until", { withTimezone: true }).notNull(),
+});
