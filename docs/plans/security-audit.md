@@ -75,3 +75,26 @@ Read-only review of branch `next` (everything about to ship) plus what's already
   - Source links must be https and use `rel=noopener noreferrer`.
   - The server never fetches user URLs (no SSRF).
 - **Rebalancing agent:** it never sees creator text. Its output is clamped, and the signer checks that every swap pays back into the same account.
+
+## Status after fixes (2026-11-18, branch `security`)
+
+Three review rounds. Round 1 above. Round 2 (independent re-audit) found 10 more, N1–N10. Round 3 verified those and found 6 smaller ones. Everything below is fixed on `security` unless marked open. Tests: 218 pass, plus typecheck, lint and a production build.
+
+- **All 12 round-1 items:** fixed. #4 is partly done: framing, nosniff, referrer and permissions headers are enforced. The strict script and connect policy is **report-only** (`/api/csp-report` logs violations). Turn it on after real wallet use shows a clean log.
+- **N1, derived keys phishable by one fixed-text signature:** new wallets now get device keys. **Open:** wallets already on derived keys still use it. Plan a move that adds a device key, then removes the derived key from each account.
+- **N2:** money leaving for any address other than the signed-in wallet needs a fresh wallet signature (`lib/payout-approval.ts`). Round 3 also made the own-wallet exemption check the chain.
+- **N3:** the browser refuses 1Click quotes with an app fee or more than 1% slippage. **Open:** fee receivers aren't allowlisted in the browser; fees are capped at 1.6% of the USDC in the account.
+- **N4:** agent accounts are recorded only after the agent signs the exact current recovery-key intent. Stats count only accounts with a recovery key.
+- **N5 to N8, N10:** fixed.
+- **N9, accepted:** a user can always skip fees by moving their own money first, since they hold the key.
+- **Round 3:**
+  - users with no saved mode but existing derived accounts can still use derived;
+  - the device-key cap is 20 a year;
+  - the sell lease lasts 300 s.
+- **Open, low:** a Rhea relay timeout still marks the leg failed.
+
+**Deploy note:** migration 0011 was edited after it was first applied to the local database only (the `leases.owner` and `users.session_version` columns). Production hasn't run 0007–0011 yet, so it gets the final file. After migrating production, check that both columns exist:
+`select column_name from information_schema.columns where table_name in ('leases','users') and column_name in ('owner','session_version');`
+should return 2 rows. Before 0011, check for duplicates (both should be 0):
+`select count(*) from (select order_id, seq from order_legs group by 1,2 having count(*)>1) x;`
+`select count(*) from (select order_id, recipient_kind from fee_events group by 1,2 having count(*)>1) y;`

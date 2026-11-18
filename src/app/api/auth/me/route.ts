@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { isAdminUser } from "@/lib/auth/admin-match";
@@ -41,7 +41,11 @@ export async function PATCH(request: Request) {
     const [u] = await db().select().from(schema.users).where(eq(schema.users.id, s.userId));
     if (u.keyMode && u.keyMode !== p.data.keyMode) throw new HttpError(409, `Key mode is already ${u.keyMode}.`);
     // New wallets start on device keys only (security re-audit N1); derived stays for wallets that already use it.
-    if (!u.keyMode && p.data.keyMode !== "device") throw new HttpError(400, "New wallets use device keys.");
+    if (!u.keyMode && p.data.keyMode !== "device") {
+      // ...unless this wallet already holds derived accounts (an older setup that never saved its mode).
+      const [derived] = await db().select({ id: schema.positions.id }).from(schema.positions).where(and(eq(schema.positions.userId, s.userId), eq(schema.positions.keyMode, "derived"))).limit(1);
+      if (!derived) throw new HttpError(400, "New wallets use device keys.");
+    }
     await db().update(schema.users).set({ keyMode: p.data.keyMode }).where(eq(schema.users.id, s.userId));
     return Response.json({ keyMode: p.data.keyMode });
   });

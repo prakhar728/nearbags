@@ -5,7 +5,7 @@ import "server-only";
 import { cap, clientIp, hit } from "@/lib/ratelimit";
 
 const DAY = 86_400_000;
-export const RELAY_CAPS = { perUserPerDay: 30, perIpPerDay: 60, deviceKeysPerAccount: 5, alertAllPerDay: 3000 } as const;
+export const RELAY_CAPS = { perUserPerDay: 30, perIpPerDay: 60, deviceKeysPerAccount: 20, alertAllPerDay: 3000 } as const;
 
 // Per user and per IP, not a global hard stop: a global cap would let a few hundred free wallets switch account setup
 // off for everyone (re-audit N5). The global count only raises an alert in the logs.

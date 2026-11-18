@@ -26,7 +26,8 @@ export async function POST(request: Request) {
     await rateLimit("withdraw", 10, 60_000, String(s.userId));
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed request.");
-    await assertPayoutApproved(request, s, p.data.positionId, Object.values(p.data.addresses), p.data.approval);
+    const entries = Object.entries(p.data.addresses); // keyed by the chain each address receives on
+    await assertPayoutApproved(request, s, p.data.positionId, entries.map(([, a]) => a), p.data.approval, entries.map(([c]) => c));
     const { order } = await createWithdrawOrder(s, p.data);
     return Response.json(await orderView(order.id));
   });

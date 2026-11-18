@@ -128,6 +128,17 @@ export async function openAccount(a: AgentActor, slug: string, accountId: string
     if (!signed) return { slug, accountId, ready: false, signThis: { signer_id: accountId, intents } };
     const why = signatureProblem(signed, accountId);
     if (why) throw new HttpError(403, `That isn't signed by this account's key (${why}).`);
+    // And it must be this exact, still-valid request, not an old signature of the account copied off the chain.
+    let first;
+    try {
+      first = parsePayload(signed);
+    } catch (e) {
+      throw new HttpError(400, (e as Error).message);
+    }
+    const dl = Date.parse(first.deadline);
+    if (first.signer_id !== accountId || JSON.stringify(first.intents) !== JSON.stringify(intents) || !Number.isFinite(dl) || dl < Date.now()) {
+      throw new HttpError(403, "Sign exactly the intent open_account returned (adding the owner's wallet as recovery key).");
+    }
     const [taken] = await db().select({ id: schema.positions.id }).from(schema.positions).where(eq(schema.positions.accountId, accountId));
     if (taken) throw new HttpError(409, "That account is already registered on nearbags.");
     [pos] = await db()

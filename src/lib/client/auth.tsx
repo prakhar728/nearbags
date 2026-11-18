@@ -41,7 +41,7 @@ interface AuthValue {
   keyForBasket: (basketId: number) => Promise<{ k: BasketKey; mode: KeyMode }>;
   walletSign: (accountId: string, intents: Intent[]) => Promise<SignedErc191 | SignedNep413>;
   /** A wallet signature approving money out of a bag to addresses other than this wallet; undefined if none need it. */
-  approvePayout: (positionId: number, addresses: string[]) => Promise<PayoutApproval | undefined>;
+  approvePayout: (positionId: number, addresses: string[], chains?: (string | undefined)[]) => Promise<PayoutApproval | undefined>;
   refresh: () => Promise<void>;
 }
 
@@ -217,9 +217,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const approvePayout = useCallback(
-    async (positionId: number, addresses: string[]): Promise<PayoutApproval | undefined> => {
+    async (positionId: number, addresses: string[], chains: (string | undefined)[] = []): Promise<PayoutApproval | undefined> => {
       if (!user) throw new Error("Sign in first.");
-      const others = needsApproval(addresses, { chain: user.chain, address: user.address });
+      const others = needsApproval(addresses, { chain: user.chain, address: user.address }, chains);
       if (!others.length) return undefined;
       const host = window.location.host.toLowerCase();
       const message = payoutApprovalText({ host, positionId, addresses: others });

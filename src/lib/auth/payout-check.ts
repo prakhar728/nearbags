@@ -13,10 +13,10 @@ import { requestHost, signInHost } from "./hosts";
 import { HttpError, type Session } from "./session";
 
 /** Refuse unless every address other than the user's own wallet was approved by that wallet just now. */
-export async function assertPayoutApproved(request: Request, s: Session, positionId: number, addresses: string[], approval: PayoutApproval | undefined) {
+export async function assertPayoutApproved(request: Request, s: Session, positionId: number, addresses: string[], approval: PayoutApproval | undefined, chains: (string | undefined)[] = []) {
   const [u] = await db().select().from(schema.users).where(eq(schema.users.id, s.userId));
   if (!u) throw new HttpError(401, "Sign in again.");
-  const others = needsApproval(addresses, { chain: u.walletChain, address: u.walletAddress });
+  const others = needsApproval(addresses, { chain: u.walletChain, address: u.walletAddress }, chains);
   if (!others.length) return;
   if (!approval) throw new HttpError(428, "Approve this address with your wallet first.");
   const host = signInHost(requestHost(request));

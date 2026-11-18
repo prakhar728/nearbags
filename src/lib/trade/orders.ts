@@ -486,7 +486,8 @@ export async function createSellOrder(s: Session, p: { positionId: number; pct: 
   const [position] = await db().select().from(schema.positions).where(eq(schema.positions.id, p.positionId));
   if (!position || position.userId !== s.userId) throw new HttpError(404, "Position not found.");
   const basket = (await getBasketById(position.basketId))!;
-  return withLease(`position:${position.id}`, 180_000, BUSY, async () => {
+  // As long as a request can run, so a slow 1Click can't let the lease lapse mid-preflight and open a second sell.
+  return withLease(`position:${position.id}`, 300_000, BUSY, async () => {
   await assertNoOpenOrder(position.id);
   if (!(await payTokens()).some((t) => t.assetId === p.payoutAssetId)) throw new HttpError(400, "That payout token isn't supported.");
 

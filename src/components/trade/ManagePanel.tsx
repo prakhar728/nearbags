@@ -101,7 +101,7 @@ export function ManagePanel({ positionId, basketId, onDone }: { positionId: numb
             onClick={() =>
               run(
                 async () => {
-                  const approval = await approvePayout(positionId, Object.values(addr));
+                  const approval = await approvePayout(positionId, Object.values(addr), Object.keys(addr));
                   return api<OrderView>("/api/orders/withdraw", { method: "POST", body: JSON.stringify({ positionId, addresses: addr, approval }) });
                 },
                 "Withdrawing…",

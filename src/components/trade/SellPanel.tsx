@@ -64,7 +64,7 @@ export function SellPanel({ positionId, basketId, holdings = [], onDone }: { pos
     try {
       setStep("Unlocking your basket key…");
       const { k } = await keyForBasket(basketId);
-      const approval = await approvePayout(positionId, [to]);
+      const approval = await approvePayout(positionId, [to], [token.chain]);
       setStep("Quoting every asset…");
       const v = await api<OrderView>("/api/orders/sell", { method: "POST", body: JSON.stringify({ positionId, pct, payoutAssetId: token.assetId, payoutAddress: to, approval }) });
       setView(v);

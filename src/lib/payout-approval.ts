@@ -37,8 +37,18 @@ export function payoutApprovalProblem(message: string, want: { host: string; pos
   return null;
 }
 
-/** Addresses that need approval: anything other than the signed-in wallet itself (EVM compared case-insensitively). */
-export function needsApproval(addresses: string[], wallet: { chain: string; address: string }): string[] {
-  const own = (a: string) => (wallet.chain === "evm" ? a.trim().toLowerCase() === wallet.address.toLowerCase() : a.trim() === wallet.address);
-  return [...new Set(addresses.map((a) => a.trim()).filter((a) => a && !own(a)))];
+const EVM_CHAINS = new Set(["eth", "arb", "base", "op", "pol", "bsc"]);
+/** Is a 1Click chain id one where the signed-in wallet's own address is really the user's? */
+export const walletChainFits = (walletChain: string, chain: string | undefined) =>
+  chain === undefined || (walletChain === "near" ? chain === "near" : EVM_CHAINS.has(chain));
+
+/**
+ * Addresses that need approval: anything other than the signed-in wallet itself (EVM compared case-insensitively),
+ * and the wallet's own address too when it's on a chain outside the wallet's family (a 0x address on Aptos or Sui
+ * isn't the user's EVM wallet). `chains[i]`, when given, is the 1Click chain the i-th address receives on.
+ */
+export function needsApproval(addresses: string[], wallet: { chain: string; address: string }, chains: (string | undefined)[] = []): string[] {
+  const own = (a: string, i: number) =>
+    walletChainFits(wallet.chain, chains[i]) && (wallet.chain === "evm" ? a.trim().toLowerCase() === wallet.address.toLowerCase() : a.trim() === wallet.address);
+  return [...new Set(addresses.map((a, i) => (a.trim() && !own(a, i) ? a.trim() : "")).filter(Boolean))];
 }

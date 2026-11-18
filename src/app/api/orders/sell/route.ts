@@ -1,7 +1,7 @@
 import { rateLimit } from "@/lib/ratelimit";
 import { z } from "zod";
 import { handle, HttpError, requireSession } from "@/lib/auth/session";
-import { createSellOrder, orderView } from "@/lib/trade/orders";
+import { createSellOrder, orderView, payTokens } from "@/lib/trade/orders";
 import { assertPayoutApproved } from "@/lib/auth/payout-check";
 
 const Body = z.object({
@@ -19,7 +19,8 @@ export async function POST(request: Request) {
     await rateLimit("sell", 10, 60_000, String(s.userId));
     const p = Body.safeParse(await request.json());
     if (!p.success) throw new HttpError(400, "Malformed sell order.");
-    await assertPayoutApproved(request, s, p.data.positionId, [p.data.payoutAddress], p.data.approval);
+    const chain = (await payTokens()).find((t) => t.assetId === p.data.payoutAssetId)?.blockchain ?? "unknown";
+    await assertPayoutApproved(request, s, p.data.positionId, [p.data.payoutAddress], p.data.approval, [chain]);
     const { order } = await createSellOrder(s, p.data);
     return Response.json(await orderView(order.id));
   });

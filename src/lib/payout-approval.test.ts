@@ -24,4 +24,11 @@ describe("payout approvals", () => {
     expect(needsApproval(["0xABCdef", " 0x111 "], { chain: "evm", address: "0xabcDEF" })).toEqual(["0x111"]);
     expect(needsApproval(["alice.near", "bob.near"], { chain: "near", address: "alice.near" })).toEqual(["bob.near"]);
   });
+
+  it("the wallet's own address still needs approval on a chain outside its family", () => {
+    const evm = { chain: "evm", address: "0xabc" };
+    expect(needsApproval(["0xABC"], evm, ["arb"])).toEqual([]);
+    expect(needsApproval(["0xABC"], evm, ["sui"])).toEqual(["0xABC"]);
+    expect(needsApproval(["alice.near"], { chain: "near", address: "alice.near" }, ["near"])).toEqual([]);
+  });
 });
