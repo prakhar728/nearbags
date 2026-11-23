@@ -117,14 +117,14 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <nav className="seg" aria-label="Explore tabs">
+        <nav className="seg lg:shrink-0" aria-label="Explore tabs">
           {TABS.map((t) => (
             <Link key={t.id} href={href(q, { tab: t.id })} aria-current={q.tab === t.id ? "page" : undefined} className="seg-item">
               {t.label}
             </Link>
           ))}
         </nav>
-        <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-5">
+        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-5 lg:justify-end">
           <FilterGroup label="Type">
             {KINDS.map((k) => (
               <Chip key={k.id} href={href(q, { kind: k.id })} on={q.kind === k.id}>
