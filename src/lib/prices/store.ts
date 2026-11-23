@@ -1,7 +1,8 @@
 // Price ingestion and reads (spec §7.1). Raw closes per source go to price_daily; the combined reference goes to price_median.
-import { and, asc, eq, gte, inArray, max, sql } from "drizzle-orm";
+import { and, eq, gte, max, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { ASSETS, getAsset, type Asset } from "@/lib/assets";
+import { storedCloses, storedDividends } from "./history-cache";
 import { combine } from "./median";
 import { fetchSource, nasdaqDividends, sourcesFor, twelvedataDividends, yahooDividends, type Bar, type Dividend, type SourceName } from "./sources";
 import { consensusDividends, totalReturn } from "./total-return";
@@ -150,32 +151,26 @@ export async function loadSeries(tickers: string[], from = "1900-01-01", opts: {
   if (opts.totalReturn === false) return out;
   const equities = tickers.filter((t) => KIND_BY_TICKER.get(t) === "stock" || KIND_BY_TICKER.get(t) === "etf");
   if (!equities.length) return out;
-  const rows = await db().select().from(schema.dividends).where(inArray(schema.dividends.ticker, equities));
-  for (const t of equities) {
+  const divs = await Promise.all(equities.map(storedDividends));
+  equities.forEach((t, i) => {
     const closes = out.get(t);
-    if (!closes) continue;
+    if (!closes) return;
     const bySource = new Map<string, Dividend[]>();
-    for (const r of rows) if (r.ticker === t) (bySource.get(r.source) ?? bySource.set(r.source, []).get(r.source)!).push({ date: r.exDate, amount: r.amount });
+    for (const r of divs[i]) (bySource.get(r.source) ?? bySource.set(r.source, []).get(r.source)!).push({ date: r.date, amount: r.amount });
     out.set(t, totalReturn(closes, consensusDividends([...bySource.values()])));
-  }
+  });
   return out;
 }
 
 async function loadPriceOnly(tickers: string[], from: string): Promise<Series> {
   const out: Series = new Map();
   const real = tickers.filter((t) => t !== "USDC");
-  if (real.length) {
-    const rows = await db()
-      .select({ ticker: schema.priceMedian.ticker, date: schema.priceMedian.date, close: schema.priceMedian.close })
-      .from(schema.priceMedian)
-      .where(and(inArray(schema.priceMedian.ticker, real), gte(schema.priceMedian.date, from)))
-      .orderBy(asc(schema.priceMedian.date));
-    for (const r of rows) {
-      let m = out.get(r.ticker);
-      if (!m) out.set(r.ticker, (m = new Map()));
-      m.set(r.date, r.close);
-    }
-  }
+  const histories = await Promise.all(real.map(storedCloses));
+  real.forEach((t, i) => {
+    const m = new Map<string, number>();
+    for (const [date, close] of histories[i]) if (date >= from) m.set(date, close);
+    if (m.size) out.set(t, m);
+  });
   if (tickers.includes("USDC")) out.set("USDC", new Map()); // engine treats USDC as constant 1
   return out;
 }

@@ -1,5 +1,6 @@
 // Daily price + dividend top-up (spec §7.1). Called by Vercel Cron with `Authorization: Bearer $CRON_SECRET`.
 import { cronAuthorized } from "@/lib/auth/cron";
+import { refreshPriceHistory } from "@/lib/prices/history-cache";
 import { ingestAll } from "@/lib/prices/store";
 
 export const maxDuration = 300;
@@ -10,6 +11,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
   const results = await ingestAll();
+  refreshPriceHistory();
   return Response.json({
     ok: true,
     assets: results.length,

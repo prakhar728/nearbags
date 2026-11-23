@@ -7,10 +7,9 @@
 // The guard uses the indicative price and reports when the two views disagree by more than 3%.
 // Meme coins (Rhea): the DCL pool's mid × NEAR/USD (on-chain), checked against DexScreener and GeckoTerminal.
 import "server-only";
-import { and, eq, gte } from "drizzle-orm";
-import { db, schema } from "@/db";
 import { getAsset, type Asset } from "@/lib/assets";
 import { memeMid } from "@/lib/rhea";
+import { storedCloses, storedDividends } from "./history-cache";
 import { median } from "./median";
 import { consensusDividends, WITHHOLDING } from "./total-return";
 
@@ -72,15 +71,11 @@ async function shareQuotes(a: Asset): Promise<Record<string, number>> {
 
 /** Shares per token implied by dividends since Ondo's launch (reinvested net of withholding). */
 export async function estimatedMultiplier(ticker: string): Promise<number> {
-  const rows = await db().select().from(schema.dividends).where(and(eq(schema.dividends.ticker, ticker), gte(schema.dividends.exDate, ONDO_LAUNCH)));
+  const rows = (await storedDividends(ticker)).filter((r) => r.date >= ONDO_LAUNCH);
   if (!rows.length) return 1;
   const bySrc = new Map<string, { date: string; amount: number }[]>();
-  for (const r of rows) (bySrc.get(r.source) ?? bySrc.set(r.source, []).get(r.source)!).push({ date: r.exDate, amount: r.amount });
-  const closes = await db()
-    .select({ date: schema.priceMedian.date, close: schema.priceMedian.close })
-    .from(schema.priceMedian)
-    .where(and(eq(schema.priceMedian.ticker, ticker), gte(schema.priceMedian.date, "2025-08-01")));
-  closes.sort((x, y) => x.date.localeCompare(y.date));
+  for (const r of rows) (bySrc.get(r.source) ?? bySrc.set(r.source, []).get(r.source)!).push({ date: r.date, amount: r.amount });
+  const closes = (await storedCloses(ticker)).filter(([date]) => date >= "2025-08-01").map(([date, close]) => ({ date, close }));
   let m = 1;
   for (const d of consensusDividends([...bySrc.values()])) {
     let prev: number | undefined;
