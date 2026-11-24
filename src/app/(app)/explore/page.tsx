@@ -1,4 +1,4 @@
-// Explore (spec §5.1): tabs Trending / Top performers / Most held / New, filters by kind and max fee.
+// Explore (spec §5.1): tabs Trending / Top performers / Most held / Most traded / New, filters by kind and max fee.
 // Tabs and filters live in searchParams so every view is a link.
 import Link from "next/link";
 import { connection } from "next/server";
@@ -18,6 +18,7 @@ const TABS = [
   { id: "trending", label: "Trending" },
   { id: "top", label: "Top performers" },
   { id: "held", label: "Most held" },
+  { id: "traded", label: "Most traded" },
   { id: "new", label: "New" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
@@ -112,6 +113,9 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
   } else if (q.tab === "held") {
     cards.sort((a, b) => (b.metrics.tvlUsd ?? -1) - (a.metrics.tvlUsd ?? -1) || newest(a, b));
     if (cards.every((c) => !c.metrics.tvlUsd)) note = "Nothing held yet. Sorted by newest until there is.";
+  } else if (q.tab === "traded") {
+    cards.sort((a, b) => b.metrics.volume30dUsd - a.metrics.volume30dUsd || newest(a, b));
+    if (cards.every((c) => !c.metrics.volume30dUsd)) note = "Nothing traded in the last 30 days. Sorted by newest until there is.";
   } else cards.sort(newest);
 
   return (
@@ -155,7 +159,7 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
       )}
 
       <p className="fine">
-        Live = buy-and-hold since the basket went live, on median reference prices. Backtest = historical, not a forecast. Held and holders are read from basket accounts on-chain.
+        Live = buy-and-hold since the basket went live, on median reference prices. Backtest = historical, not a forecast. Held and holders are read from basket accounts on-chain. Traded = completed buys plus sells, last 30 days. All refreshed every 5 minutes.
       </p>
     </div>
   );

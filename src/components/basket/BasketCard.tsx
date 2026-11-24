@@ -4,6 +4,7 @@ import type { BasketView } from "@/lib/baskets";
 import type { LiveMetrics } from "@/lib/basket-pages";
 import { creatorName, feePct, pct, tone, usd } from "@/lib/format";
 import { AssetLogo } from "@/components/AssetLogo";
+import { CreatorAvatar } from "@/components/CreatorAvatar";
 
 export interface CardData {
   basket: BasketView;
@@ -40,11 +41,14 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
       </div>
 
       <div className="space-y-1.5">
+        <div className="flex min-w-0 items-center gap-2 pb-1 text-[13px]">
+          <CreatorAvatar address={b.isHouse ? "nearbags" : b.creator.address} size={22} />
+          <span className="truncate font-medium text-text">{b.isHouse ? "nearbags" : creatorName(b.creator)}</span>
+          {b.isHouse && <span className="text-faint">house bag</span>}
+        </div>
         <h3 className="display text-[22px] leading-tight">{b.name}</h3>
         <p className="line-clamp-2 text-sm leading-relaxed text-muted">{b.tagline}</p>
-        <p className="num truncate text-[13px] text-muted">
-          {tickers.join(" · ")} <span className="text-faint">· by {creatorName(b.creator)}</span>
-        </p>
+        <p className="num truncate text-[13px] text-muted">{tickers.join(" · ")}</p>
       </div>
 
       <div className="mt-auto flex items-end justify-between gap-4 rounded-[var(--r-md)] bg-[var(--surface)] px-4 py-3.5">
@@ -75,6 +79,14 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
         <span>
           <span className="text-text">{metrics.holders ?? "—"}</span> holders
         </span>
+        <span>
+          bought by <span className="text-text">{metrics.buyers}</span>
+        </span>
+        {metrics.volume30dUsd > 0 && (
+          <span>
+            <span className="text-text">{usd(metrics.volume30dUsd, { compact: true })}</span> traded 30d
+          </span>
+        )}
         <span>
           fee <span className="text-text">{feePct(b.feeBps)}</span>
         </span>

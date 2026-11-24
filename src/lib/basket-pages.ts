@@ -1,11 +1,11 @@
 // Page-level reads for Explore, the basket page and creator profiles (server only).
 // Basket and profile reads are cached and tagged; the API routes that write them revalidate the tags.
 import "server-only";
-import { and, desc, eq, gte, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import { db, schema } from "@/db";
 import { getBasketBySlug, listBasketsByCreator, listPublicBaskets, type BasketView } from "@/lib/baskets";
-import { basketStats } from "@/lib/stats";
+import { allMetrics, NO_METRICS, type LiveMetrics } from "@/lib/metrics";
 
 export const TAG_BASKETS = "baskets";
 export const TAG_PROFILES = "profiles";
@@ -47,38 +47,23 @@ export async function listExploreBaskets(): Promise<BasketView[]> {
 /** A pending basket closed before its self-buy was never public: keep it off Explore and profiles. */
 const wasPublished = (b: BasketView) => b.status === "live" || b.publishedAt != null;
 
-export interface LiveMetrics {
-  tvlUsd: number | null; // on-chain, from every position account (lib/stats, cached 5 min); null if the read failed
-  holders: number | null;
-  creatorHoldsUsd: number | null;
-  inflow7dUsd: number; // completed buys minus completed sells, last 7 days
+export type { LiveMetrics } from "@/lib/metrics";
+
+/** Live numbers for these baskets, from the shared 5-minute cache in lib/metrics (no database read per visit). */
+export async function liveMetrics(basketIds: number[]): Promise<Map<number, LiveMetrics>> {
+  const all = await allMetrics().catch((e) => {
+    console.error("live metrics", e);
+    return {} as Record<number, LiveMetrics>;
+  });
+  return new Map(basketIds.map((id) => [id, all[id] ?? { ...NO_METRICS, tvlUsd: null, holders: null, creatorHoldsUsd: null }]));
 }
 
-/** Request-time metrics: on-chain TVL, holders and creator holdings, plus 7-day net inflow from orders. */
-export async function liveMetrics(basketIds: number[]): Promise<Map<number, LiveMetrics>> {
-  const out = new Map<number, LiveMetrics>(basketIds.map((id) => [id, { tvlUsd: null, holders: null, creatorHoldsUsd: null, inflow7dUsd: 0 }]));
-  if (!basketIds.length) return out;
-  const stats = await Promise.all(basketIds.map((id) => basketStats(id).catch(() => null)));
-  for (const st of stats) if (st) Object.assign(out.get(st.basketId)!, { tvlUsd: st.tvlUsd, holders: st.holders, creatorHoldsUsd: st.creatorHoldsUsd });
-
-  const since = new Date(Date.now() - 7 * 86_400_000);
-  const flows = await db()
-    .select({
-      basketId: schema.positions.basketId,
-      net: sql<number>`coalesce(sum(case when ${schema.orders.kind} = 'buy' then coalesce(${schema.orders.usdIn}, 0) when ${schema.orders.kind} = 'sell' then -coalesce(${schema.orders.usdOut}, 0) else 0 end), 0)::float8`,
-    })
-    .from(schema.orders)
-    .innerJoin(schema.positions, eq(schema.orders.positionId, schema.positions.id))
-    .where(
-      and(
-        inArray(schema.positions.basketId, basketIds),
-        gte(schema.orders.createdAt, since),
-        or(eq(schema.orders.status, "complete"), eq(schema.orders.status, "partial")),
-      ),
-    )
-    .groupBy(schema.positions.basketId);
-  for (const f of flows) out.get(f.basketId)!.inflow7dUsd = Number(f.net) || 0;
-  return out;
+/** The creator's public bags and what is held across them. Both reads are cached, so this costs no database read. */
+export async function creatorSpotlight(creatorId: number): Promise<{ bags: number; heldUsd: number | null }> {
+  const [bags, all] = await Promise.all([listExploreBaskets(), allMetrics().catch(() => ({}) as Record<number, LiveMetrics>)]);
+  const mine = bags.filter((b) => b.creator.id === creatorId);
+  const held = mine.map((b) => all[b.id]?.tvlUsd);
+  return { bags: mine.length, heldUsd: held.some((x) => x == null) ? null : held.reduce<number>((s, x) => s + (x ?? 0), 0) };
 }
 
 export interface CreatorProfile {

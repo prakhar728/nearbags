@@ -19,6 +19,7 @@ const Snapshot = z.object({
   days: z.number().int().min(0), // days held (open) or from first buy to close (closed)
   state: z.enum(["open", "closed"]),
   by: z.string().max(80).nullable(), // creator-style handle or short wallet
+  maker: z.string().max(80).nullable().optional(), // the bag's creator, same style (links made before 2026-11-24 have none)
   at: z.string(), // ISO time the snapshot was taken
 });
 export type PnlSnapshot = z.infer<typeof Snapshot>;

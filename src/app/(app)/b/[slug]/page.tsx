@@ -22,12 +22,13 @@ import { getAsset } from "@/lib/assets";
 import { listOf, paused, venueOf, type Paused } from "@/lib/trade/availability";
 import { hasMeme } from "@/lib/basket-kind";
 import { MemeNotice } from "@/components/basket/MemeNotice";
-import { getBasketPage, liveMetrics, type BasketEdit } from "@/lib/basket-pages";
+import { creatorSpotlight, getBasketPage, liveMetrics, type BasketEdit } from "@/lib/basket-pages";
 import { daysSince } from "@/lib/cards";
 import { FIELD_LABEL, HORIZON_LABEL } from "@/lib/basket-text";
 import type { BasketView } from "@/lib/baskets";
 import { ago, creatorHref, creatorName, feePct, pct, tone, usd } from "@/lib/format";
 import { AssetLogo } from "@/components/AssetLogo";
+import { CreatorAvatar } from "@/components/CreatorAvatar";
 import { assetColor } from "@/lib/palette";
 
 export async function generateMetadata({ params }: PageProps<"/b/[slug]">): Promise<Metadata> {
@@ -142,15 +143,21 @@ function Header({ b }: { b: BasketView }) {
         </div>
       </div>
       <div className="rise space-y-3" style={{ "--i": 1 } as React.CSSProperties}>
+        <Link href={creatorHref(b.creator)} className="group inline-flex max-w-full items-center gap-3 pb-1">
+          <CreatorAvatar address={b.isHouse ? "nearbags" : b.creator.address} size={40} />
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-medium text-text group-hover:underline">{b.isHouse ? "nearbags" : creatorName(b.creator)}</span>
+            <span className="block truncate text-[13px] text-muted">
+              <Suspense fallback={b.isHouse ? "House bag" : "Creator"}>
+                <CreatorLine id={b.creator.id} house={b.isHouse} />
+              </Suspense>
+            </span>
+          </span>
+        </Link>
         <h1 className="display text-[clamp(40px,7vw,76px)]">{b.name}</h1>
         <p className="max-w-2xl text-lg leading-relaxed text-muted">{b.tagline}</p>
       </div>
-      <dl className="rise stat-grid grid-cols-2 sm:grid-cols-5 max-sm:[&>*:last-child]:col-span-2" style={{ "--i": 2 } as React.CSSProperties}>
-        <Meta k="Creator">
-          <Link href={creatorHref(b.creator)} className="text-accent-fg hover:underline">
-            {creatorName(b.creator)}
-          </Link>
-        </Meta>
+      <dl className="rise stat-grid grid-cols-2 sm:grid-cols-4" style={{ "--i": 2 } as React.CSSProperties}>
         <Meta k="Fee">{feePct(b.feeBps)}</Meta>
         <Meta k="Horizon">{HORIZON_LABEL[b.horizon]}</Meta>
         <Meta k="Min buy">${b.minBuyUsd}</Meta>
@@ -210,6 +217,16 @@ async function TradingNotice({ b }: { b: BasketView }) {
       </p>
     </div>
   );
+}
+
+/** "Made 3 bags · $12K held across them", from cached reads only (no database read per visit). */
+async function CreatorLine({ id, house }: { id: number; house: boolean }) {
+  if (house) return <>House bag</>;
+  await connection();
+  const { bags, heldUsd } = await creatorSpotlight(id).catch(() => ({ bags: 0, heldUsd: null }));
+  if (!bags) return <>Creator</>;
+  const made = `Made ${bags} bag${bags === 1 ? "" : "s"}`;
+  return <>{heldUsd ? `${made} · ${usd(heldUsd, { compact: true })} held across them` : made}</>;
 }
 
 function Meta({ k, children }: { k: string; children: React.ReactNode }) {
@@ -289,17 +306,21 @@ async function LiveTrack({ b }: { b: BasketView }) {
   const days = daysSince(b.publishedAt);
   return (
     <div>
-      <div className="stat-grid grid-cols-2 sm:grid-cols-4">
+      <div className="stat-grid grid-cols-2 sm:grid-cols-3">
         <Cell k={`Since live · ${days}d`}>
           <span className={tone(live?.value)}>{pct(live?.value)}</span>
         </Cell>
         <Cell k="Held">{m.tvlUsd == null ? "—" : usd(m.tvlUsd, { compact: true })}</Cell>
         <Cell k="Holders">{m.holders ?? "—"}</Cell>
+        <Cell k="Bought by">
+          {m.buyers} {m.buyers === 1 ? "person" : "people"}
+        </Cell>
         <Cell k="Net flow · 7d">{usd(m.inflow7dUsd, { compact: true })}</Cell>
+        <Cell k="Traded · 30d">{usd(m.volume30dUsd, { compact: true })}</Cell>
       </div>
       <p className="fine mt-3">
         Live = buy-and-hold index since {b.publishedAt.slice(0, 10)} on median reference closes{live ? ` (latest ${live.asOf})` : ""}. Held and holders are read from every
-        basket account on intents.near, refreshed every few minutes.
+        basket account on intents.near. Traded = completed buys plus sells. All refreshed every 5 minutes.
       </p>
     </div>
   );

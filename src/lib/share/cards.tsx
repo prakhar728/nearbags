@@ -143,7 +143,7 @@ export function PnlCard({ s }: { s: PnlSnapshot }) {
           <span style={{ fontSize: 168, fontWeight: 800, letterSpacing: -6, color: up ? GAIN : LOSS, lineHeight: 1 }}>{pctText(s.pct)}</span>
           {s.usd != null && <span style={{ fontSize: 48, color: up ? GAIN : LOSS }}>{usdText(s.usd)}</span>}
         </div>
-        <span style={{ fontSize: 26, color: MUTED, marginTop: 6 }}>{held}</span>
+        <span style={{ fontSize: 26, color: MUTED, marginTop: 6 }}>{s.maker ? `${held} · bag by ${s.maker}` : held}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 24 }}>
         <Pills items={s.assets} />

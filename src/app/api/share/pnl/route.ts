@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       days: Math.max(0, days),
       state,
       by: user?.handle ? `@${user.handle}` : user ? shortWallet(user.walletAddress) : null,
+      maker: basket.isHouse ? null : basket.creator.handle ? `@${basket.creator.handle}` : shortWallet(basket.creator.address),
       at: new Date().toISOString(),
     });
     return Response.json({ path: `/s/${token}`, image: `/api/og/pnl/${token}` });
