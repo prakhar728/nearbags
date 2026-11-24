@@ -17,6 +17,8 @@ import { venueOf } from "@/lib/trade/paused";
 
 const usd = (x: number) => `$${x.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const signed = (x: number) => `${x >= 0 ? "+" : "−"}${usd(Math.abs(x))}`;
+/** A sale, withdrawal or reset is moving this bag's coins through swaps, so its on-chain value is temporarily low. */
+const inFlight = (r: { openOrderId: number | null; openOrderKind: string | null }) => r.openOrderId != null && r.openOrderKind !== "buy";
 
 export function PortfolioView() {
   const { user, loading } = useAuth();
@@ -71,9 +73,12 @@ export function PortfolioView() {
       </EmptyState>
     );
 
-  const total = rows.reduce((s, r) => s + r.valueUsd, 0);
-  const exitAll = rows.every((r) => r.exitUsd != null) ? rows.reduce((s, r) => s + (r.exitUsd ?? 0), 0) : null;
-  const cost = rows.reduce((s, r) => s + r.costUsd, 0);
+  // While a sale, withdrawal or reset runs, the coins sit in 1Click's swaps and the account reads as empty. Those bags
+  // stay out of the totals instead of showing as a 100% loss.
+  const settled = rows.filter((r) => !inFlight(r));
+  const total = settled.reduce((s, r) => s + r.valueUsd, 0);
+  const exitAll = settled.every((r) => r.exitUsd != null) ? settled.reduce((s, r) => s + (r.exitUsd ?? 0), 0) : null;
+  const cost = settled.reduce((s, r) => s + r.costUsd, 0);
   const pnl = cost > 0 ? (exitAll ?? total) - cost : null;
   const all = hist?.totals;
 
@@ -84,7 +89,15 @@ export function PortfolioView() {
           size="lg"
           label="Holding now"
           value={usd(total)}
-          sub={!rows.length ? "no open bags" : exitAll != null ? `sell value ${usd(exitAll)} · ${(((exitAll / total) - 1) * 100).toFixed(1)}% vs market` : "some assets can't be sold right now"}
+          sub={
+            settled.length < rows.length
+              ? "not counting bags that are selling right now"
+              : !rows.length
+                ? "no open bags"
+                : exitAll != null
+                  ? `sell value ${usd(exitAll)} · ${(((exitAll / total) - 1) * 100).toFixed(1)}% vs market`
+                  : "some assets can't be sold right now"
+          }
         />
         {rows.length > 0 && pnl != null ? (
           <Stat size="lg" label="Open P&L" value={signed(pnl)} tone={pnl >= 0 ? "text-gain" : "text-loss"} sub={`on ${usd(cost)} in`} />
@@ -148,12 +161,12 @@ export function PortfolioView() {
                       </div>
                       <div>
                         <div className="label">Value</div>
-                        <div className="num mt-1 text-base">{usd(r.valueUsd)}</div>
+                        <div className="num mt-1 text-base">{inFlight(r) ? <span className="text-muted">{r.openOrderKind === "reset" ? "Rebalancing…" : "On its way…"}</span> : usd(r.valueUsd)}</div>
                       </div>
                       <div>
                         <div className="label">P&amp;L</div>
-                        <div className={`num mt-1 text-base ${r.pnlUsd == null ? "text-muted" : r.pnlUsd >= 0 ? "text-gain" : "text-loss"}`}>
-                          {r.pnlUsd == null ? "—" : `${signed(r.pnlUsd)} (${((r.pnlUsd / r.costUsd) * 100).toFixed(1)}%)`}
+                        <div className={`num mt-1 text-base ${r.pnlUsd == null || inFlight(r) ? "text-muted" : r.pnlUsd >= 0 ? "text-gain" : "text-loss"}`}>
+                          {r.pnlUsd == null || inFlight(r) ? "—" : `${signed(r.pnlUsd)} (${((r.pnlUsd / r.costUsd) * 100).toFixed(1)}%)`}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
