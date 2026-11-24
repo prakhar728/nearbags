@@ -102,7 +102,7 @@ export function PortfolioView() {
         {rows.length > 0 && pnl != null ? (
           <Stat size="lg" label="Open P&L" value={signed(pnl)} tone={pnl >= 0 ? "text-gain" : "text-loss"} sub={`on ${usd(cost)} in`} />
         ) : (
-          <Stat size="lg" label="Open bags" value={String(rows.length)} sub={rows.length ? "a buy is still in progress" : "nothing held right now"} />
+          <Stat size="lg" label="Open bags" value={String(rows.length)} sub={!rows.length ? "nothing held right now" : settled.length < rows.length ? "a sale is on its way" : "a buy is still in progress"} />
         )}
         {all && all.investedUsd > 0 ? (
           <Stat
@@ -233,11 +233,24 @@ export function PortfolioView() {
                           Open basket →
                         </Link>
                       </div>
-                      {!r.via && (
-                        <div className="well p-4 sm:p-5">
-                          <div className="label mb-3">Sell</div>
-                          <SellPanel positionId={r.positionId} basketId={r.basket.id} holdings={r.holdings} onDone={load} />
+                      {!r.via && inFlight(r) ? (
+                        <div className="callout callout-warn grid gap-3 self-start text-sm">
+                          <p>
+                            {r.openOrderKind === "reset"
+                              ? "This bag is rebalancing. Open it to let the swaps finish."
+                              : `This bag has an unfinished ${r.openOrderKind === "sell" ? "sale" : "withdrawal"}. Open the bag to check where it pays out, then continue or cancel it.`}
+                          </p>
+                          <Link href={`/b/${r.basket.slug}`} className="btn btn-secondary btn-sm w-fit">
+                            {r.openOrderKind === "reset" ? "Open the bag" : "Continue or cancel it"}
+                          </Link>
                         </div>
+                      ) : (
+                        !r.via && (
+                          <div className="well p-4 sm:p-5">
+                            <div className="label mb-3">Sell</div>
+                            <SellPanel positionId={r.positionId} basketId={r.basket.id} holdings={r.holdings} onDone={load} />
+                          </div>
+                        )
                       )}
                     </div>
                   )}

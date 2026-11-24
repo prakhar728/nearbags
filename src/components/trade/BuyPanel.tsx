@@ -727,14 +727,34 @@ function Review({ pre, usdIn }: { pre: BuyPreflight; usdIn: number }) {
 function OrderBox({ view, token, canPay, onPay, onRetry, onCancel, step, err, legErrs }: { view: OrderView; token?: PayToken; canPay: boolean; onPay: () => void; onRetry: (seq: number) => void; onCancel?: () => void; step: string | null; err: string | null; legErrs: Record<number, string> }) {
   const o = view.order;
   const dep = o.deposit;
-  const steps: [string, "done" | "now" | "todo" | "bad"][] = [
-    ["Deposit", o.status === "awaiting_deposit" ? "now" : ["refunded", "failed"].includes(o.status) && !view.legs.length ? "bad" : "done"],
-    ["Fees", o.status === "awaiting_deposit" ? "todo" : o.status === "funded" ? "now" : "done"],
-    ["Swaps", ["complete"].includes(o.status) ? "done" : o.status === "partial" ? "bad" : ["fees_paid", "legs_running"].includes(o.status) ? "now" : "todo"],
-  ];
+  type St = "done" | "now" | "todo" | "bad";
+  const isBuy = o.kind === "buy";
+  // Sells, withdrawals and resets resumed on this page: their own steps, worked out from the legs.
+  const groupState = (legs: typeof view.legs, before: St): St =>
+    legs.some((l) => l.status === "failed" || l.status === "refunded") ? "bad" : legs.every((l) => l.status === "success") ? "done" : before === "done" ? "now" : "todo";
+  const swaps = view.legs.filter((l) => !l.isPayout);
+  const payouts = view.legs.filter((l) => l.isPayout);
+  const swapState = swaps.length ? groupState(swaps, "done") : "done";
+  const steps: [string, St][] = isBuy
+    ? [
+        ["Deposit", o.status === "awaiting_deposit" ? "now" : ["refunded", "failed"].includes(o.status) && !view.legs.length ? "bad" : "done"],
+        ["Fees", o.status === "awaiting_deposit" ? "todo" : o.status === "funded" ? "now" : "done"],
+        ["Swaps", ["complete"].includes(o.status) ? "done" : o.status === "partial" ? "bad" : ["fees_paid", "legs_running"].includes(o.status) ? "now" : "todo"],
+      ]
+    : [
+        ...(swaps.length ? ([[o.kind === "withdraw" ? "Transfers" : "Swaps", swapState]] as [string, St][]) : []),
+        ...(payouts.length ? ([["Payout", groupState(payouts, swapState)]] as [string, St][]) : []),
+      ];
+  const words: Record<string, [string, string, string]> = {
+    buy: ["Buying", "Bagged", "Partly bought"],
+    sell: ["Selling", "Sold", "Partly sold"],
+    withdraw: ["Withdrawing", "Withdrawn", "Partly withdrawn"],
+    reset: ["Rebalancing", "Rebalanced", "Partly rebalanced"],
+  };
+  const [running, finished, partly] = words[o.kind] ?? words.buy;
   return (
-    <Box title={o.status === "complete" ? "Bagged" : o.status === "partial" ? "Partly bought" : o.status === "refunded" ? "Refunded" : "Buying"}>
-      <ol className="grid grid-cols-3 gap-1.5">
+    <Box title={o.status === "complete" ? finished : o.status === "partial" ? partly : o.status === "refunded" ? "Refunded" : o.status === "failed" ? "Failed" : running}>
+      <ol className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${Math.max(1, steps.length)}, minmax(0, 1fr))` }}>
         {steps.map(([label, st]) => (
           <li
             key={label}

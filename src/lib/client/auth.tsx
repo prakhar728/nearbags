@@ -1,7 +1,7 @@
 "use client";
 // Sign-in for NEAR wallets (NEP-413 signMessage, recipient = our host) and EVM wallets (SIWE / EIP-4361 via
 // personal_sign), plus basket-key setup.
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount, useConnect, useDisconnect, useSignMessage } from "wagmi";
 import { b64ToBytes, buildSiweMessage } from "@/lib/auth/messages";
@@ -74,6 +74,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     await qc.invalidateQueries({ queryKey: ["me"] });
+  }, [qc]);
+
+  // A session can end elsewhere (logout in another tab revokes every session). The first of our API calls to come back
+  // 401 re-reads /api/auth/me, so the page switches to "Sign in" instead of showing errors under a stale wallet name.
+  useEffect(() => {
+    const orig = window.fetch;
+    const wrapped: typeof fetch = async (input, init) => {
+      const res = await orig(input, init);
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (res.status === 401 && new URL(url, location.href).origin === location.origin && !url.includes("/api/auth/")) {
+        void qc.invalidateQueries({ queryKey: ["me"] });
+      }
+      return res;
+    };
+    window.fetch = wrapped;
+    return () => {
+      if (window.fetch === wrapped) window.fetch = orig;
+    };
   }, [qc]);
 
   // NEAR sign-in: the server's nonce first, then pick a wallet and sign in one step (NEP-413).
