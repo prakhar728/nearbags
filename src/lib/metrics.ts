@@ -3,7 +3,7 @@
 // database a handful of small queries at most once per 5 minutes, however many people visit. Keep it that way: nothing
 // here may read the database per visit or per basket.
 import "server-only";
-import { eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { db, schema } from "@/db";
 import { getAsset } from "@/lib/assets";
@@ -90,4 +90,29 @@ export async function allMetrics(): Promise<Record<number, LiveMetrics>> {
   // A failed read would under-count, so show "—" rather than a wrong number (for 5 minutes, until the next refresh).
   for (const id of failed) Object.assign(out[id], { tvlUsd: null, holders: null, creatorHoldsUsd: null });
   return out;
+}
+
+/** Different people who bought any of a creator's bags, not counting the creator, by creator id. Same 5-minute shared
+ *  cache as allMetrics: one small query per refresh, never per visit. Per-bag buyer counts can't be summed for this,
+ *  because one person buying two of a creator's bags would count twice. */
+export async function creatorBuyers(): Promise<Record<number, number>> {
+  "use cache: remote";
+  if (process.env.__NEXT_USE_CACHE) {
+    cacheLife({ stale: 300, revalidate: 300, expire: 3600 });
+    cacheTag("basket-metrics");
+  }
+  const rows = await db()
+    .select({ creatorId: schema.baskets.creatorId, buyers: sql<number>`count(distinct ${schema.positions.userId})::int` })
+    .from(schema.orders)
+    .innerJoin(schema.positions, eq(schema.orders.positionId, schema.positions.id))
+    .innerJoin(schema.baskets, eq(schema.positions.basketId, schema.baskets.id))
+    .where(
+      and(
+        eq(schema.orders.kind, "buy"),
+        inArray(schema.orders.status, ["complete", "partial"]),
+        ne(schema.positions.userId, schema.baskets.creatorId),
+      ),
+    )
+    .groupBy(schema.baskets.creatorId);
+  return Object.fromEntries(rows.map((r) => [r.creatorId, Number(r.buyers) || 0]));
 }

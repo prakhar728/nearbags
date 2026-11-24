@@ -1,9 +1,11 @@
-// Explore (spec §5.1): tabs Trending / Top performers / Most held / Most traded / New, filters by kind and max fee.
+// Explore (spec §5.1): tabs Trending / Top performers / Most held / Most traded / Creators / New, filters by kind and
+// max fee (bag tabs only).
 // Tabs and filters live in searchParams so every view is a link.
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { BasketCard } from "@/components/basket/BasketCard";
+import { CreatorBoard } from "@/components/basket/CreatorBoard";
 import { CardGridSkeleton } from "@/components/basket/Skeletons";
 import { Empty as EmptyState, PageHeader } from "@/components/ui/Primitives";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -12,6 +14,8 @@ import { basketKind, type BasketKind } from "@/lib/basket-kind";
 import { venueOf } from "@/lib/trade/paused";
 import { ageDays, cardData } from "@/lib/cards";
 import { feePct } from "@/lib/format";
+import { creatorBoard } from "@/lib/leaderboard";
+import { creatorBuyers } from "@/lib/metrics";
 import { listOf, paused } from "@/lib/trade/availability";
 
 const TABS = [
@@ -19,6 +23,7 @@ const TABS = [
   { id: "top", label: "Top performers" },
   { id: "held", label: "Most held" },
   { id: "traded", label: "Most traded" },
+  { id: "creators", label: "Creators" },
   { id: "new", label: "New" },
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
@@ -99,6 +104,7 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
   const q = parse(await searchParams);
   await connection();
   const all = await listExploreBaskets();
+  if (q.tab === "creators") return <CreatorsBody q={q} all={all} />;
   const filtered = all.filter((b) => (q.kind === "all" || basketKind(b.assets) === q.kind) && (q.fee == null || b.feeBps <= q.fee));
   const pool = q.tab === "top" ? filtered.filter((b) => ageDays(b) >= MIN_AGE_DAYS) : filtered;
   const cards = await cardData(pool);
@@ -118,16 +124,14 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
     if (cards.every((c) => !c.metrics.volume30dUsd)) note = "Nothing traded in the last 30 days. Sorted by newest until there is.";
   } else cards.sort(newest);
 
+  // A rank only means something where the tab sorts by a real number and that number isn't zero.
+  const ranked = (c: (typeof cards)[number]) =>
+    q.tab === "top" ? c.live != null : q.tab === "trending" ? c.metrics.inflow7dUsd > 0 : q.tab === "held" ? (c.metrics.tvlUsd ?? 0) > 0 : q.tab === "traded" ? c.metrics.volume30dUsd > 0 : false;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <nav className="seg lg:shrink-0" aria-label="Explore tabs">
-          {TABS.map((t) => (
-            <Link key={t.id} href={href(q, { tab: t.id })} aria-current={q.tab === t.id ? "page" : undefined} className="seg-item">
-              {t.label}
-            </Link>
-          ))}
-        </nav>
+        <Tabs q={q} />
         <div className="flex min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:gap-x-5 lg:justify-end">
           <FilterGroup label="Type">
             {KINDS.map((k) => (
@@ -151,7 +155,7 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
       {cards.length ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {cards.map((c, i) => (
-            <BasketCard key={c.basket.id} {...c} i={i} />
+            <BasketCard key={c.basket.id} {...c} i={i} rank={ranked(c) ? i + 1 : undefined} />
           ))}
         </div>
       ) : (
@@ -160,6 +164,57 @@ async function ExploreBody({ searchParams }: { searchParams: PageProps<"/">["sea
 
       <p className="fine">
         Live = buy-and-hold since the basket went live, on median reference prices. Backtest = historical, not a forecast. Held and holders are read from basket accounts on-chain. Traded = completed buys plus sells, last 30 days. All refreshed every 5 minutes.
+      </p>
+    </div>
+  );
+}
+
+function Tabs({ q }: { q: Q }) {
+  return (
+    <nav className="seg lg:shrink-0" aria-label="Explore tabs">
+      {TABS.map((t) => (
+        <Link key={t.id} href={href(q, { tab: t.id })} aria-current={q.tab === t.id ? "page" : undefined} className="seg-item">
+          {t.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** Creators leaderboard. Type and fee filters are for bags, so they don't apply here. */
+async function CreatorsBody({ q, all }: { q: Q; all: Awaited<ReturnType<typeof listExploreBaskets>> }) {
+  const [cards, buyers] = await Promise.all([
+    cardData(all.filter((b) => !b.isHouse)),
+    creatorBuyers().catch((e) => {
+      console.error("creator buyers", e);
+      return {} as Record<number, number>;
+    }),
+  ]);
+  const rows = creatorBoard(cards, buyers, MIN_AGE_DAYS);
+  return (
+    <div className="space-y-6">
+      <Tabs q={q} />
+      {rows.length ? (
+        <>
+          {rows.every((r) => r.buyers === 0) && <p className="fine">Nobody has bought a creator&rsquo;s bag yet, so for now this is in order of money held.</p>}
+          <CreatorBoard rows={rows} />
+        </>
+      ) : (
+        <EmptyState
+          title="No creators yet"
+          actions={
+            <Link href="/create" className="btn btn-primary btn-sm">
+              Make the first bag
+            </Link>
+          }
+        >
+          Publish a bag and you&rsquo;re on the board.
+        </EmptyState>
+      )}
+      <p className="fine">
+        Ranked by buyers: different people who bought any of a creator&rsquo;s bags, not counting the creator. Ties go to money held across their bags, then
+        30-day volume. Best bag is the highest live return among bags live at least {MIN_AGE_DAYS} days. House bags aren&rsquo;t ranked. Refreshed every 5
+        minutes.
       </p>
     </div>
   );

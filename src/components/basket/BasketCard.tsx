@@ -13,7 +13,7 @@ export interface CardData {
   metrics: LiveMetrics;
 }
 
-export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardData & { i?: number }) {
+export function BasketCard({ basket: b, live, backtest, metrics, i = 0, rank }: CardData & { i?: number; rank?: number }) {
   const tickers = b.assets.map((a) => a.assetId);
   const shown = tickers.slice(0, 5);
   const headline = backtest?.cagr != null ? backtest.cagr : (backtest?.total ?? null);
@@ -35,6 +35,11 @@ export function BasketCard({ basket: b, live, backtest, metrics, i = 0 }: CardDa
           )}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {rank != null && (
+            <span className={`badge num font-semibold ${rank <= 3 ? "text-text" : ""}`} aria-label={`Rank ${rank}`}>
+              #{rank}
+            </span>
+          )}
           {b.agent && <Tag>AI agent</Tag>}
           {b.status === "closed" ? <Tag>Closed</Tag> : b.isHouse ? <Tag>House</Tag> : <Tag tone="accent">Live</Tag>}
         </div>
