@@ -2,7 +2,7 @@
 name = "rebalancer"
 version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license = "BUSL-1.1"
 description = "Stonkbag rebalancer: signs basket swap legs with a key derived inside OutLayer's TEE, after checking each one against 1Click"
 
 [dependencies]

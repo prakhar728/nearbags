@@ -149,4 +149,6 @@ AI coding tools (Claude Code) were used during the build.
 
 ## License
 
-MIT
+Business Source License 1.1 ([LICENSE](LICENSE)), from v0.2.1 (2026-11-24). You may read, copy, modify and run nearbags for non-production use. Running it in production needs a commercial license from the licensor. On 2029-11-24 each version converts to GPL-2.0-or-later.
+
+Earlier versions, including the judged hackathon version (tag `hackathon-submission`) and `v0.2.0`, were released under MIT and stay MIT.
